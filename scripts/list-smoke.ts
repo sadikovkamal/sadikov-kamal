@@ -259,14 +259,22 @@ async function main() {
     }
 
     // --- FTS index plan -----------------------------------------------------
+    // With our tiny seed dataset Postgres picks Seq Scan over the GIN index
+    // (cheaper at 8 rows). Run EXPLAIN inside a transaction with seqscan
+    // disabled so the planner is forced to be honest about whether the
+    // index is actually reachable for this expression. Catches a schema
+    // change that accidentally drops the FTS expression match.
     {
-      const plan = await db.execute(
-        sql`EXPLAIN SELECT id FROM problems WHERE to_tsvector('simple', body_md) @@ websearch_to_tsquery('simple', 'cauchy')`
-      );
-      const planText = plan.map((r) => Object.values(r)[0]).join("\n");
-      const usesIndex = /problems_body_fts_idx/i.test(planText);
-      assert(usesIndex, `FTS plan does not use index:\n${planText}`);
-      console.log(`[12] EXPLAIN confirms problems_body_fts_idx is used`);
+      const usesIndex = await db.transaction(async (tx) => {
+        await tx.execute(sql`SET LOCAL enable_seqscan = off`);
+        const plan = await tx.execute(
+          sql`EXPLAIN SELECT id FROM problems WHERE to_tsvector('simple', body_md) @@ websearch_to_tsquery('simple', 'cauchy')`
+        );
+        const planText = plan.map((r) => Object.values(r)[0]).join("\n");
+        return /problems_body_fts_idx/i.test(planText);
+      });
+      assert(usesIndex, "FTS plan did not pick problems_body_fts_idx even with seqscan disabled");
+      console.log(`[12] EXPLAIN (with seqscan off) confirms problems_body_fts_idx is reachable`);
     }
   } finally {
     // --- Cleanup -----------------------------------------------------------

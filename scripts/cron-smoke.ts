@@ -16,7 +16,6 @@ const BASE = `http://localhost:${PORT}`;
 const ROUTES = [
   "/api/cron/cleanup-sessions",
   "/api/cron/cleanup-login-attempts",
-  "/api/cron/cleanup-draft-images",
 ];
 
 function assert(cond: unknown, msg: string): asserts cond {

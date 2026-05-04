@@ -141,13 +141,11 @@ sections and stay as-is in the markdown.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `source` | string (slug) | yes | Auto-created if missing in `sources` table. |
-| `source_name` | string | no | Display name used when auto-creating. Defaults to the slug if absent. |
+| `source` | string (slug) | yes | Auto-created if missing in `sources` table. Display name is derived from the slug (`"imo-shortlist"` → `"Imo Shortlist"`); rename in `/admin/sources` after import. |
 | `year` | int 1900..2100 | recommended | May be omitted; stored as null. |
 | `problem_number` | string, max 50 chars | yes | "1", "P3", "Day 2 / 5", "A1" — anything goes. |
 | `classes` | int[] from {5..11} | yes (>= 1) | School-grade tags. |
-| `topics` | string[] (slugs) | yes (>= 1) | Auto-created if missing in `topics` table. |
-| `topic_names` | { slug: string } map | no | Optional display names for newly-created topics. |
+| `topics` | string[] (slugs) | yes (>= 1) | Auto-created if missing in `topics` table. Same naming behavior as `source`. |
 | `difficulty` | int 1..5 | yes | 1 = intro, 3 = national olympiad median, 5 = IMO P6 level. |
 | `tags` | string[] | no | Free-form. Auto-created and slugified server-side. |
 | `answer` | string | no | Short answer for non-proof problems. |

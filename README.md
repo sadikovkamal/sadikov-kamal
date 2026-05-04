@@ -56,33 +56,39 @@ typically taken on the dev machine).
 
 ### Smoke tests
 
-Each phase ships a `scripts/<area>-smoke.ts` that exercises the new
-surface end-to-end. Run them with the `react-server` condition so
-`server-only`-marked modules can be imported from the CLI:
+Each phase ships one or more `scripts/<area>-smoke.ts` that exercise
+the new surface end-to-end. Run the whole suite (17 scripts) with:
 
 ```bash
-NODE_OPTIONS="--conditions=react-server" npx tsx scripts/auth-smoke.ts
+npm run smoke
 ```
 
-The full suite (run in order):
+The runner (`scripts/run-all-smokes.sh`) splits scripts into two flag
+groups: those that import `"server-only"`-marked lib modules need
+`--conditions=react-server` so Node resolves the no-op stub instead of
+the throw-on-import default; the markdown server-render smoke uses
+`react-dom/server` and MUST run without that flag (the conditions are
+mutually exclusive).
 
-```
-auth-smoke.ts            # Phase 2 — sessions
-auth-http-smoke.ts       # Phase 2 — proxy guard + SSR
-markdown-smoke.ts        # Phase 3 — KaTeX + GFM + sanitize
-preview-smoke.ts         # Phase 3 — sandbox page
-r2-smoke.ts              # Phase 4 — upload roundtrip (skips if env unset)
-upload-page-smoke.ts     # Phase 4 — upload page shell
-problems-smoke.ts        # Phase 5 — problem CRUD
-problems-page-smoke.ts   # Phase 5 — pages
-list-smoke.ts            # Phase 6 — list query, filters, FTS
-list-page-smoke.ts       # Phase 6 — list page filters via URL
-import-smoke.ts          # Phase 8 — bulk import happy path
-import-page-smoke.ts     # Phase 8 — import pages
-import-failure-smoke.ts  # Phase 8 — broken bundle
-taxonomy-smoke.ts        # Phase 9 — taxonomy CRUD + tag merge
-taxonomy-pages-smoke.ts  # Phase 9 — pages
-```
+| Script | Phase | What it covers |
+|---|---|---|
+| `auth-smoke.ts` | 2 | sessions, bcrypt |
+| `auth-http-smoke.ts` | 2 | proxy guard + SSR |
+| `markdown-smoke.ts` | 3 | KaTeX + GFM + sanitize |
+| `preview-smoke.ts` | 3 | sandbox page |
+| `r2-smoke.ts` | 4 | upload roundtrip (no-env mode also covered) |
+| `upload-page-smoke.ts` | 4 | upload page shell |
+| `problems-smoke.ts` | 5 | problem CRUD + tag dedup |
+| `problems-page-smoke.ts` | 5 | pages + 404 |
+| `list-smoke.ts` | 6 | list query, filters, EXPLAIN-checked FTS |
+| `list-page-smoke.ts` | 6 | list page URL state |
+| `import-smoke.ts` | 8 | bulk import happy path |
+| `import-page-smoke.ts` | 8 | import pages |
+| `import-failure-smoke.ts` | 8 | broken bundle |
+| `taxonomy-smoke.ts` | 9 | taxonomy CRUD + tag merge |
+| `taxonomy-pages-smoke.ts` | 9 | pages |
+| `rate-limit-smoke.ts` | 10 | login rate limit + purge |
+| `cron-smoke.ts` | 10 | cron auth gate |
 
 ## Deployment
 
@@ -101,8 +107,14 @@ Cron jobs (Vercel Cron, defined in `vercel.json`):
 | Path | Schedule | Purpose |
 |---|---|---|
 | `/api/cron/cleanup-sessions` | `0 3 * * *` | Drop expired session rows |
-| `/api/cron/cleanup-draft-images` | `0 4 * * *` | Delete R2 objects under `problems/draft/` older than 24h |
 | `/api/cron/cleanup-login-attempts` | `0 5 * * *` | Drop login_attempts older than 24h |
+
+> Image upload prefixes — `problems/draft/` (new) and `problems/{id}/`
+> (edit) — are never auto-cleaned. Saved problems' markdown bodies still
+> reference draft URLs after save (we don't re-key on save), so any cron
+> sweeping `draft/` would cause data loss. R2 storage is cheap; orphan
+> images from abandoned drafts cost about $0.015/GB indefinitely.
+> Proper cleanup would re-key images at save time — out of scope for MVP.
 
 Daily DB backup runs from a GitHub Actions workflow
 (`.github/workflows/db-backup.yml`) at 02:00 UTC and uploads a

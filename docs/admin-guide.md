@@ -215,14 +215,19 @@ you've never restored from might not work.
 
 ## Cron jobs
 
-Vercel runs three cron jobs from `vercel.json`. Each is gated by
+Vercel runs two cron jobs from `vercel.json`. Each is gated by
 `CRON_SECRET` (a long random string set as a Vercel env var):
 
 | Cron | Schedule | Effect |
 |---|---|---|
 | `/api/cron/cleanup-sessions` | `0 3 * * *` | Removes `sessions` rows where `expires_at < now()` |
-| `/api/cron/cleanup-draft-images` | `0 4 * * *` | Removes R2 objects under `problems/draft/` older than 24h |
 | `/api/cron/cleanup-login-attempts` | `0 5 * * *` | Removes `login_attempts` rows older than 24h |
+
+> R2 has no auto-cleanup cron. Single-problem editor uploads under
+> `problems/draft/` are referenced by saved problems' markdown bodies
+> (we don't re-key images on save), so any cron that swept the prefix
+> would cause data loss. Orphan images from abandoned drafts accumulate
+> at ~$0.015/GB on R2 — negligible at MVP scale.
 
 Manual run for testing:
 

@@ -6,10 +6,6 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/cleanup-draft-images",
-      "schedule": "0 4 * * *"
-    },
-    {
       "path": "/api/cron/cleanup-login-attempts",
       "schedule": "0 5 * * *"
     }

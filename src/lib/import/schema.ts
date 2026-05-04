@@ -8,11 +8,13 @@ import { z } from "zod";
  * been overlaid by the parser, so optional fields like `year` aren't
  * required at the type level — but the validator can additionally
  * require them for "ok" status.
+ *
+ * Display names for auto-created sources/topics are derived from the
+ * slug at execute time (`"imo-shortlist"` → `"Imo Shortlist"`); admins
+ * rename them via the taxonomy CRUD pages after import.
  */
 export const problemFrontmatterSchema = z.object({
   source: z.string().min(1).max(100),
-  /** Display name used when auto-creating the source. */
-  source_name: z.string().optional(),
   year: z.number().int().min(1900).max(2100).optional(),
   problem_number: z
     .union([z.string(), z.number()])
@@ -21,8 +23,6 @@ export const problemFrontmatterSchema = z.object({
     .optional(),
   classes: z.array(z.number().int().min(5).max(11)).min(1),
   topics: z.array(z.string().min(1)).min(1),
-  /** Optional display names for newly-created topics: { slug: name }. */
-  topic_names: z.record(z.string(), z.string()).optional(),
   difficulty: z.number().int().min(1).max(5),
   tags: z.array(z.string()).default([]),
   answer: z.string().optional(),
@@ -36,11 +36,9 @@ export const manifestSchema = z.object({
   defaults: z
     .object({
       source: z.string().optional(),
-      source_name: z.string().optional(),
       year: z.number().int().optional(),
       classes: z.array(z.number().int()).optional(),
       topics: z.array(z.string()).optional(),
-      topic_names: z.record(z.string(), z.string()).optional(),
       difficulty: z.number().int().optional(),
       tags: z.array(z.string()).optional(),
     })
