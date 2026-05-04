@@ -53,16 +53,15 @@ async function main() {
       if (r.status !== 200) {
         throw new Error(`/admin with cookie: expected 200, got ${r.status}\n${body.slice(0, 800)}`);
       }
-      // React 19 inserts `<!-- -->` between static text and dynamic
-      // interpolation, so the literal substring "Welcome, Admin" never
-      // appears verbatim. Use a regex that tolerates the marker.
-      if (!/Welcome,\s*(?:<!--\s*-->\s*)?Admin/.test(body)) {
-        throw new Error(`/admin response missing welcome text\n--- BEGIN BODY (${body.length} chars) ---\n${body}\n--- END BODY ---`);
+      // Phase 9 replaced the placeholder dashboard with a real one. The
+      // heading is "Boshqaruv paneli" (Uzbek for "Dashboard").
+      if (!/Boshqaruv paneli/.test(body)) {
+        throw new Error(`/admin response missing dashboard heading\n--- BEGIN BODY (${body.length} chars) ---\n${body.slice(0, 1000)}\n--- END BODY ---`);
       }
       if (!body.includes("Sign out")) {
         throw new Error(`/admin response does not contain Sign out button`);
       }
-      console.log(`[3] /admin with cookie -> 200 OK, contains welcome heading + Sign out`);
+      console.log(`[3] /admin with cookie -> 200 OK, contains dashboard heading + Sign out`);
     }
 
     // /login with cookie -> redirect to /admin (already logged in)

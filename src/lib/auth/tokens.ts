@@ -24,4 +24,18 @@ export function hashSessionToken(token: string): string {
 }
 
 export const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
-export const SESSION_COOKIE_NAME = "provia_session";
+
+/**
+ * Cookie name. In production we use the `__Host-` prefix so the browser
+ * enforces:
+ *   - Secure flag must be set (HTTPS only)
+ *   - Path must be "/"
+ *   - No Domain attribute (no subdomain sharing)
+ * Together those rule out cookie injection from a same-site weakness on
+ * a sibling subdomain. In dev the prefix would block the cookie entirely
+ * (HTTP, no Secure), so we keep the simple name there.
+ */
+export const SESSION_COOKIE_NAME =
+  process.env.NODE_ENV === "production"
+    ? "__Host-provia_session"
+    : "provia_session";

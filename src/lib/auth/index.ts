@@ -40,3 +40,4 @@ export async function requireAdmin(): Promise<User> {
 export * from "./cookies";
 export * from "./sessions";
 export * from "./tokens";
+export * from "./rate-limit";
