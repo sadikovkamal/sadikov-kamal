@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
       ? [{ protocol: "https", hostname: r2Hostname }]
       : [],
   },
+  experimental: {
+    // Default cap is 1 MB, which is below our R2 MAX_SIZE_BYTES (5 MB).
+    // Without this, image uploads fail at the Server Action boundary
+    // before our handler ever runs. Keep these two limits in sync.
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
+  },
 };
 
 export default nextConfig;
