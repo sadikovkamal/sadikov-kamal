@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: provia-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: provia_admin
+      POSTGRES_PASSWORD: dev_password_change_me
+      POSTGRES_DB: provia
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
