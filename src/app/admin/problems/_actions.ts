@@ -1,8 +1,11 @@
 "use server";
 
 import { z } from "zod";
+import { inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { db } from "@/db";
+import { problems } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import {
   createProblemTx,
@@ -82,4 +85,23 @@ export async function deleteProblemAction(id: string) {
   await deleteProblemTx(id);
   revalidatePath("/admin/problems");
   redirect("/admin/problems");
+}
+
+const bulkDeleteSchema = z
+  .array(z.string().uuid())
+  .max(500, "Bir vaqtda 500 dan ortiq masala o'chirib bo'lmaydi");
+
+export async function bulkDeleteProblemsAction(ids: string[]) {
+  await requireAdmin();
+  const parsed = bulkDeleteSchema.safeParse(ids);
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Invalid ids",
+    };
+  }
+  if (parsed.data.length === 0) return;
+
+  // Junction rows + images cascade automatically (Phase 1 schema).
+  await db.delete(problems).where(inArray(problems.id, parsed.data));
+  revalidatePath("/admin/problems");
 }
