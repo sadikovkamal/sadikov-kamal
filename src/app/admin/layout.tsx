@@ -19,14 +19,23 @@ export default async function AdminLayout({
               Provia · Admin
             </Link>
             <nav className="flex items-center gap-4 text-sm">
+              <Link href="/admin" className="hover:underline">
+                Dashboard
+              </Link>
               <Link href="/admin/problems" className="hover:underline">
                 Masalalar
               </Link>
-              <Link href="/admin/problems/new" className="hover:underline">
-                + Yangi
-              </Link>
               <Link href="/admin/import" className="hover:underline">
                 Import
+              </Link>
+              <Link href="/admin/topics" className="hover:underline">
+                Mavzular
+              </Link>
+              <Link href="/admin/sources" className="hover:underline">
+                Manbalar
+              </Link>
+              <Link href="/admin/tags" className="hover:underline">
+                Teglar
               </Link>
             </nav>
           </div>

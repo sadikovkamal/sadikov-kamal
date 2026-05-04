@@ -9,6 +9,7 @@ import {
   problemClasses,
   tags,
 } from "@/db/schema";
+import { slugify } from "@/lib/utils/slug";
 
 export interface ProblemInput {
   bodyMd: string;
@@ -162,12 +163,4 @@ export async function ensureTagsByName(names: string[]): Promise<string[]> {
   return slugs
     .map((s) => bySlug.get(s))
     .filter((x): x is string => typeof x === "string");
-}
-
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
-    .replace(/^-+|-+$/g, "");
 }
