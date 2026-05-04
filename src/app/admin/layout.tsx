@@ -18,7 +18,14 @@ export default async function AdminLayout({
             <Link href="/admin" className="font-semibold">
               Provia · Admin
             </Link>
-            {/* Nav links added in later phases */}
+            <nav className="flex items-center gap-4 text-sm">
+              <Link href="/admin/problems" className="hover:underline">
+                Masalalar
+              </Link>
+              <Link href="/admin/problems/new" className="hover:underline">
+                + Yangi
+              </Link>
+            </nav>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-muted-foreground text-sm">
