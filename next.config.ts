@@ -24,7 +24,13 @@ const nextConfig: NextConfig = {
     // Without this, image uploads fail at the Server Action boundary
     // before our handler ever runs. Keep these two limits in sync.
     serverActions: {
-      bodySizeLimit: "5mb",
+      // Image uploads cap at 5 MB (Phase 4) but bulk-import bundles cap at
+      // 50 MB (Phase 7 spec). Pick the larger so neither flow is clipped at
+      // the framework boundary; per-file/per-bundle validation enforces the
+      // real limits with useful error messages.
+      // Note: Vercel itself caps server-action payloads around 4.5 MB on
+      // Hobby/Pro tiers, so big bundles need to be split for production.
+      bodySizeLimit: "50mb",
     },
   },
 };

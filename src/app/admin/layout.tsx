@@ -25,6 +25,9 @@ export default async function AdminLayout({
               <Link href="/admin/problems/new" className="hover:underline">
                 + Yangi
               </Link>
+              <Link href="/admin/import" className="hover:underline">
+                Import
+              </Link>
             </nav>
           </div>
           <div className="flex items-center gap-3">
