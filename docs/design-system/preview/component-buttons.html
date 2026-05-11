@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="uz">
+<head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
+button{font-family:Geist,sans-serif;font-weight:500;font-size:14px;line-height:1;height:32px;padding:0 10px;border-radius:10px;border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s;}
+.btn-default{background:oklch(0.205 0 0);color:oklch(0.985 0 0);}
+.btn-default:hover{background:oklch(0.205 0 0 / 0.85);}
+.btn-outline{background:oklch(1 0 0);color:oklch(0.145 0 0);border-color:oklch(0.922 0 0);}
+.btn-outline:hover{background:oklch(0.97 0 0);}
+.btn-secondary{background:oklch(0.97 0 0);color:oklch(0.205 0 0);}
+.btn-ghost{background:transparent;color:oklch(0.145 0 0);}
+.btn-ghost:hover{background:oklch(0.97 0 0);}
+.btn-destructive{background:oklch(0.577 0.245 27 / 0.10);color:oklch(0.577 0.245 27);}
+.btn-destructive:hover{background:oklch(0.577 0.245 27 / 0.20);}
+.btn-link{background:transparent;color:oklch(0.520 0.180 264);padding:0;height:auto;}
+.btn-link:hover{text-decoration:underline;text-underline-offset:3px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="label">Buttons · variants</div>
+  <div class="row">
+    <button class="btn-default">Saqlash</button>
+    <button class="btn-outline">Bekor qilish</button>
+    <button class="btn-secondary">Yangi masala</button>
+    <button class="btn-ghost">Tahrirlash</button>
+    <button class="btn-destructive">O'chirish</button>
+    <button class="btn-link">Batafsil</button>
+  </div>
+  <div class="label">Sizes · xs · sm · default · lg</div>
+  <div class="row">
+    <button class="btn-default" style="height:24px;padding:0 8px;font-size:12px;border-radius:8px;">xs</button>
+    <button class="btn-default" style="height:28px;padding:0 10px;font-size:13px;border-radius:8px;">sm</button>
+    <button class="btn-default">default</button>
+    <button class="btn-default" style="height:36px;padding:0 12px;">lg</button>
+    <button class="btn-default" style="width:32px;padding:0;justify-content:center;">＋</button>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="uz">
+<head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
+body{font-family:Geist,sans-serif;font-size:13px;}
+.row2{display:flex;align-items:center;gap:8px;}
+.cb{width:16px;height:16px;border:1px solid oklch(0.922 0 0);border-radius:4px;background:oklch(1 0 0);display:inline-flex;align-items:center;justify-content:center;}
+.cb.checked{background:oklch(0.205 0 0);border-color:oklch(0.205 0 0);color:oklch(0.985 0 0);}
+.chip{display:inline-flex;align-items:center;justify-content:center;height:28px;min-width:32px;padding:0 10px;border:1px solid oklch(0.922 0 0);border-radius:6px;font-weight:500;background:oklch(1 0 0);cursor:pointer;}
+.chip.on{background:oklch(0.205 0 0);color:oklch(0.985 0 0);border-color:oklch(0.205 0 0);}
+.star{font-size:18px;color:oklch(0.92 0 0);}
+.star.on{color:oklch(0.205 0 0);}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="label">Selection — checkbox · toggle chip · difficulty stars</div>
+  <div class="row" style="gap:24px;">
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div class="row2"><span class="cb checked"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 8 7 12 13 4"/></svg></span><span>Algebra</span></div>
+      <div class="row2"><span class="cb checked"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 8 7 12 13 4"/></svg></span><span>Geometriya</span></div>
+      <div class="row2"><span class="cb"></span><span>Sonlar nazariyasi</span></div>
+      <div class="row2"><span class="cb"></span><span>Kombinatorika</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="label" style="margin-bottom:0;">Qiyinlik</div>
+      <div style="display:flex;gap:6px;">
+        <button class="chip">1</button>
+        <button class="chip">2</button>
+        <button class="chip on">3</button>
+        <button class="chip on">4</button>
+        <button class="chip">5</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="label" style="margin-bottom:0;">Sinflar</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+        <button class="chip" style="height:26px;padding:0;">5</button>
+        <button class="chip" style="height:26px;padding:0;">6</button>
+        <button class="chip on" style="height:26px;padding:0;">7</button>
+        <button class="chip on" style="height:26px;padding:0;">8</button>
+        <button class="chip on" style="height:26px;padding:0;">9</button>
+        <button class="chip" style="height:26px;padding:0;">10</button>
+        <button class="chip" style="height:26px;padding:0;">11</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

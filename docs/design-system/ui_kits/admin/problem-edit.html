@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Provia · Admin · Masala tahrirlash</title>
+<link rel="stylesheet" href="../_shared.css">
+<style>
+  body{min-height:100vh;display:flex;flex-direction:column;background:oklch(0.985 0 0)}
+  .top{border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:5}
+  .top-inner{max-width:1280px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+  .brand{display:flex;align-items:center;gap:10px;font:600 15px/1 "Geist",sans-serif;color:var(--fg);text-decoration:none}
+  .brand img{width:26px;height:26px;border-radius:7px}
+  .brand .sub{color:var(--muted-fg);font-weight:400}
+  .top-mid{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted-fg)}
+  .top-mid .dot{width:5px;height:5px;border-radius:50%;background:oklch(0.6 0.15 145)}
+  .top-acts{display:flex;gap:8px;align-items:center}
+  .main{flex:1;max-width:1280px;width:100%;margin:0 auto;padding:18px 24px 32px;display:flex;flex-direction:column;gap:14px}
+  /* meta strip */
+  .meta-strip{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);padding:16px;display:grid;grid-template-columns:1.4fr 0.7fr 0.6fr 1fr 1.6fr;gap:14px;align-items:start}
+  .field{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .field .label{font:500 11px/1 "Geist",sans-serif;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted-fg)}
+  /* combobox display */
+  .combo{height:34px;border:1px solid var(--border);border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:14px;cursor:pointer;color:var(--fg)}
+  .combo .chev{color:var(--muted-fg)}
+  /* difficulty stars input */
+  .diff-input{display:flex;align-items:center;gap:8px;height:34px;border:1px solid var(--border);border-radius:8px;padding:0 10px;background:var(--bg)}
+  .diff-input .stars{display:flex;gap:3px}
+  .diff-input .stars svg{width:16px;height:16px;cursor:pointer}
+  .diff-input .num{font-family:"Geist Mono",monospace;font-size:12.5px;color:var(--muted-fg);margin-left:auto}
+  /* editor row */
+  .editor-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1}
+  .pane{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);display:flex;flex-direction:column;overflow:hidden;min-height:480px}
+  .pane-head{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font:500 12.5px/1 "Geist",sans-serif;color:var(--muted-fg)}
+  .pane-head .tabs{display:flex;gap:14px}
+  .pane-head .tabs button{background:transparent;border:0;font:500 12.5px/1 "Geist",sans-serif;color:var(--muted-fg);padding:4px 0;cursor:pointer;position:relative}
+  .pane-head .tabs button.on{color:var(--fg)}
+  .pane-head .tabs button.on::after{content:'';position:absolute;left:0;right:0;bottom:-11px;height:2px;background:var(--fg)}
+  /* cm-like editor */
+  .cm{flex:1;display:grid;grid-template-columns:42px 1fr;font-family:"Geist Mono",monospace;font-size:13px;line-height:1.6;overflow:auto}
+  .cm .gutter{background:oklch(0.985 0 0);color:oklch(0.7 0 0);text-align:right;padding:14px 8px;user-select:none;border-right:1px solid var(--border);font-size:11.5px}
+  .cm .gutter span{display:block}
+  .cm .code{padding:14px 16px;white-space:pre-wrap;color:var(--fg)}
+  .cm .code .tok-h{color:oklch(0.45 0.10 264);font-weight:600}
+  .cm .code .tok-math{background:oklch(0.93 0.04 264 / 0.5);border-radius:3px;padding:0 2px;color:oklch(0.35 0.10 264)}
+  .cm .code .tok-em{color:var(--muted-fg);font-style:italic}
+  /* preview */
+  .preview{padding:22px 28px;overflow:auto;flex:1;font-size:15px;line-height:1.65}
+  .preview p{margin:0 0 12px}
+  .preview .formula{font-family:KaTeX_Main,Cambria,serif;font-style:italic}
+  .preview .block-math{text-align:center;padding:8px 0;font-size:17px}
+  /* solution */
+  .solution{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);padding:16px 18px}
+  .solution-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .solution-head h3{margin:0;font:600 14px/1 "Geist",sans-serif}
+  .image-drop{margin-top:10px;border:1px dashed var(--border);border-radius:10px;padding:14px;text-align:center;font-size:12.5px;color:var(--muted-fg);background:oklch(0.99 0 0)}
+  .image-drop .kbd{margin:0 2px}
+  /* chips */
+  .chips-row{display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:34px;border:1px solid var(--border);border-radius:8px;padding:5px 8px;background:var(--bg)}
+  .chip-tag{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;background:var(--muted);border-radius:9999px;font-size:12px}
+  .chip-tag .x{cursor:pointer;color:var(--muted-fg);font-size:14px;line-height:1}
+  .chip-input{border:0;outline:none;background:transparent;font-size:13px;flex:1;min-width:80px}
+  /* class checkboxes */
+  .class-grid{display:flex;gap:5px}
+  .class-grid .chip{height:30px;padding:0 9px;border-radius:6px;font-size:12.5px;font-weight:500}
+</style>
+</head>
+<body data-screen-label="06 Admin Problem Edit">
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="dashboard.html"><img src="../../assets/logo-mark.svg" alt=""><span>Provia <span class="sub">· Admin</span></span></a>
+      <div class="top-mid">
+        <span style="color:var(--fg);font-weight:500">Masala #848</span>
+        <span>·</span>
+        <span style="display:inline-flex;align-items:center;gap:6px"><span class="dot"></span>Avtomatik saqlandi · 2s</span>
+      </div>
+      <div class="top-acts">
+        <button class="btn btn-ghost">Bekor qilish</button>
+        <button class="btn btn-outline">Qoralama saqlash</button>
+        <button class="btn btn-default">Nashr qilish</button>
+      </div>
+    </div>
+  </header>
+  <main class="main">
+    <div class="meta-strip">
+      <div class="field"><span class="label">Manba</span>
+        <div class="combo"><span>O'zMO 2024</span><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+      </div>
+      <div class="field"><span class="label">Yil</span><input class="input" value="2024"></div>
+      <div class="field"><span class="label">№</span><input class="input" value="5"></div>
+      <div class="field"><span class="label">Qiyinlik</span>
+        <div class="diff-input">
+          <div class="stars">
+            <svg viewBox="0 0 24 24" fill="oklch(0.205 0 0)"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg>
+            <svg viewBox="0 0 24 24" fill="oklch(0.205 0 0)"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg>
+            <svg viewBox="0 0 24 24" fill="oklch(0.205 0 0)"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg>
+            <svg viewBox="0 0 24 24" fill="oklch(0.205 0 0)"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg>
+            <svg viewBox="0 0 24 24" fill="oklch(0.88 0 0)"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg>
+          </div>
+          <span class="num">4 / 5</span>
+        </div>
+      </div>
+      <div class="field"><span class="label">Sinflar</span>
+        <div class="class-grid">
+          <button class="chip">5</button><button class="chip">6</button>
+          <button class="chip">7</button><button class="chip on">8</button>
+          <button class="chip on">9</button><button class="chip on">10</button>
+          <button class="chip">11</button>
+        </div>
+      </div>
+      <div class="field" style="grid-column:1 / span 2"><span class="label">Mavzular</span>
+        <div class="chips-row">
+          <span class="chip-tag">Algebra <span class="x">×</span></span>
+          <span class="chip-tag">Sonlar nazariyasi <span class="x">×</span></span>
+          <input class="chip-input" placeholder="qo'shish…">
+        </div>
+      </div>
+      <div class="field" style="grid-column:3 / span 2"><span class="label">Teglar</span>
+        <div class="chips-row">
+          <span class="chip-tag">pifagor <span class="x">×</span></span>
+          <span class="chip-tag">euklid <span class="x">×</span></span>
+          <span class="chip-tag">+ yangi tag <span class="x" style="color:var(--brand)">+</span></span>
+          <input class="chip-input" placeholder="qo'shish yoki yarating…">
+        </div>
+      </div>
+      <div class="field"><span class="label">Javob</span><input class="input mono" value="cheksiz ko'p"></div>
+    </div>
+
+    <div class="editor-row">
+      <div class="pane">
+        <div class="pane-head">
+          <div class="tabs"><button class="on">Masala matni</button><button>Yechim</button></div>
+          <span class="mono" style="font-size:11px">markdown · katex</span>
+        </div>
+        <div class="cm">
+          <div class="gutter">
+            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+            <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+            <span>11</span><span>12</span><span>13</span>
+          </div>
+          <div class="code"><span class="tok-h">## Masala</span>
+
+Faraz qilaylik, <span class="tok-math">$x, y, z$</span> — musbat butun sonlar va
+ular quyidagi shartni qanoatlantiradilar:
+
+<span class="tok-math">$$x^2 + y^2 = z^2$$</span>
+
+Quyidagilarni isbotlang:
+
+- Agar <span class="tok-math">$\gcd(x,y,z)=1$</span> bo'lsa, u holda
+  <span class="tok-math">$x$</span> va <span class="tok-math">$y$</span> dan biri juft son bo'lishi shart.
+- Bunday uchliklar soni cheksiz ko'p.
+
+<span class="tok-em">> Sharh: klassik Pifagor uchliklari masalasi.</span></div>
+        </div>
+      </div>
+      <div class="pane">
+        <div class="pane-head">
+          <div class="tabs"><button class="on">Preview</button><button>Mobil</button></div>
+          <span class="mono" style="font-size:11px">jonli</span>
+        </div>
+        <div class="preview">
+          <p style="font:600 17px/1.3 'Geist',sans-serif;margin:0 0 14px">Masala</p>
+          <p>Faraz qilaylik, <span class="formula">x, y, z</span> — musbat butun sonlar va ular quyidagi shartni qanoatlantiradilar:</p>
+          <p class="block-math"><span class="formula">x² + y² = z²</span></p>
+          <p>Quyidagilarni isbotlang:</p>
+          <ul style="margin:0 0 12px;padding-left:22px">
+            <li style="margin-bottom:6px">Agar <span class="formula">gcd(x, y, z) = 1</span> bo'lsa, u holda <span class="formula">x</span> va <span class="formula">y</span> dan biri juft son bo'lishi shart.</li>
+            <li>Bunday uchliklar soni cheksiz ko'p.</li>
+          </ul>
+          <blockquote style="margin:0;padding:8px 14px;border-left:2px solid var(--border);color:var(--muted-fg);font-size:13.5px">Sharh: klassik Pifagor uchliklari masalasi.</blockquote>
+        </div>
+      </div>
+    </div>
+
+    <div class="solution">
+      <div class="solution-head">
+        <h3>Rasm va fayl yuklash</h3>
+        <span class="mono" style="font-size:11px;color:var(--muted-fg)">R2 · max 5 MB</span>
+      </div>
+      <div class="image-drop">Rasmni shu yerga tashlang yoki <span class="kbd">Cmd</span>+<span class="kbd">V</span> bilan joylashtiring — markdown link avtomatik kiritiladi.</div>
+    </div>
+  </main>
+</body>
+</html>

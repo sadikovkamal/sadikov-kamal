@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Provia · Admin · Dashboard</title>
+<link rel="stylesheet" href="../_shared.css">
+<style>
+  body{min-height:100vh;display:flex;flex-direction:column}
+  .top{border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:5}
+  .top-inner{max-width:1152px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+  .brand{display:flex;align-items:center;gap:10px;font:600 15px/1 "Geist",sans-serif;letter-spacing:-0.01em;color:var(--fg);text-decoration:none}
+  .brand img{width:26px;height:26px;border-radius:7px}
+  .brand .sub{color:var(--muted-fg);font-weight:400}
+  nav{display:flex;gap:18px;align-items:center}
+  nav a{font-size:14px;color:var(--muted-fg);text-decoration:none;position:relative;padding:6px 0;font-weight:400}
+  nav a:hover{color:var(--fg)}
+  nav a.on{color:var(--fg);font-weight:500}
+  nav a.on::after{content:'';position:absolute;left:0;right:0;bottom:-15px;height:2px;background:var(--fg)}
+  .user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted-fg)}
+  .main{flex:1;max-width:1152px;width:100%;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:24px}
+  h1.page{font:700 24px/1.2 "Geist",sans-serif;letter-spacing:-0.005em;margin:0}
+  h2.sec{font:600 16px/1.3 "Geist",sans-serif;margin:0 0 10px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .stat{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);padding:16px;display:flex;flex-direction:column;gap:6px;text-decoration:none;color:var(--fg);transition:background .15s}
+  .stat:hover{background:oklch(0.99 0 0)}
+  .stat .lbl{font-size:13px;color:var(--muted-fg)}
+  .stat .val{font:700 30px/1.05 "Geist",sans-serif;letter-spacing:-0.01em}
+  .stat .delta{font-size:11.5px;color:var(--muted-fg);font-family:"Geist Mono",monospace}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .chart{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);padding:18px;display:flex;flex-direction:column;gap:12px}
+  .chart h3{font:600 14px/1.3 "Geist",sans-serif;margin:0}
+  .chart .legend{font-size:12px;color:var(--muted-fg);margin-top:-4px}
+  .bars{display:flex;flex-direction:column;gap:8px}
+  .bar{display:grid;grid-template-columns:108px 1fr 40px;align-items:center;gap:10px;font-size:12.5px}
+  .bar .nm{color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar .tr{height:6px;border-radius:9999px;background:var(--muted);overflow:hidden}
+  .bar .fl{height:100%;background:var(--primary);border-radius:9999px}
+  .bar .ct{text-align:right;font-family:"Geist Mono",monospace;color:var(--muted-fg);font-size:11.5px}
+  .diff{display:flex;align-items:flex-end;gap:8px;height:140px;padding:0 4px}
+  .diff .col{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px}
+  .diff .col .bar2{width:100%;border-radius:6px 6px 0 0;min-height:8px;flex-shrink:0}
+  .diff .col .lab{font-size:11px;color:var(--muted-fg)}
+  .diff .col .num{font:500 12px/1 "Geist Mono",monospace;color:var(--fg)}
+  .imports{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);overflow:hidden}
+  .imports-row{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;font-size:13px;text-decoration:none;color:var(--fg)}
+  .imports-row:last-child{border-bottom:none}
+  .imports-row:hover{background:var(--muted)}
+  .imports-row .name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .imports-row .meta{font-size:11.5px;color:var(--muted-fg);font-family:"Geist Mono",monospace}
+</style>
+</head>
+<body data-screen-label="03 Admin Dashboard">
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="dashboard.html"><img src="../../assets/logo-mark.svg" alt=""><span>Provia <span class="sub">· Admin</span></span></a>
+      <nav>
+        <a href="dashboard.html" class="on">Dashboard</a>
+        <a href="problems.html">Masalalar</a>
+        <a href="import.html">Import</a>
+        <a href="problem-edit.html">Mavzular</a>
+        <a href="problem-edit.html">Manbalar</a>
+        <a href="problem-edit.html">Teglar</a>
+      </nav>
+      <div class="user">
+        <span>Kamol Sadikov</span>
+        <button class="btn btn-outline btn-sm">Chiqish</button>
+      </div>
+    </div>
+  </header>
+  <main class="main">
+    <h1 class="page">Boshqaruv paneli</h1>
+    <div class="stats">
+      <a href="problems.html" class="stat"><span class="lbl">Masalalar</span><span class="val">1 247</span><span class="delta">+24 / oxirgi 7 kun</span></a>
+      <a href="#" class="stat"><span class="lbl">Mavzular</span><span class="val">38</span><span class="delta">2 ta yangi</span></a>
+      <a href="#" class="stat"><span class="lbl">Manbalar</span><span class="val">22</span><span class="delta">—</span></a>
+      <a href="#" class="stat"><span class="lbl">Teglar</span><span class="val">156</span><span class="delta">—</span></a>
+    </div>
+    <div class="charts">
+      <div class="chart">
+        <h3>Mavzular bo'yicha</h3>
+        <div class="legend">Eng ko'p uchraydigan 6 mavzu</div>
+        <div class="bars">
+          <div class="bar"><span class="nm">Algebra</span><span class="tr"><span class="fl" style="width:88%"></span></span><span class="ct">342</span></div>
+          <div class="bar"><span class="nm">Geometriya</span><span class="tr"><span class="fl" style="width:72%"></span></span><span class="ct">281</span></div>
+          <div class="bar"><span class="nm">Sonlar nazariyasi</span><span class="tr"><span class="fl" style="width:54%"></span></span><span class="ct">209</span></div>
+          <div class="bar"><span class="nm">Kombinatorika</span><span class="tr"><span class="fl" style="width:41%"></span></span><span class="ct">160</span></div>
+          <div class="bar"><span class="nm">Tengsizliklar</span><span class="tr"><span class="fl" style="width:28%"></span></span><span class="ct">112</span></div>
+          <div class="bar"><span class="nm">Funksiyalar</span><span class="tr"><span class="fl" style="width:18%"></span></span><span class="ct">68</span></div>
+        </div>
+      </div>
+      <div class="chart">
+        <h3>Qiyinlik bo'yicha</h3>
+        <div class="legend">1 (oson) → 5 (qiyin)</div>
+        <div class="diff">
+          <div class="col"><span class="num">198</span><span class="bar2" style="height:58%;background:oklch(0.87 0 0)"></span><span class="lab">1</span></div>
+          <div class="col"><span class="num">312</span><span class="bar2" style="height:92%;background:oklch(0.70 0 0)"></span><span class="lab">2</span></div>
+          <div class="col"><span class="num">344</span><span class="bar2" style="height:100%;background:oklch(0.55 0 0)"></span><span class="lab">3</span></div>
+          <div class="col"><span class="num">258</span><span class="bar2" style="height:75%;background:oklch(0.38 0 0)"></span><span class="lab">4</span></div>
+          <div class="col"><span class="num">135</span><span class="bar2" style="height:40%;background:oklch(0.20 0 0)"></span><span class="lab">5</span></div>
+        </div>
+      </div>
+    </div>
+    <section>
+      <h2 class="sec">So'nggi importlar</h2>
+      <div class="imports">
+        <a class="imports-row" href="import.html">
+          <span class="name">imo-2024-shortlist.zip</span>
+          <span class="badge badge-default">muvaffaqiyatli</span>
+          <span class="meta">52 / 52 · 11.05.26</span>
+        </a>
+        <a class="imports-row" href="import.html">
+          <span class="name">ozmo-2023-final.zip</span>
+          <span class="badge badge-secondary">qisman</span>
+          <span class="meta">38 / 40 · 09.05.26</span>
+        </a>
+        <a class="imports-row" href="import.html">
+          <span class="name">rmm-2022-day1.zip</span>
+          <span class="badge badge-destructive">xato</span>
+          <span class="meta">0 / 12 · 04.05.26</span>
+        </a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Provia · Admin · Masalalar</title>
+<link rel="stylesheet" href="../_shared.css">
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  body{min-height:100vh;display:flex;flex-direction:column}
+  .top{border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:5}
+  .top-inner{max-width:1280px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+  .brand{display:flex;align-items:center;gap:10px;font:600 15px/1 "Geist",sans-serif;letter-spacing:-0.01em;color:var(--fg);text-decoration:none}
+  .brand img{width:26px;height:26px;border-radius:7px}
+  .brand .sub{color:var(--muted-fg);font-weight:400}
+  nav{display:flex;gap:18px}
+  nav a{font-size:14px;color:var(--muted-fg);text-decoration:none;padding:6px 0;position:relative}
+  nav a:hover{color:var(--fg)}
+  nav a.on{color:var(--fg);font-weight:500}
+  nav a.on::after{content:'';position:absolute;left:0;right:0;bottom:-15px;height:2px;background:var(--fg)}
+  .user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted-fg)}
+  .main{flex:1;max-width:1280px;width:100%;margin:0 auto;padding:24px;display:grid;grid-template-columns:240px 1fr;gap:24px}
+  h1.page{font:700 24px/1.2 "Geist",sans-serif;margin:0 0 14px}
+  .head-row{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
+  .head-row .acts{display:flex;gap:8px}
+
+  /* Filters */
+  aside{display:flex;flex-direction:column;gap:18px;font-size:13px}
+  .fgroup{display:flex;flex-direction:column;gap:6px}
+  .fgroup .label{font:500 12px/1 "Geist",sans-serif;color:var(--fg);text-transform:none;letter-spacing:0;margin-bottom:0}
+  .chip-row{display:flex;gap:5px;flex-wrap:wrap}
+  .chip-row .chip{height:26px;min-width:28px;padding:0 8px;font-size:12px;border-radius:6px}
+  .class-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+  .class-grid .chip{height:24px;padding:0;font-size:11.5px}
+  .checklist{display:flex;flex-direction:column;gap:5px;max-height:144px;overflow:auto;padding-right:4px}
+  .checklist label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px}
+  .year-row{display:flex;gap:8px}
+  .year-row input{width:0;flex:1;font-size:13px;height:30px}
+  .clear{margin-top:8px}
+
+  /* Table */
+  .results{display:flex;flex-direction:column;gap:12px}
+  .results-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted-fg);min-height:32px}
+  .tbl{width:100%;border-collapse:separate;border-spacing:0;background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:13px}
+  .tbl th,.tbl td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);vertical-align:middle}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl thead th{background:oklch(0.985 0 0);font:500 12px/1.3 "Geist",sans-serif;color:var(--muted-fg);cursor:pointer;user-select:none}
+  .tbl thead th .sortlbl{display:inline-flex;align-items:center;gap:4px}
+  .tbl tr:hover td{background:oklch(0.99 0 0)}
+  .tbl td.preview{max-width:340px;line-height:1.4}
+  .tbl td.preview a{color:var(--fg);text-decoration:none}
+  .tbl td.preview a:hover{text-decoration:underline;text-underline-offset:2px}
+  .tbl .mono{font-family:"Geist Mono",monospace;font-size:11.5px;color:var(--muted-fg);white-space:nowrap}
+  .tags{display:flex;gap:4px;flex-wrap:wrap}
+  .pager{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted-fg)}
+</style>
+</head>
+<body data-screen-label="04 Admin Problems List">
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="dashboard.html"><img src="../../assets/logo-mark.svg" alt=""><span>Provia <span class="sub">· Admin</span></span></a>
+      <nav>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="problems.html" class="on">Masalalar</a>
+        <a href="import.html">Import</a>
+        <a href="#">Mavzular</a>
+        <a href="#">Manbalar</a>
+        <a href="#">Teglar</a>
+      </nav>
+      <div class="user"><span>Kamol Sadikov</span><button class="btn btn-outline btn-sm">Chiqish</button></div>
+    </div>
+  </header>
+  <main class="main">
+    <div class="head-row">
+      <h1 class="page">Masalalar</h1>
+      <div class="acts">
+        <a href="import.html" class="btn btn-outline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import qilish</a>
+        <a href="problem-edit.html" class="btn btn-default"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Yangi masala</a>
+      </div>
+    </div>
+
+    <aside>
+      <div class="fgroup">
+        <span class="label">Qidiruv</span>
+        <input class="input" placeholder="masala matni…" value="$x^2 + y^2$">
+        <span class="help">Enter bilan qidiring — Postgres FTS.</span>
+      </div>
+      <div class="fgroup">
+        <span class="label">Qiyinlik</span>
+        <div class="chip-row">
+          <button class="chip">1</button>
+          <button class="chip">2</button>
+          <button class="chip on">3</button>
+          <button class="chip on">4</button>
+          <button class="chip">5</button>
+        </div>
+      </div>
+      <div class="fgroup">
+        <span class="label">Sinflar</span>
+        <div class="class-grid">
+          <button class="chip">5</button><button class="chip">6</button>
+          <button class="chip">7</button><button class="chip on">8</button>
+          <button class="chip on">9</button><button class="chip on">10</button>
+          <button class="chip">11</button>
+        </div>
+      </div>
+      <div class="fgroup">
+        <span class="label">Manba</span>
+        <div class="checklist">
+          <label><span class="cb on"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 8 7 12 13 4"/></svg></span>O'zMO</label>
+          <label><span class="cb on"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 8 7 12 13 4"/></svg></span>IMO Shortlist</label>
+          <label><span class="cb"></span>RMM</label>
+          <label><span class="cb"></span>USAMO</label>
+          <label><span class="cb"></span>Iran TST</label>
+          <label><span class="cb"></span>Russia All</label>
+        </div>
+      </div>
+      <div class="fgroup">
+        <span class="label">Yil</span>
+        <div class="year-row">
+          <input class="input" placeholder="dan" value="2018">
+          <input class="input" placeholder="gacha" value="2024">
+        </div>
+      </div>
+      <div class="fgroup">
+        <span class="label">Mavzular</span>
+        <div class="checklist">
+          <label><span class="cb on"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 8 7 12 13 4"/></svg></span>Algebra</label>
+          <label><span class="cb"></span>Geometriya</label>
+          <label><span class="cb on"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 8 7 12 13 4"/></svg></span>Sonlar nazariyasi</label>
+          <label><span class="cb"></span>Kombinatorika</label>
+          <label><span class="cb"></span>Tengsizliklar</label>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm clear" style="width:100%">Filtrlarni tozalash (6)</button>
+    </aside>
+
+    <section class="results">
+      <div class="results-head"><span>42 ta masala</span><span class="mono" style="font-family:'Geist Mono',monospace">1 / 4</span></div>
+      <table class="tbl">
+        <thead><tr>
+          <th style="width:24px"><input type="checkbox"></th>
+          <th>Masala</th>
+          <th>Manba / Yil</th>
+          <th><span class="sortlbl">Qiyinlik <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span></th>
+          <th>Mavzular</th>
+          <th>Sinflar</th>
+          <th><span class="sortlbl" style="font-weight:600;color:var(--fg)">Yaratilgan <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><input type="checkbox" checked></td><td class="preview"><a href="problem-view.html">Agar <span class="mono">$x^2 + y^2 = z^2$</span> bo'lsa, eng kichik butun yechimlarni toping va ularning sonini aniqlang.</a></td><td class="mono">O'zMO 2024</td><td>3 / 5</td><td><div class="tags"><span class="badge badge-secondary">Algebra</span><span class="badge badge-secondary">Sonlar</span></div></td><td class="mono">8, 9</td><td class="mono">11.05.26</td></tr>
+          <tr><td><input type="checkbox" checked></td><td class="preview"><a href="problem-view.html">Uchburchakda <span class="mono">$\\angle A = 60°$</span> va medianalar nisbati 2:3 bo'lsa, tomonlar nisbatini toping.</a></td><td class="mono">O'zMO 2023 <span style="color:var(--muted-fg)">#4</span></td><td>4 / 5</td><td><div class="tags"><span class="badge badge-secondary">Geometriya</span></div></td><td class="mono">9, 10</td><td class="mono">09.05.26</td></tr>
+          <tr><td><input type="checkbox"></td><td class="preview"><a href="problem-view.html">Butun sonlar uchun <span class="mono">$f(n+1) - f(n) = n$</span> tenglamasining yechimlarini tasniflang.</a></td><td class="mono">IMO Shortlist 2022</td><td>5 / 5</td><td><div class="tags"><span class="badge badge-secondary">Algebra</span><span class="badge badge-secondary">Funksiyalar</span><span class="badge badge-secondary">Sonlar</span><span style="font-size:11.5px;color:var(--muted-fg)">+1</span></div></td><td class="mono">10, 11</td><td class="mono">07.05.26</td></tr>
+          <tr><td><input type="checkbox"></td><td class="preview"><a href="problem-view.html">100 ta turli karta bo'lib, har biri 1 dan 100 gacha bo'lgan butun son bilan belgilangan. Necha xil tartibda…</a></td><td class="mono">RMM 2022</td><td>3 / 5</td><td><div class="tags"><span class="badge badge-secondary">Kombinatorika</span></div></td><td class="mono">9</td><td class="mono">04.05.26</td></tr>
+          <tr><td><input type="checkbox"></td><td class="preview"><a href="problem-view.html"><i style="color:var(--muted-fg)">(bo'sh — qoralama)</i></a></td><td class="mono">USAMO 2021</td><td>4 / 5</td><td><div class="tags"></div></td><td class="mono">10, 11</td><td class="mono">02.05.26</td></tr>
+          <tr><td><input type="checkbox"></td><td class="preview"><a href="problem-view.html"><span class="mono">$p, q$</span> tub sonlar bo'lsa, <span class="mono">$p^2 + q^2 + 1$</span> ham tub bo'lishi mumkinmi?</a></td><td class="mono">Iran TST 2020</td><td>4 / 5</td><td><div class="tags"><span class="badge badge-secondary">Sonlar</span></div></td><td class="mono">10, 11</td><td class="mono">28.04.26</td></tr>
+        </tbody>
+      </table>
+      <div class="pager">
+        <span class="mono">2 ta tanlangan</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm">Oldingi</button>
+          <button class="btn btn-outline btn-sm">Keyingi</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

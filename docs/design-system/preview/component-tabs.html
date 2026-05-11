@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="uz">
+<head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
+body{font-family:Geist,sans-serif;font-size:14px;}
+.nav{display:flex;align-items:center;gap:6px;padding:6px;background:oklch(0.97 0 0);border-radius:10px;width:fit-content;}
+.tab{padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;color:oklch(0.556 0 0);cursor:pointer;}
+.tab.on{background:oklch(1 0 0);color:oklch(0.145 0 0);box-shadow:0 1px 2px oklch(0 0 0 / 0.05);}
+.nav2{display:flex;gap:18px;align-items:center;padding:6px 0;border-bottom:1px solid oklch(0.922 0 0);}
+.link{font-size:14px;color:oklch(0.556 0 0);padding:6px 0;position:relative;cursor:pointer;}
+.link.on{color:oklch(0.145 0 0);font-weight:500;}
+.link.on::after{content:'';position:absolute;bottom:-7px;left:0;right:0;height:2px;background:oklch(0.145 0 0);}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="label">Tabs · segmented (Radix-style)</div>
+  <div class="nav">
+    <div class="tab on">Tahrirlash</div>
+    <div class="tab">Preview</div>
+    <div class="tab">Yechim</div>
+  </div>
+  <div class="label">Tabs · underline (top-nav header)</div>
+  <div class="nav2">
+    <div class="link on">Dashboard</div>
+    <div class="link">Masalalar</div>
+    <div class="link">Import</div>
+    <div class="link">Mavzular</div>
+    <div class="link">Manbalar</div>
+    <div class="link">Teglar</div>
+  </div>
+</div>
+</body></html>

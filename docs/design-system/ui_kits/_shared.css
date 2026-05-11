@@ -1,0 +1,66 @@
+/* ui_kits/_shared.css — Provia UI kit base styles, shared across kits */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
+@import url("https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css");
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{font-family:"Geist",ui-sans-serif,system-ui,sans-serif;font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;color:oklch(0.145 0 0);background:oklch(1 0 0)}
+body{font-size:14px;line-height:1.5;min-height:100vh}
+a{color:inherit}
+
+/* Tokens */
+:root{
+  --bg:oklch(1 0 0);--fg:oklch(0.145 0 0);--muted:oklch(0.97 0 0);--muted-fg:oklch(0.556 0 0);
+  --border:oklch(0.922 0 0);--ring:oklch(0.708 0 0);--primary:oklch(0.205 0 0);--primary-fg:oklch(0.985 0 0);
+  --destructive:oklch(0.577 0.245 27.325);--brand:oklch(0.520 0.180 264);--card:oklch(1 0 0);
+  --hairline:inset 0 0 0 1px oklch(0.145 0 0 / 0.10);
+}
+
+/* Primitives */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:10px;border:1px solid transparent;font:500 14px/1 "Geist",sans-serif;cursor:pointer;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-default{background:var(--primary);color:var(--primary-fg)}
+.btn-default:hover{background:oklch(0.205 0 0 / 0.85)}
+.btn-outline{background:var(--bg);color:var(--fg);border-color:var(--border)}
+.btn-outline:hover{background:var(--muted)}
+.btn-secondary{background:var(--muted);color:var(--primary)}
+.btn-secondary:hover{background:oklch(0.93 0 0)}
+.btn-ghost{background:transparent;color:var(--fg)}
+.btn-ghost:hover{background:var(--muted)}
+.btn-destructive{background:oklch(0.577 0.245 27 / 0.10);color:var(--destructive)}
+.btn-destructive:hover{background:oklch(0.577 0.245 27 / 0.20)}
+.btn-sm{height:28px;padding:0 10px;font-size:13px;border-radius:8px}
+.btn-lg{height:36px;padding:0 14px}
+.btn-icon{width:32px;padding:0;justify-content:center}
+.btn svg{width:14px;height:14px;flex-shrink:0}
+
+.badge{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:9999px;font:500 12px/1 "Geist",sans-serif;white-space:nowrap}
+.badge-default{background:var(--primary);color:var(--primary-fg)}
+.badge-secondary{background:var(--muted);color:var(--fg)}
+.badge-outline{background:var(--bg);color:var(--fg);box-shadow:inset 0 0 0 1px var(--border)}
+.badge-destructive{background:oklch(0.577 0.245 27 / 0.10);color:var(--destructive)}
+
+.input{height:34px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--fg);font:400 14px/1 "Geist",sans-serif;outline:none;width:100%}
+.input:focus{border-color:var(--ring);box-shadow:0 0 0 3px oklch(0.708 0 0 / 0.18)}
+.input::placeholder{color:var(--muted-fg)}
+.input.invalid{border-color:var(--destructive);box-shadow:0 0 0 3px oklch(0.577 0.245 27 / 0.15)}
+.label{font:500 13px/1.3 "Geist",sans-serif;color:var(--fg);display:block;margin-bottom:5px}
+.help{font:400 11.5px/1.4 "Geist",sans-serif;color:var(--muted-fg);margin-top:5px}
+.err{font:400 11.5px/1.4 "Geist",sans-serif;color:var(--destructive);margin-top:5px}
+
+.card{background:var(--card);border-radius:14px;box-shadow:var(--hairline);overflow:hidden}
+.card-body{padding:16px}
+
+.mono{font-family:"Geist Mono",monospace}
+.muted{color:var(--muted-fg)}
+.dim{color:var(--muted-fg);font-size:13px}
+
+.chip{display:inline-flex;align-items:center;justify-content:center;height:30px;min-width:32px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);font:500 13px/1 "Geist",sans-serif;cursor:pointer;color:var(--fg)}
+.chip:hover{background:var(--muted)}
+.chip.on{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+
+.cb{width:16px;height:16px;border:1px solid var(--border);border-radius:4px;background:var(--bg);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:transparent}
+.cb.on{background:var(--primary);border-color:var(--primary);color:var(--primary-fg)}
+
+.kbd{font:500 11px/1 "Geist Mono",monospace;padding:2px 5px;border-radius:4px;background:var(--muted);color:var(--muted-fg);box-shadow:inset 0 -1px 0 oklch(0.145 0 0 / 0.10)}

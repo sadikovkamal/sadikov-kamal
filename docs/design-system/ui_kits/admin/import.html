@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Provia · Admin · Import</title>
+<link rel="stylesheet" href="../_shared.css">
+<style>
+  body{min-height:100vh;display:flex;flex-direction:column}
+  .top{border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:5}
+  .top-inner{max-width:1152px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+  .brand{display:flex;align-items:center;gap:10px;font:600 15px/1 "Geist",sans-serif;color:var(--fg);text-decoration:none}
+  .brand img{width:26px;height:26px;border-radius:7px}
+  .brand .sub{color:var(--muted-fg);font-weight:400}
+  nav{display:flex;gap:18px}
+  nav a{font-size:14px;color:var(--muted-fg);text-decoration:none;padding:6px 0;position:relative}
+  nav a:hover{color:var(--fg)}
+  nav a.on{color:var(--fg);font-weight:500}
+  nav a.on::after{content:'';position:absolute;left:0;right:0;bottom:-15px;height:2px;background:var(--fg)}
+  .user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted-fg)}
+  .main{flex:1;max-width:1152px;width:100%;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:24px}
+  h1.page{font:700 24px/1.2 "Geist",sans-serif;margin:0}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px}
+  .head .sub{margin:6px 0 0;color:var(--muted-fg);font-size:14px;max-width:560px;line-height:1.5}
+  .head a.spec{color:var(--fg);text-decoration:none;font-size:13px;display:inline-flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);padding-bottom:2px}
+  .head a.spec:hover{border-color:var(--fg)}
+  /* Steps */
+  .steps{display:flex;align-items:center;gap:14px;font-size:13px}
+  .step{display:flex;align-items:center;gap:10px}
+  .step .num{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:500 12px/1 "Geist Mono",monospace;border:1px solid var(--border);background:var(--bg);color:var(--muted-fg)}
+  .step.done .num{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+  .step.done .num::before{content:'✓'}
+  .step.done .num span{display:none}
+  .step.on .num{border-color:var(--fg);color:var(--fg)}
+  .step .label{color:var(--muted-fg)}
+  .step.on .label,.step.done .label{color:var(--fg)}
+  .step-sep{flex:1;height:1px;background:var(--border)}
+  /* Active panel */
+  .panel{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);overflow:hidden}
+  .panel-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .panel-head h3{margin:0;font:600 14px/1 "Geist",sans-serif}
+  .panel-head .file{font-family:"Geist Mono",monospace;font-size:12px;color:var(--muted-fg)}
+  .panel-body{padding:18px}
+  /* Validation list */
+  .vlist{display:flex;flex-direction:column;gap:0;font-size:13.5px}
+  .vrow{display:grid;grid-template-columns:24px 130px 1fr auto;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid oklch(0.97 0 0)}
+  .vrow:last-child{border-bottom:none}
+  .vrow .ico{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;flex-shrink:0}
+  .vrow.ok .ico{background:oklch(0.93 0.06 145);color:oklch(0.32 0.10 145)}
+  .vrow.warn .ico{background:oklch(0.94 0.07 80);color:oklch(0.45 0.13 70)}
+  .vrow.err .ico{background:oklch(0.93 0.06 27);color:var(--destructive)}
+  .vrow .file{font-family:"Geist Mono",monospace;font-size:12px;color:var(--fg)}
+  .vrow .msg{color:var(--fg)}
+  .vrow .msg em{color:var(--muted-fg);font-style:normal;font-family:"Geist Mono",monospace;font-size:11.5px;margin-left:6px}
+  /* Drop zone (collapsed since step1 done) */
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .summary .box{background:var(--bg);border-radius:10px;border:1px solid var(--border);padding:12px}
+  .summary .lbl{font-size:11.5px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:0.06em}
+  .summary .val{font:700 22px/1.1 "Geist",sans-serif;margin-top:4px}
+  .summary .val.warn{color:oklch(0.55 0.13 65)}
+  .summary .val.err{color:var(--destructive)}
+  /* Prior imports */
+  table.prior{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  table.prior th,table.prior td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--border)}
+  table.prior thead th{background:oklch(0.985 0 0);font:500 12px/1.3 "Geist",sans-serif;color:var(--muted-fg)}
+  table.prior tr:last-child td{border-bottom:none}
+  table.prior td.mono{font-family:"Geist Mono",monospace;font-size:12px;color:var(--muted-fg)}
+  .actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:1px solid var(--border);background:oklch(0.99 0 0)}
+</style>
+</head>
+<body data-screen-label="07 Admin Import">
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="dashboard.html"><img src="../../assets/logo-mark.svg" alt=""><span>Provia <span class="sub">· Admin</span></span></a>
+      <nav>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="problems.html">Masalalar</a>
+        <a href="import.html" class="on">Import</a>
+        <a href="#">Mavzular</a>
+        <a href="#">Manbalar</a>
+        <a href="#">Teglar</a>
+      </nav>
+      <div class="user"><span>Kamol Sadikov</span><button class="btn btn-outline btn-sm">Chiqish</button></div>
+    </div>
+  </header>
+  <main class="main">
+    <div class="head">
+      <div>
+        <h1 class="page">Ommaviy import</h1>
+        <p class="sub">ZIP arxivni yuklang — har bir <span class="mono" style="font-family:'Geist Mono',monospace">problem.md</span> alohida masalaga aylanadi. Frontmatter meta-ma'lumotlar uchun ishlatiladi.</p>
+      </div>
+      <a href="#" class="spec">Format spec <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg></a>
+    </div>
+
+    <div class="steps">
+      <div class="step done"><span class="num"><span>1</span></span><span class="label">Parse</span></div>
+      <span class="step-sep"></span>
+      <div class="step on"><span class="num"><span>2</span></span><span class="label">Validate</span></div>
+      <span class="step-sep"></span>
+      <div class="step"><span class="num"><span>3</span></span><span class="label">Execute</span></div>
+    </div>
+
+    <div class="summary">
+      <div class="box"><div class="lbl">Topildi</div><div class="val">52</div></div>
+      <div class="box"><div class="lbl">Tayyor</div><div class="val">48</div></div>
+      <div class="box"><div class="lbl">Ogohlantirish</div><div class="val warn">3</div></div>
+      <div class="box"><div class="lbl">Xato</div><div class="val err">1</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Validatsiya natijasi</h3>
+        <span class="file">imo-2024-shortlist.zip · 1.8 MB</span>
+      </div>
+      <div class="panel-body">
+        <div class="vlist">
+          <div class="vrow err">
+            <span class="ico"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+            <span class="file">N7.md</span>
+            <span class="msg">KaTeX parse xatosi — <em>line 14: \\frac{} bo'sh argument</em></span>
+            <button class="btn btn-ghost btn-sm">Ko'rish</button>
+          </div>
+          <div class="vrow warn">
+            <span class="ico"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+            <span class="file">A3.md</span>
+            <span class="msg">Mavzu "Combinatorics" topilmadi — yangi yarataylikmi?</span>
+            <button class="btn btn-outline btn-sm">Yarat</button>
+          </div>
+          <div class="vrow warn">
+            <span class="ico"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+            <span class="file">C5.md</span>
+            <span class="msg">Qiyinlik ko'rsatilmagan — <em>default = 3</em></span>
+            <button class="btn btn-ghost btn-sm">O'tkazib yub.</button>
+          </div>
+          <div class="vrow warn">
+            <span class="ico"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+            <span class="file">G2.md</span>
+            <span class="msg">Rasmga havola ishlamayapti — <em>images/fig-1.png</em></span>
+            <button class="btn btn-ghost btn-sm">O'tkazib yub.</button>
+          </div>
+          <div class="vrow ok">
+            <span class="ico"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+            <span class="file" style="color:var(--muted-fg)">48 ta fayl</span>
+            <span class="msg" style="color:var(--muted-fg)">Validatsiya muvaffaqiyatli — tayyor</span>
+            <span style="font-size:12px;color:var(--muted-fg);font-family:'Geist Mono',monospace">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost">Bekor qilish</button>
+        <button class="btn btn-outline">Faqat tayyorlarini import qilish (48)</button>
+        <button class="btn btn-default">Davom etish — Execute</button>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="font:600 15px/1 'Geist',sans-serif;margin:0 0 10px">Oldingi importlar</h3>
+      <table class="prior">
+        <thead><tr><th>Fayl</th><th>Yuklagan</th><th>Sana</th><th>Natija</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="mono">ozmo-2023-final.zip</td><td>Kamol S.</td><td class="mono">09.05.26</td><td><span class="badge badge-secondary">qisman</span> · 38 / 40</td><td style="text-align:right"><a href="#" style="font-size:13px;color:var(--fg)">Batafsil →</a></td></tr>
+          <tr><td class="mono">rmm-2022-day1.zip</td><td>Kamol S.</td><td class="mono">04.05.26</td><td><span class="badge badge-destructive">xato</span> · 0 / 12</td><td style="text-align:right"><a href="#" style="font-size:13px;color:var(--fg)">Batafsil →</a></td></tr>
+          <tr><td class="mono">usamo-2021-all.zip</td><td>Aziz B.</td><td class="mono">28.04.26</td><td><span class="badge badge-default">muvaffaqiyatli</span> · 18 / 18</td><td style="text-align:right"><a href="#" style="font-size:13px;color:var(--fg)">Batafsil →</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

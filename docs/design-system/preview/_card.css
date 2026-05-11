@@ -1,0 +1,60 @@
+/* preview/_card.css — shared reset for every Design System tab card.
+   Each card is a standalone HTML doc that renders within a ~700px frame.
+   Keep these styles minimal — the design tokens live in colors_and_type.css. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: oklch(0.145 0 0);
+  background: oklch(1 0 0);
+}
+
+body {
+  padding: 20px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.swatch {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 88px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.swatch .name { font-weight: 600; font-size: 12px; }
+.swatch .val  { font-family: "Geist Mono", monospace; opacity: 0.75; font-size: 10.5px; }
+
+.label {
+  font-size: 11px;
+  color: oklch(0.556 0 0);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+
+.hairline { box-shadow: inset 0 0 0 1px oklch(0.145 0 0 / 0.10); }
+
+a { color: inherit; }

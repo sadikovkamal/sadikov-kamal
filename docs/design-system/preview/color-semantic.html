@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="uz">
+<head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<title>Semantic colors</title></head>
+<body>
+<div class="card">
+  <div class="label">Semantic · destructive only (no success/warning surface yet)</div>
+  <div class="row">
+    <div class="swatch" style="background:oklch(0.577 0.245 27.325); color:oklch(0.985 0 0);">
+      <div class="name">destructive</div><div class="val">0.577 / 0.245 / 27.3</div>
+    </div>
+    <div class="swatch" style="background:oklch(0.577 0.245 27.325 / 0.10); color:oklch(0.577 0.245 27.325);">
+      <div class="name">destructive / 10%</div>
+      <div class="val">button fill</div>
+    </div>
+    <div class="swatch" style="background:oklch(0.577 0.245 27.325 / 0.20); color:oklch(0.577 0.245 27.325);">
+      <div class="name">destructive / 20%</div>
+      <div class="val">hover</div>
+    </div>
+    <div class="swatch hairline" style="background:oklch(1 0 0); color:oklch(0.577 0.245 27.325); display:flex; flex-direction:column; gap:6px;">
+      <button style="background:oklch(0.577 0.245 27.325 / 0.10); color:oklch(0.577 0.245 27.325); border:0; padding:6px 12px; border-radius:8px; font-size:12px; font-family:inherit; font-weight:500;">O'chirish</button>
+      <div class="val" style="color:oklch(0.556 0 0);">Destructive button</div>
+    </div>
+  </div>
+  <div style="font-size:12px; color:oklch(0.556 0 0); line-height:1.5;">
+    The system intentionally has no green/yellow tokens — toast success
+    states use neutral text on neutral background. If you'd like a success
+    color, flag it and I'll add one.
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="uz">
+<head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
+.field{display:flex;flex-direction:column;gap:5px;flex:1;}
+.field label{font-family:Geist,sans-serif;font-size:13px;font-weight:500;color:oklch(0.145 0 0);}
+.input,.textarea,.select{font-family:Geist,sans-serif;font-size:14px;height:34px;padding:0 10px;border:1px solid oklch(0.922 0 0);border-radius:8px;background:oklch(1 0 0);color:oklch(0.145 0 0);outline:none;}
+.input:focus,.select:focus{border-color:oklch(0.708 0 0);box-shadow:0 0 0 3px oklch(0.708 0 0 / 0.18);}
+.input::placeholder{color:oklch(0.556 0 0);}
+.input-error{border-color:oklch(0.577 0.245 27);box-shadow:0 0 0 3px oklch(0.577 0.245 27 / 0.15);}
+.help{font-family:Geist,sans-serif;font-size:11.5px;color:oklch(0.556 0 0);}
+.error{font-family:Geist,sans-serif;font-size:11.5px;color:oklch(0.577 0.245 27);}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="label">Inputs · default · focus · error · disabled</div>
+  <div class="row" style="align-items:flex-start;">
+    <div class="field">
+      <label>Email</label>
+      <input class="input" placeholder="admin@example.com" value="admin@provia.uz">
+      <span class="help">avtomatik to'ldirish yoqilgan</span>
+    </div>
+    <div class="field">
+      <label>Qidiruv</label>
+      <input class="input" placeholder="masala matni…">
+      <span class="help">Enter bilan qidiring</span>
+    </div>
+    <div class="field">
+      <label>Parol</label>
+      <input class="input input-error" type="password" value="wrong">
+      <span class="error">Email yoki parol noto'g'ri.</span>
+    </div>
+    <div class="field">
+      <label style="color:oklch(0.556 0 0);">Sinf</label>
+      <input class="input" value="—" disabled style="opacity:0.5;background:oklch(0.97 0 0);">
+      <span class="help">disabled</span>
+    </div>
+  </div>
+</div>
+</body></html>

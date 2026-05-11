@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" width="220" height="56" role="img" aria-label="Provia">
+  
+  <rect x="0" y="4" width="48" height="48" rx="11" fill="oklch(0.205 0 0)"></rect>
+  <rect x="12" y="14" width="5" height="28" rx="0.8" fill="oklch(0.985 0 0)"></rect>
+  <path d="M17 14 H30 a11 11 0 0 1 0 22 H17 V31 H30 a6 6 0 0 0 0-12 H17 Z" fill="oklch(0.985 0 0)"></path>
+  <path d="M20.5 22 L27.5 25 L20.5 28" fill="none" stroke="oklch(0.680 0.160 264)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+  
+  <text x="60" y="38" font-family="Geist, ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="600" fill="oklch(0.145 0 0)" letter-spacing="-0.4">Provia</text>
+</svg>

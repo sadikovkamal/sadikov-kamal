@@ -49,6 +49,14 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-accent-brand: var(--accent-brand);
+  --color-accent-brand-strong: var(--accent-brand-strong);
+  --color-accent-brand-soft: var(--accent-brand-soft);
+  --color-difficulty-1: var(--difficulty-1);
+  --color-difficulty-2: var(--difficulty-2);
+  --color-difficulty-3: var(--difficulty-3);
+  --color-difficulty-4: var(--difficulty-4);
+  --color-difficulty-5: var(--difficulty-5);
 }
 
 :root {
@@ -84,6 +92,20 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Brand accent — academic indigo. Used for links, brand mark, charts,
+     and focus rings. NEVER for the default button (stays near-black). */
+  --accent-brand: oklch(0.52 0.18 264);
+  --accent-brand-strong: oklch(0.44 0.2 264);
+  --accent-brand-soft: oklch(0.96 0.02 264);
+  --accent-brand-ring: oklch(0.52 0.18 264 / 0.35);
+
+  /* Difficulty 1..5 — neutral ramp (light → dark = easy → hard). */
+  --difficulty-1: oklch(0.87 0 0);
+  --difficulty-2: oklch(0.7 0 0);
+  --difficulty-3: oklch(0.55 0 0);
+  --difficulty-4: oklch(0.38 0 0);
+  --difficulty-5: oklch(0.2 0 0);
 }
 
 .dark {
@@ -118,6 +140,17 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  --accent-brand: oklch(0.68 0.16 264);
+  --accent-brand-strong: oklch(0.78 0.14 264);
+  --accent-brand-soft: oklch(0.28 0.06 264);
+  --accent-brand-ring: oklch(0.68 0.16 264 / 0.4);
+
+  --difficulty-1: oklch(0.37 0 0);
+  --difficulty-2: oklch(0.5 0 0);
+  --difficulty-3: oklch(0.65 0 0);
+  --difficulty-4: oklch(0.8 0 0);
+  --difficulty-5: oklch(0.95 0 0);
 }
 
 @layer base {

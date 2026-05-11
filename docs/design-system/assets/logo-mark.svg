@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Provia">
+  
+  <rect width="64" height="64" rx="14" fill="oklch(0.205 0 0)"></rect>
+  
+  <rect x="16" y="14" width="6" height="36" rx="1" fill="oklch(0.985 0 0)"></rect>
+  
+  <path d="M22 14 H38 a14 14 0 0 1 0 28 H22 V36 H38 a8 8 0 0 0 0-16 H22 Z" fill="oklch(0.985 0 0)"></path>
+  
+  <path d="M27 24 L37 28 L27 32" fill="none" stroke="oklch(0.680 0.160 264)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="uz">
+<head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
+body{font-family:Geist,sans-serif;}
+.brand{display:flex;flex-direction:column;gap:18px;align-items:flex-start;}
+.row{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.wordmark{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:600;letter-spacing:-0.01em;color:oklch(0.145 0 0);}
+.dark-strip{background:oklch(0.145 0 0);color:oklch(0.985 0 0);padding:14px 18px;border-radius:12px;display:flex;align-items:center;gap:18px;width:100%;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="label">Brand · wordmark + mark + dark variant</div>
+  <div class="brand">
+    <div class="row">
+      <div class="wordmark">
+        <img src="../assets/logo-mark.svg" width="32" height="32" alt="" style="border-radius:8px;">
+        <span>Provia</span>
+      </div>
+      <span style="color:oklch(0.556 0 0);font-size:13px;">· isbotga yo'l</span>
+    </div>
+    <div class="dark-strip">
+      <img src="../assets/logo-mark-light.svg" width="32" height="32" alt="" style="border-radius:8px;">
+      <span style="font-size:20px;font-weight:600;letter-spacing:-0.01em;">Provia</span>
+      <span style="color:oklch(0.708 0 0);font-size:13px;margin-left:auto;font-family:'Geist Mono',monospace;">on dark · oklch(0.145 0 0)</span>
+    </div>
+  </div>
+</div>
+</body></html>

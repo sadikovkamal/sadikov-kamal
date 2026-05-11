@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Provia · Admin · Masala #847</title>
+<link rel="stylesheet" href="../_shared.css">
+<style>
+  body{min-height:100vh;display:flex;flex-direction:column}
+  .top{border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0;z-index:5}
+  .top-inner{max-width:1152px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+  .brand{display:flex;align-items:center;gap:10px;font:600 15px/1 "Geist",sans-serif;color:var(--fg);text-decoration:none}
+  .brand img{width:26px;height:26px;border-radius:7px}
+  .brand .sub{color:var(--muted-fg);font-weight:400}
+  nav{display:flex;gap:18px}
+  nav a{font-size:14px;color:var(--muted-fg);text-decoration:none;padding:6px 0;position:relative}
+  nav a:hover{color:var(--fg)}
+  nav a.on{color:var(--fg);font-weight:500}
+  nav a.on::after{content:'';position:absolute;left:0;right:0;bottom:-15px;height:2px;background:var(--fg)}
+  .user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted-fg)}
+  .main{flex:1;max-width:1152px;width:100%;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:18px}
+  .crumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted-fg)}
+  .crumb a{color:var(--muted-fg);text-decoration:none}
+  .crumb a:hover{color:var(--fg)}
+  .crumb .sep{color:oklch(0.85 0 0)}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+  .head h1{font:700 26px/1.2 "Geist",sans-serif;letter-spacing:-0.005em;margin:0 0 4px}
+  .head .sub{font-size:13px;color:var(--muted-fg);font-family:"Geist Mono",monospace}
+  .head .acts{display:flex;gap:8px;flex-shrink:0}
+  .grid{display:grid;grid-template-columns:1fr 280px;gap:24px;align-items:flex-start}
+  /* problem body */
+  .body{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);padding:28px 32px;font-size:15.5px;line-height:1.65;color:var(--fg)}
+  .body p{margin:0 0 14px}
+  .body p:last-child{margin-bottom:0}
+  .body .formula{font-family:KaTeX_Main,Cambria,serif;font-style:italic}
+  .solution-card{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);overflow:hidden}
+  .solution-head{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid var(--border)}
+  .solution-head h3{margin:0;font:600 15px/1 "Geist",sans-serif}
+  .solution-body{padding:22px 28px;font-size:14.5px;line-height:1.65}
+  /* sidebar */
+  .meta{display:flex;flex-direction:column;gap:16px;font-size:13px}
+  .meta-block{background:var(--bg);border-radius:14px;box-shadow:var(--hairline);padding:16px}
+  .meta-block h4{margin:0 0 10px;font:500 11px/1 "Geist",sans-serif;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted-fg)}
+  .stars{display:flex;align-items:center;gap:8px}
+  .stars .row{display:flex;gap:2px}
+  .stars .row span{display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center}
+  .stars .row svg{width:14px;height:14px}
+  .stars .label{font-size:13px;color:var(--muted-fg)}
+  .tags{display:flex;flex-wrap:wrap;gap:5px}
+  .answer-box{background:var(--muted);border-radius:8px;padding:10px 12px;font-family:"Geist Mono",monospace;font-size:14px}
+</style>
+</head>
+<body data-screen-label="05 Admin Problem View">
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="dashboard.html"><img src="../../assets/logo-mark.svg" alt=""><span>Provia <span class="sub">· Admin</span></span></a>
+      <nav>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="problems.html" class="on">Masalalar</a>
+        <a href="import.html">Import</a>
+        <a href="#">Mavzular</a>
+        <a href="#">Manbalar</a>
+        <a href="#">Teglar</a>
+      </nav>
+      <div class="user"><span>Kamol Sadikov</span><button class="btn btn-outline btn-sm">Chiqish</button></div>
+    </div>
+  </header>
+  <main class="main">
+    <div class="crumb">
+      <a href="dashboard.html">Boshqaruv</a><span class="sep">/</span>
+      <a href="problems.html">Masalalar</a><span class="sep">/</span>
+      <span>#847</span>
+    </div>
+    <div class="head">
+      <div>
+        <h1>Masala #847</h1>
+        <span class="sub">O'zMO 2024 · 2-tur, 4-masala</span>
+      </div>
+      <div class="acts">
+        <button class="btn btn-outline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><polygon points="18.5 2.5 22 6 12 16 8 17 9 13 18.5 2.5"/></svg>Tahrirlash</button>
+        <button class="btn btn-destructive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>O'chirish</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="body">
+          <p>Faraz qilaylik, <span class="formula">x, y, z</span> — musbat butun sonlar va ular quyidagi shartni qanoatlantiradilar:</p>
+          <p style="text-align:center;padding:10px 0;font-size:18px"><span class="formula">x² + y² = z²</span></p>
+          <p>Quyidagilarni isbotlang:</p>
+          <p style="padding-left:20px">(a) Agar <span class="formula">gcd(x, y, z) = 1</span> bo'lsa, u holda <span class="formula">x</span> va <span class="formula">y</span> dan biri juft son bo'lishi shart.</p>
+          <p style="padding-left:20px">(b) Bunday uchliklar soni cheksiz ko'p.</p>
+          <p>Qisqacha sharh: bu klassik <em>Pifagor uchliklari</em> haqidagi masala. Yechimda Euklid formulasidan foydalanish tavsiya etiladi.</p>
+        </div>
+        <div class="solution-card">
+          <div class="solution-head">
+            <h3>Yechim</h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="solution-body">
+            <p style="margin:0 0 12px"><strong>(a)</strong> Aksincha, <span class="formula">x</span> va <span class="formula">y</span> ikkalasi ham toq bo'lsin. U holda <span class="formula">x² ≡ y² ≡ 1 (mod 4)</span>, demak <span class="formula">z² ≡ 2 (mod 4)</span>. Lekin har qanday kvadrat <span class="formula">0</span> yoki <span class="formula">1 (mod 4)</span> ga teng — qarama-qarshilik.</p>
+            <p style="margin:0;color:var(--muted-fg);font-size:13px">… (qisqartirilgan)</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="meta">
+        <div class="meta-block">
+          <h4>Qiyinlik</h4>
+          <div class="stars">
+            <div class="row">
+              <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg></span>
+              <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg></span>
+              <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg></span>
+              <span style="color:oklch(0.85 0 0)"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg></span>
+              <span style="color:oklch(0.85 0 0)"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg></span>
+            </div>
+            <span class="label">3 / 5</span>
+          </div>
+        </div>
+        <div class="meta-block">
+          <h4>Mavzular</h4>
+          <div class="tags"><span class="badge badge-secondary">Algebra</span><span class="badge badge-secondary">Sonlar nazariyasi</span></div>
+        </div>
+        <div class="meta-block">
+          <h4>Teglar</h4>
+          <div class="tags"><span class="badge badge-outline">pifagor</span><span class="badge badge-outline">euklid</span><span class="badge badge-outline">tub-sonlar</span></div>
+        </div>
+        <div class="meta-block">
+          <h4>Sinflar</h4>
+          <div class="tags"><span class="badge badge-secondary">8</span><span class="badge badge-secondary">9</span><span class="badge badge-secondary">10</span></div>
+        </div>
+        <div class="meta-block">
+          <h4>Javob</h4>
+          <div class="answer-box">cheksiz ko'p · (3, 4, 5); (5, 12, 13); …</div>
+        </div>
+        <div class="meta-block">
+          <h4>Tarix</h4>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted-fg)">
+            <div>Yaratildi · 11 May 2026</div>
+            <div>Oxirgi tahrir · 12 May 2026</div>
+            <div>Muallif · Kamol S.</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>
