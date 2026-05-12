@@ -1,26 +1,21 @@
 // E2E smoke for Phase 9 taxonomy library + merge logic.
-// Exercises slugify, listTopicsWithCounts/Sources/Tags, CRUD via mutations,
-// FK-restrict on delete, and tag merge with composite-PK collision handling.
+// Exercises slugify, listTopicsWithCounts/Sources, CRUD via mutations,
+// FK-restrict on delete.
 //
 // Run: NODE_OPTIONS="--conditions=react-server" npx tsx scripts/taxonomy-smoke.ts
 
 import "../src/db/load-env";
 
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../src/db";
 import {
   users,
-  topics,
-  sources,
-  tags,
   problems,
-  problemTags,
 } from "../src/db/schema";
 import { slugify } from "../src/lib/utils/slug";
 import {
   listTopicsWithCounts,
   listSourcesWithCounts,
-  listTagsWithCounts,
 } from "../src/lib/taxonomy/queries";
 import {
   createTopic,
@@ -29,10 +24,6 @@ import {
   createSource,
   updateSource,
   deleteSource,
-  createTag,
-  updateTag,
-  deleteTag,
-  mergeTag,
 } from "../src/lib/taxonomy/mutations";
 import { createProblemTx } from "../src/lib/problems/mutations";
 
@@ -121,10 +112,8 @@ async function main() {
       sourceId,
       year: null,
       problemNumber: null,
-      difficulty: 3,
       topicIds: [topicId],
       classes: [9],
-      tagIds: [],
     },
     admin.id
   );
@@ -155,114 +144,6 @@ async function main() {
   await deleteTopic(topicId);
   await deleteSource(sourceId);
   console.log(`[7] cascade cleanup of topics + source after problem delete`);
-
-  // --- Tags CRUD --------------------------------------------------------
-  const tagAId = await createTag({ name: "smoke-a-99", slug: "smoke-a-99" });
-  const tagBId = await createTag({ name: "smoke-b-99", slug: "smoke-b-99" });
-  await updateTag(tagAId, { name: "smoke-a-99-renamed", slug: "smoke-a-99" });
-
-  const tagsList = await listTagsWithCounts();
-  const a = tagsList.find((t) => t.id === tagAId);
-  assert(a?.name === "smoke-a-99-renamed", `tag rename failed: ${a?.name}`);
-  console.log(`[8] tags CRUD ok`);
-
-  // --- Tag merge --------------------------------------------------------
-  // Build 3 problems:
-  //   p1 has only tagA  -> after merge, should have only tagB
-  //   p2 has both tagA + tagB -> after merge, should have only tagB (no dup)
-  //   p3 has only tagB  -> unchanged
-  // We need a fresh source/topic for these.
-  const tmpSourceId = await createSource({
-    name: "Tmp",
-    slug: "tmp-merge-source",
-    kind: "olympiad",
-    country: null,
-  });
-  const tmpTopicId = await createTopic({
-    name: "Tmp",
-    slug: "tmp-merge-topic",
-    parentId: null,
-    description: null,
-  });
-
-  const p1 = await createProblemTx(
-    {
-      bodyMd: "p1",
-      solutionMd: null,
-      answer: null,
-      sourceId: tmpSourceId,
-      year: null,
-      problemNumber: null,
-      difficulty: 3,
-      topicIds: [tmpTopicId],
-      classes: [9],
-      tagIds: [tagAId],
-    },
-    admin.id
-  );
-  const p2 = await createProblemTx(
-    {
-      bodyMd: "p2",
-      solutionMd: null,
-      answer: null,
-      sourceId: tmpSourceId,
-      year: null,
-      problemNumber: null,
-      difficulty: 3,
-      topicIds: [tmpTopicId],
-      classes: [9],
-      tagIds: [tagAId, tagBId],
-    },
-    admin.id
-  );
-  const p3 = await createProblemTx(
-    {
-      bodyMd: "p3",
-      solutionMd: null,
-      answer: null,
-      sourceId: tmpSourceId,
-      year: null,
-      problemNumber: null,
-      difficulty: 3,
-      topicIds: [tmpTopicId],
-      classes: [9],
-      tagIds: [tagBId],
-    },
-    admin.id
-  );
-
-  // Pre-merge sanity
-  const preMerge = await db
-    .select()
-    .from(problemTags)
-    .where(inArray(problemTags.problemId, [p1, p2, p3]));
-  assert(preMerge.length === 4, `pre-merge problem_tags=${preMerge.length}, want 4`);
-
-  // Merge A → B
-  await mergeTag(tagAId, tagBId);
-
-  // Verify state
-  const postMerge = await db
-    .select()
-    .from(problemTags)
-    .where(inArray(problemTags.problemId, [p1, p2, p3]));
-  assert(postMerge.length === 3, `post-merge problem_tags=${postMerge.length}, want 3 (one per problem)`);
-  // All three should now point at tagB
-  assert(
-    postMerge.every((r) => r.tagId === tagBId),
-    `post-merge tags should all be tagB: got ${JSON.stringify(postMerge)}`
-  );
-  // tagA should be gone
-  const aAfter = await db.query.tags.findFirst({ where: eq(tags.id, tagAId) });
-  assert(aAfter === undefined, "tagA should have been deleted by merge");
-  console.log(`[9] mergeTag ok (3 problems, no PK collision, tagA deleted)`);
-
-  // --- Cleanup ----------------------------------------------------------
-  await db.delete(problems).where(inArray(problems.id, [p1, p2, p3]));
-  await deleteTopic(tmpTopicId);
-  await deleteSource(tmpSourceId);
-  await deleteTag(tagBId);
-  console.log(`[cleanup] removed merge-test fixtures`);
 
   console.log(`\nTaxonomy smoke: PASSED`);
   process.exit(0);

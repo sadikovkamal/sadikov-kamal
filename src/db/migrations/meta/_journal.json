@@ -15,6 +15,20 @@
       "when": 1777892059214,
       "tag": "0001_elite_sharon_ventura",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778528483393,
+      "tag": "0002_drop-tags",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778529676264,
+      "tag": "0003_drop-difficulty",
+      "breakpoints": true
     }
   ]
 }

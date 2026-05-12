@@ -26,7 +26,7 @@ const MarkdownEditor = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="border rounded-md p-4 min-h-[500px] text-muted-foreground text-sm">
+      <div className="rounded-xl ring-1 ring-foreground/10 bg-card p-4 min-h-[500px] text-muted-foreground text-sm">
         Loading editor…
       </div>
     ),
@@ -40,10 +40,8 @@ const formSchema = z.object({
   sourceId: z.string().uuid("Manbani tanlang"),
   year: z.number().int().min(1900).max(2100).nullable(),
   problemNumber: z.string().max(50).nullable(),
-  difficulty: z.number().int().min(1).max(5),
   topicIds: z.array(z.string()).min(1, "Kamida bitta mavzu tanlang"),
   classes: z.array(z.number()).min(1, "Kamida bitta sinfni tanlang"),
-  tagNames: z.array(z.string()),
 });
 
 export type ProblemFormValues = z.infer<typeof formSchema>;
@@ -55,6 +53,12 @@ export interface ProblemFormProps {
   topicsAvailable: Topic[];
   sourcesAvailable: Source[];
   uploadPrefix: string;
+  /** Compact mode — used by the new-problem modal. Hides the "Yechim" tab
+   *  and the "Yil", "Masala raqami", "Javob" metadata fields. */
+  compact?: boolean;
+  /** Optional cancel handler — when present (modal flow) renders a
+   *  "Bekor qilish" button alongside the primary action. */
+  onCancel?: () => void;
 }
 
 export function ProblemForm({
@@ -64,6 +68,8 @@ export function ProblemForm({
   topicsAvailable,
   sourcesAvailable,
   uploadPrefix,
+  compact = false,
+  onCancel,
 }: ProblemFormProps) {
   const methods = useForm<ProblemFormValues>({
     resolver: zodResolver(formSchema),
@@ -81,14 +87,10 @@ export function ProblemForm({
         mode === "create"
           ? await createProblemAction(values)
           : await updateProblemAction(problemId!, values);
-      // On success, the server action calls redirect(); execution doesn't
-      // resume here. If we *do* reach this line, there was an error.
       if (result && "error" in result) {
         setServerError(result.error);
       }
     } catch (e) {
-      // Next.js redirect() throws an internal NEXT_REDIRECT marker — let
-      // the framework handle it. Anything else is a real error.
       if (
         e &&
         typeof e === "object" &&
@@ -109,60 +111,112 @@ export function ProblemForm({
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-6">
-        <Tabs defaultValue="problem" className="w-full">
-          <TabsList>
-            <TabsTrigger value="problem">Shart</TabsTrigger>
-            <TabsTrigger value="solution">Yechim</TabsTrigger>
-          </TabsList>
+      <form
+        onSubmit={methods.handleSubmit(onSubmit)}
+        className="grid grid-rows-[1fr_auto] min-h-0"
+      >
+        {/* Scrollable body — content can grow, footer stays pinned. */}
+        <div className="overflow-y-auto px-5 py-4 space-y-5">
+          <section className="space-y-3">
+            <SectionLabel>Masala matni</SectionLabel>
+            {compact ? (
+              <>
+                <SplitView
+                  source={bodyMd}
+                  onChange={(v) =>
+                    methods.setValue("bodyMd", v, { shouldDirty: true })
+                  }
+                  uploadPrefix={uploadPrefix}
+                />
+                <FieldHint message={methods.formState.errors.bodyMd?.message} />
+              </>
+            ) : (
+              <Tabs defaultValue="problem" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="problem">Shart</TabsTrigger>
+                  <TabsTrigger value="solution">Yechim</TabsTrigger>
+                </TabsList>
 
-          <TabsContent value="problem">
-            <SplitView
-              source={bodyMd}
-              onChange={(v) => methods.setValue("bodyMd", v, { shouldDirty: true })}
-              uploadPrefix={uploadPrefix}
+                <TabsContent value="problem">
+                  <SplitView
+                    source={bodyMd}
+                    onChange={(v) =>
+                      methods.setValue("bodyMd", v, { shouldDirty: true })
+                    }
+                    uploadPrefix={uploadPrefix}
+                  />
+                  <FieldHint
+                    message={methods.formState.errors.bodyMd?.message}
+                  />
+                </TabsContent>
+
+                <TabsContent value="solution">
+                  <SplitView
+                    source={solutionMd}
+                    onChange={(v) =>
+                      methods.setValue(
+                        "solutionMd",
+                        v.length === 0 ? null : v,
+                        { shouldDirty: true }
+                      )
+                    }
+                    uploadPrefix={uploadPrefix}
+                  />
+                </TabsContent>
+              </Tabs>
+            )}
+          </section>
+
+          <section className="space-y-3">
+            <SectionLabel>Tafsilotlar</SectionLabel>
+            <MetadataForm
+              topicsAvailable={topicsAvailable}
+              sourcesAvailable={sourcesAvailable}
+              compact={compact}
             />
-            <FieldHint message={methods.formState.errors.bodyMd?.message} />
-          </TabsContent>
-
-          <TabsContent value="solution">
-            <SplitView
-              source={solutionMd}
-              onChange={(v) =>
-                methods.setValue(
-                  "solutionMd",
-                  v.length === 0 ? null : v,
-                  { shouldDirty: true }
-                )
-              }
-              uploadPrefix={uploadPrefix}
-            />
-          </TabsContent>
-        </Tabs>
-
-        <div className="border-t pt-6">
-          <h2 className="text-lg font-semibold mb-4">Metadata</h2>
-          <MetadataForm
-            topicsAvailable={topicsAvailable}
-            sourcesAvailable={sourcesAvailable}
-          />
+          </section>
         </div>
 
-        {serverError && (
-          <p className="text-sm text-destructive">{serverError}</p>
-        )}
-
-        <div className="flex justify-end gap-2">
-          <Button type="submit" disabled={isSaving}>
-            {isSaving
-              ? "Saqlanmoqda…"
-              : mode === "create"
-                ? "Yaratish"
-                : "O'zgarishlarni saqlash"}
-          </Button>
-        </div>
+        {/* Sticky footer — actions always visible regardless of scroll. */}
+        <footer className="px-5 py-3 border-t bg-popover flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            {serverError && (
+              <p className="text-sm text-destructive truncate">
+                {serverError}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onCancel}
+                disabled={isSaving}
+              >
+                Bekor qilish
+              </Button>
+            )}
+            <Button type="submit" disabled={isSaving}>
+              {isSaving
+                ? "Saqlanmoqda…"
+                : mode === "create"
+                  ? "Yaratish"
+                  : "Saqlash"}
+            </Button>
+          </div>
+        </footer>
       </form>
     </FormProvider>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  // Tight uppercase eyebrow — same pattern as MetaRow on the detail page.
+  return (
+    <h3 className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+      {children}
+    </h3>
   );
 }
 
@@ -181,15 +235,15 @@ function SplitView({
   uploadPrefix: string;
 }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
-      <div className="border rounded-md overflow-hidden">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card">
         <MarkdownEditor
           value={source}
           onChange={onChange}
           uploadPrefix={uploadPrefix}
         />
       </div>
-      <div className="border rounded-md p-4 min-h-[500px] overflow-auto">
+      <div className="rounded-xl ring-1 ring-foreground/10 bg-card p-4 min-h-[500px] overflow-auto">
         <MarkdownPreview source={source || "*Bo'sh*"} />
       </div>
     </div>

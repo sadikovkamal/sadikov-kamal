@@ -33,10 +33,8 @@ export default async function EditProblemPage({
           sourceId: p.sourceId,
           year: p.year,
           problemNumber: p.problemNumber,
-          difficulty: p.difficulty,
           topicIds: p.topics.map((t) => t.id),
           classes: p.classes,
-          tagNames: p.tags.map((t) => t.name),
         }}
         topicsAvailable={topicsAvailable}
         sourcesAvailable={sourcesAvailable}

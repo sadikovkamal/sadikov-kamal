@@ -1,4 +1,4 @@
-// HTTP smoke for the new admin pages (dashboard, topics, sources, tags).
+// HTTP smoke for the new admin pages (dashboard, topics, sources).
 
 import "../src/db/load-env";
 
@@ -26,7 +26,7 @@ async function main() {
   const checks: Check[] = [
     {
       path: "/admin",
-      mustInclude: ["Boshqaruv paneli", "Masalalar", "Mavzular", "Manbalar", "Teglar"],
+      mustInclude: ["Boshqaruv paneli", "Masalalar", "Mavzular", "Manbalar"],
     },
     {
       path: "/admin/topics",
@@ -35,10 +35,6 @@ async function main() {
     {
       path: "/admin/sources",
       mustInclude: ["Manbalar", "+ Yangi manba"],
-    },
-    {
-      path: "/admin/tags",
-      mustInclude: ["Teglar", "+ Yangi teg"],
     },
   ];
 

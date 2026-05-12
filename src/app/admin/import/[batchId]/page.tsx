@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { importBatches, problems, users, sources } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
+import { formatDateTime } from "@/lib/utils";
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   success: "default",
@@ -48,7 +49,6 @@ export default async function BatchDetailPage({
         id: problems.id,
         year: problems.year,
         problemNumber: problems.problemNumber,
-        difficulty: problems.difficulty,
         sourceName: sources.name,
         createdAt: problems.createdAt,
       })
@@ -78,11 +78,11 @@ export default async function BatchDetailPage({
           <span>·</span>
           <span>{uploader?.fullName ?? "?"}</span>
           <span>·</span>
-          <span>{new Date(batch.createdAt).toLocaleString("uz-UZ")}</span>
+          <span>{formatDateTime(batch.createdAt)}</span>
           {batch.finishedAt && (
             <>
               <span>·</span>
-              <span>tugadi: {new Date(batch.finishedAt).toLocaleString("uz-UZ")}</span>
+              <span>tugadi: {formatDateTime(batch.finishedAt)}</span>
             </>
           )}
         </div>
@@ -118,14 +118,11 @@ export default async function BatchDetailPage({
             <Link
               key={p.id}
               href={`/admin/problems/${p.id}`}
-              className="flex items-center justify-between p-3 hover:bg-muted text-sm"
+              className="block p-3 hover:bg-muted text-sm"
             >
-              <span>
-                {p.sourceName ?? "—"}
-                {p.year ? ` ${p.year}` : ""}
-                {p.problemNumber ? ` · ${p.problemNumber}` : ""}
-              </span>
-              <Badge variant="outline">{p.difficulty}/5</Badge>
+              {p.sourceName ?? "—"}
+              {p.year ? ` ${p.year}` : ""}
+              {p.problemNumber ? ` · ${p.problemNumber}` : ""}
             </Link>
           ))}
         </div>

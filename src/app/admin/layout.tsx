@@ -1,7 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
+import { LogOut } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
 import { logoutAction } from "./_actions/logout";
+import { SidebarNav } from "./sidebar-nav";
 
 export default async function AdminLayout({
   children,
@@ -9,49 +11,65 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await requireAdmin();
+  const initials = initialsOf(user.fullName);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b">
-        <div className="mx-auto flex max-w-6xl items-center justify-between p-4">
-          <div className="flex items-center gap-6">
-            <Link href="/admin" className="font-semibold">
-              Provia · Admin
-            </Link>
-            <nav className="flex items-center gap-4 text-sm">
-              <Link href="/admin" className="hover:underline">
-                Dashboard
-              </Link>
-              <Link href="/admin/problems" className="hover:underline">
-                Masalalar
-              </Link>
-              <Link href="/admin/import" className="hover:underline">
-                Import
-              </Link>
-              <Link href="/admin/topics" className="hover:underline">
-                Mavzular
-              </Link>
-              <Link href="/admin/sources" className="hover:underline">
-                Manbalar
-              </Link>
-              <Link href="/admin/tags" className="hover:underline">
-                Teglar
-              </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-muted-foreground text-sm">
-              {user.fullName}
-            </span>
+    <div className="min-h-screen flex bg-background">
+      <aside className="w-[220px] shrink-0 border-r flex flex-col bg-sidebar">
+        {/* Brand */}
+        <div className="px-4 h-14 flex items-center border-b">
+          <Link href="/admin" aria-label="Provia" className="inline-flex">
+            <Image
+              src="/brand/logo-wordmark.svg"
+              alt="Provia"
+              width={104}
+              height={26}
+              priority
+            />
+          </Link>
+        </div>
+
+        <SidebarNav />
+
+        {/* Account block — avatar + name + sign out */}
+        <div className="border-t p-2">
+          <div className="flex items-center gap-2 px-2 py-2 rounded-md">
+            <div
+              className="size-7 shrink-0 rounded-full bg-[var(--accent-brand)]/15 text-[var(--accent-brand)] flex items-center justify-center text-[11px] font-medium"
+              aria-hidden
+            >
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium truncate">{user.fullName}</p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {user.email}
+              </p>
+            </div>
             <form action={logoutAction}>
-              <Button type="submit" variant="outline" size="sm">
-                Sign out
-              </Button>
+              <button
+                type="submit"
+                aria-label="Chiqish"
+                className="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <LogOut className="size-3.5" aria-hidden />
+              </button>
             </form>
           </div>
         </div>
-      </header>
-      <main className="mx-auto w-full max-w-6xl p-6">{children}</main>
+      </aside>
+
+      {/* Content area — fills remaining width, internal max-width per page. */}
+      <main className="flex-1 min-w-0 overflow-x-auto">
+        <div className="mx-auto w-full max-w-screen-2xl px-6 py-6 lg:px-8 lg:py-8">
+          {children}
+        </div>
+      </main>
     </div>
   );
+}
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "A";
 }

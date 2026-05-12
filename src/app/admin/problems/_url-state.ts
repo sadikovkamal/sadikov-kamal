@@ -26,9 +26,9 @@ function parseInt1(value: string | null | undefined): number | undefined {
  * Parse the admin problems list URL state.
  *
  * Convention:
- * - Filters: `q`, `source`, `topic`, `tag`, `difficulty`, `class` are
- *   comma-separated lists; `yearFrom`/`yearTo` are scalars.
- * - Sort: `sortField` ∈ {createdAt, difficulty, year}; `sortDir` ∈ {asc, desc}.
+ * - Filters: `q`, `source`, `topic`, `class` are comma-separated lists;
+ *   `yearFrom`/`yearTo` are scalars.
+ * - Sort: `sortField` ∈ {createdAt, year}; `sortDir` ∈ {asc, desc}.
  * - Pagination: `page` is 1-based.
  *
  * Anything malformed gets dropped silently rather than throwing — a
@@ -45,19 +45,14 @@ export function parseSearchParams(sp: URLSearchParams): {
     sourceIds: csv(sp.get("source")),
     yearFrom: parseInt1(sp.get("yearFrom")),
     yearTo: parseInt1(sp.get("yearTo")),
-    difficulties: intCsv(sp.get("difficulty")),
     classes: intCsv(sp.get("class")),
     topicIds: csv(sp.get("topic")),
-    tagIds: csv(sp.get("tag")),
   };
 
   const sortField = sp.get("sortField");
   const sortDir = sp.get("sortDir");
   const sort: ProblemListSort = {
-    field:
-      sortField === "difficulty" || sortField === "year"
-        ? sortField
-        : "createdAt",
+    field: sortField === "year" ? "year" : "createdAt",
     direction: sortDir === "asc" ? "asc" : "desc",
   };
 

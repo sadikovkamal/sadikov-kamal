@@ -11,7 +11,6 @@ import {
   createProblemTx,
   updateProblemTx,
   deleteProblemTx,
-  ensureTagsByName,
   type ProblemInput,
 } from "@/lib/problems/mutations";
 
@@ -22,12 +21,10 @@ const problemSchema = z.object({
   sourceId: z.string().uuid("Pick a source"),
   year: z.number().int().min(1900).max(2100).nullable(),
   problemNumber: z.string().max(50).nullable(),
-  difficulty: z.number().int().min(1).max(5),
   topicIds: z.array(z.string().uuid()).min(1, "Pick at least one topic"),
   classes: z
     .array(z.number().int().min(5).max(11))
     .min(1, "Pick at least one class"),
-  tagNames: z.array(z.string().min(1).max(50)).default([]),
 });
 
 export type ProblemActionResult = { error: string } | void;
@@ -41,8 +38,7 @@ export async function createProblemAction(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const tagIds = await ensureTagsByName(parsed.data.tagNames);
-  const input: ProblemInput = { ...parsed.data, tagIds };
+  const input: ProblemInput = parsed.data;
 
   let createdId: string;
   try {
@@ -66,8 +62,7 @@ export async function updateProblemAction(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const tagIds = await ensureTagsByName(parsed.data.tagNames);
-  const input: ProblemInput = { ...parsed.data, tagIds };
+  const input: ProblemInput = parsed.data;
 
   try {
     await updateProblemTx(id, input);

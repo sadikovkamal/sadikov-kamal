@@ -16,12 +16,10 @@ import { db } from "@/db";
 import {
   problems,
   problemTopics,
-  problemTags,
   problemClasses,
   images,
   topics,
   sources,
-  tags,
 } from "@/db/schema";
 
 /**
@@ -34,17 +32,12 @@ export async function getProblemById(id: string) {
   });
   if (!problem) return null;
 
-  const [topicRows, tagRows, classRows, source, imageRows] = await Promise.all([
+  const [topicRows, classRows, source, imageRows] = await Promise.all([
     db
       .select({ id: topics.id, name: topics.name, slug: topics.slug })
       .from(problemTopics)
       .innerJoin(topics, eq(topics.id, problemTopics.topicId))
       .where(eq(problemTopics.problemId, id)),
-    db
-      .select({ id: tags.id, name: tags.name, slug: tags.slug })
-      .from(problemTags)
-      .innerJoin(tags, eq(tags.id, problemTags.tagId))
-      .where(eq(problemTags.problemId, id)),
     db
       .select({ classNumber: problemClasses.classNumber })
       .from(problemClasses)
@@ -56,7 +49,6 @@ export async function getProblemById(id: string) {
   return {
     ...problem,
     topics: topicRows,
-    tags: tagRows,
     classes: classRows.map((r) => r.classNumber),
     source,
     images: imageRows,
@@ -74,14 +66,12 @@ export interface ProblemListFilters {
   sourceIds?: string[];
   yearFrom?: number;
   yearTo?: number;
-  difficulties?: number[];
   classes?: number[];
   topicIds?: string[];
-  tagIds?: string[];
 }
 
 export interface ProblemListSort {
-  field: "createdAt" | "difficulty" | "year";
+  field: "createdAt" | "year";
   direction: "asc" | "desc";
 }
 
@@ -91,7 +81,6 @@ export interface ProblemListRow {
   sourceName: string;
   year: number | null;
   problemNumber: string | null;
-  difficulty: number;
   createdAt: Date;
   topicNames: string[];
   classes: number[];
@@ -135,9 +124,6 @@ export async function listProblems(
   if (filters.yearTo !== undefined) {
     conds.push(lte(problems.year, filters.yearTo));
   }
-  if (filters.difficulties?.length) {
-    conds.push(inArray(problems.difficulty, filters.difficulties));
-  }
   if (filters.classes?.length) {
     conds.push(
       exists(
@@ -168,30 +154,10 @@ export async function listProblems(
       )
     );
   }
-  if (filters.tagIds?.length) {
-    conds.push(
-      exists(
-        db
-          .select({ one: sql<number>`1` })
-          .from(problemTags)
-          .where(
-            and(
-              eq(problemTags.problemId, problems.id),
-              inArray(problemTags.tagId, filters.tagIds)
-            )
-          )
-      )
-    );
-  }
-
   const whereClause = conds.length ? and(...conds) : undefined;
 
   const orderColumn =
-    sort.field === "difficulty"
-      ? problems.difficulty
-      : sort.field === "year"
-        ? problems.year
-        : problems.createdAt;
+    sort.field === "year" ? problems.year : problems.createdAt;
   const orderBy = sort.direction === "asc" ? asc(orderColumn) : desc(orderColumn);
 
   // Count
@@ -208,7 +174,6 @@ export async function listProblems(
       bodyMd: problems.bodyMd,
       year: problems.year,
       problemNumber: problems.problemNumber,
-      difficulty: problems.difficulty,
       createdAt: problems.createdAt,
       sourceName: sources.name,
     })
@@ -258,7 +223,6 @@ export async function listProblems(
       sourceName: r.sourceName ?? "—",
       year: r.year,
       problemNumber: r.problemNumber,
-      difficulty: r.difficulty,
       createdAt: r.createdAt,
       topicNames: topicsByProblem.get(r.id) ?? [],
       classes: (classesByProblem.get(r.id) ?? []).sort((a, b) => a - b),
@@ -275,9 +239,10 @@ export async function listProblems(
  */
 function stripMarkdownToPreview(md: string, maxLen: number): string {
   const stripped = md
-    .replace(/\$\$[\s\S]*?\$\$/g, "[math]")
-    .replace(/\$[^$\n]+\$/g, "[math]")
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, "[image]")
+    // Unwrap math: keep the LaTeX source visible, drop the $ markers.
+    .replace(/\$\$([\s\S]*?)\$\$/g, "$1")
+    .replace(/\$([^$\n]+)\$/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "[rasm]")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/[*_`]/g, "")

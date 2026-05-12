@@ -37,7 +37,7 @@ The `cleanup-login-attempts` cron also clears the table once a day.
 
 1. Navigate to `/admin/problems/new`.
 2. Fill in the metadata: source, year, problem number, classes (5–11),
-   topics, difficulty (1–5), tags.
+   topics.
 3. Write the problem in Markdown in the left editor:
    - Inline math: `$f(x) = x^2$`
    - Display math: `$$\int_0^1 x \, dx = \tfrac12$$`
@@ -119,8 +119,6 @@ year: 2024                     # int 1900..2100, optional
 problem_number: "P3"           # string, required
 classes: [10, 11]              # int 5..11, at least one
 topics: [algebra, geometry]    # slug list, at least one
-difficulty: 4                  # 1=easy, 5=IMO P6
-tags: [induction, vieta]       # optional
 answer: "x = 3"                # optional, for non-proof problems
 ```
 
@@ -148,23 +146,6 @@ don't agonize. The `country` field is also a hint — set "UZ" for
 Uzbek olympiads.
 
 Same FK-restrict behavior as topics.
-
-### Tags (`/admin/tags`)
-
-Free-form. Sort by usage count (default) to find duplicates that need
-merging. Click **Merge** on the lower-quality variant, pick the
-canonical tag in the dialog, confirm. The merge is transactional:
-
-1. `problem_tags` rows pointing at the from-tag are re-pointed to the
-   to-tag, skipping rows that would create a duplicate composite PK.
-2. The leftover rows (where the destination already had the to-tag)
-   are deleted.
-3. The from-tag is deleted.
-
-Do this BEFORE you have hundreds of problems with the bad tag — the
-re-point is fast but every merge changes problem markdown nothing,
-just the junction table. (Tag references in markdown bodies don't
-exist; we only render badges from the `tags` table.)
 
 ---
 

@@ -3,7 +3,7 @@ import "./load-env";
 
 import bcrypt from "bcryptjs";
 import { db } from "./index";
-import { users, topics, sources, tags } from "./schema";
+import { users, topics, sources } from "./schema";
 
 async function seed() {
   console.log("Seeding database...");
@@ -63,19 +63,6 @@ async function seed() {
     .insert(sources)
     .values(sourceData)
     .onConflictDoNothing({ target: sources.slug });
-
-  // 4. A few starter tags
-  const tagData = [
-    { name: "induction", slug: "induction" },
-    { name: "vieta", slug: "vieta" },
-    { name: "pigeonhole", slug: "pigeonhole" },
-    { name: "AM-GM", slug: "am-gm" },
-    { name: "Cauchy-Schwarz", slug: "cauchy-schwarz" },
-  ];
-  await db
-    .insert(tags)
-    .values(tagData)
-    .onConflictDoNothing({ target: tags.slug });
 
   console.log("Seed complete.");
   process.exit(0);

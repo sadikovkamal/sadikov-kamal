@@ -22,9 +22,6 @@ to `docs/format-spec.md` (v1).
 
 - For a PDF with mixed languages, ask the model to translate into Uzbek
   in the same prompt.
-- If the model invents difficulty numbers, do a second pass with the
-  full output back in chat and ask "rate each problem's difficulty 1-5
-  using these anchors: 1=intro, 3=median national olympiad, 5=IMO P6".
 - For long PDFs, process by section (e.g. Day 1 first, Day 2 second) to
   keep the model's context window comfortable.
 
@@ -56,8 +53,6 @@ The first `---` of the file opens the first frontmatter; subsequent
 | `problem_number` | yes | String. Examples: `"1"`, `"P3"`, `"Day 2 / 5"`, `"A1"`. |
 | `classes` | yes (>= 1) | Array of integers in [5..11]. If unsure, default to `[10, 11]` for IMO-level, `[8, 9, 10, 11]` for national-level, `[5, 6, 7]` for early-grade. |
 | `topics` | yes (>= 1) | Array of slugs from this list: `algebra`, `geometry`, `number-theory`, `combinatorics`, `inequalities`, `functional-equations`. Pick 1–3 most relevant. |
-| `difficulty` | yes | Integer 1–5. Anchors: 1=intro, 2=easy national olympiad, 3=median national, 4=hard national / IMO P1–P2, 5=IMO P6 / shortlist hard. |
-| `tags` | optional | Array of short strings for technique or theme: `induction`, `pigeonhole`, `vieta`, `am-gm`, `cauchy-schwarz`, `chinese-remainder`, `markov`, etc. Include 0–3 when obvious. |
 | `answer` | optional | Short text answer for non-proof problems. Omit for proof-based problems. |
 
 **Body format**
@@ -83,7 +78,6 @@ The first `---` of the file opens the first frontmatter; subsequent
   `problem_number`.
 - Do not include the source attribution as part of the body — that goes
   in `source` and `year`.
-- Do not include difficulty estimates as text — that goes in `difficulty`.
 - Output ONLY the `problems.md` content. No commentary before or after,
   no code fences around the whole file (use code fences only for code
   blocks within problem solutions).
@@ -97,7 +91,6 @@ year: 2024
 problem_number: "1"
 classes: [10, 11]
 topics: [number-theory]
-difficulty: 4
 ---
 
 # Shart
@@ -116,8 +109,6 @@ year: 2024
 problem_number: "2"
 classes: [10, 11]
 topics: [algebra, inequalities]
-difficulty: 5
-tags: [am-gm]
 ---
 
 # Shart

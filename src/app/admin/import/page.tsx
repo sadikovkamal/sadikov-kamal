@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { importBatches } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
+import { formatDateTime } from "@/lib/utils";
 import { ImportUploader } from "./import-uploader";
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -63,7 +64,7 @@ export default async function ImportPage() {
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 {b.successCount} / {b.totalCount} muvaffaqiyatli ·{" "}
-                {new Date(b.createdAt).toLocaleString("uz-UZ")}
+                {formatDateTime(b.createdAt)}
               </div>
             </Link>
           ))}

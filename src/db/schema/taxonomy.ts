@@ -43,19 +43,7 @@ export const sources = pgTable(
   (t) => [index("sources_slug_idx").on(t.slug)]
 );
 
-export const tags = pgTable(
-  "tags",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    name: text("name").notNull().unique(),
-    slug: text("slug").notNull().unique(),
-  },
-  (t) => [index("tags_slug_idx").on(t.slug)]
-);
-
 export type Topic = typeof topics.$inferSelect;
 export type NewTopic = typeof topics.$inferInsert;
 export type Source = typeof sources.$inferSelect;
 export type NewSource = typeof sources.$inferInsert;
-export type Tag = typeof tags.$inferSelect;
-export type NewTag = typeof tags.$inferInsert;

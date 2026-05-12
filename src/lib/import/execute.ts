@@ -5,7 +5,6 @@ import { db } from "@/db";
 import {
   problems,
   problemTopics,
-  problemTags,
   problemClasses,
   images,
   sources,
@@ -13,7 +12,6 @@ import {
   importBatches,
 } from "@/db/schema";
 import { uploadFile } from "@/lib/storage/r2";
-import { ensureTagsByName } from "@/lib/problems/mutations";
 import type { ParsedBundle } from "./parse";
 import type { ValidationReport } from "./validate";
 
@@ -183,8 +181,6 @@ export async function executeImport(params: {
           throw new Error("No valid topic IDs for this problem");
         }
 
-        const tagIds = await ensureTagsByName(fm.tags ?? []);
-
         const [createdProblem] = await tx
           .insert(problems)
           .values({
@@ -194,7 +190,6 @@ export async function executeImport(params: {
             sourceId,
             year: fm.year ?? null,
             problemNumber: fm.problem_number ?? null,
-            difficulty: fm.difficulty,
             createdBy: uploadedBy,
             importBatchId: batchId,
             metadata: {},
@@ -213,11 +208,6 @@ export async function executeImport(params: {
             classNumber,
           }))
         );
-        if (tagIds.length) {
-          await tx.insert(problemTags).values(
-            tagIds.map((tagId) => ({ problemId: createdProblem.id, tagId }))
-          );
-        }
 
         // Persist image rows for the images this problem references.
         for (const ref of parsed.imageRefs) {

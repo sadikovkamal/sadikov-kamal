@@ -36,34 +36,6 @@ async function main() {
   let failed: Error | null = null;
 
   try {
-    // /admin/problems/new without cookie -> redirect
-    {
-      const r = await fetch(`${BASE}/admin/problems/new`, { redirect: "manual" });
-      if (r.status !== 307 && r.status !== 302) {
-        throw new Error(`new no-cookie: expected 307, got ${r.status}`);
-      }
-      console.log(`[1] /admin/problems/new no-cookie -> ${r.status}`);
-    }
-
-    // /admin/problems/new with cookie -> 200 with form heading
-    {
-      const r = await fetch(`${BASE}/admin/problems/new`, {
-        headers: { cookie },
-        redirect: "manual",
-      });
-      const body = await r.text();
-      if (r.status !== 200) {
-        throw new Error(`new with-cookie: expected 200, got ${r.status}\n${body.slice(0, 500)}`);
-      }
-      if (!/Yangi masala/.test(body)) {
-        throw new Error(`/admin/problems/new missing heading\n${body.slice(0, 500)}`);
-      }
-      if (!/Metadata/.test(body)) {
-        throw new Error(`/admin/problems/new missing Metadata section`);
-      }
-      console.log(`[2] /admin/problems/new with cookie -> 200 OK, form rendered`);
-    }
-
     // Insert a real problem via the data layer so detail/edit pages have
     // something to render.
     createdId = await createProblemTx(
@@ -74,10 +46,8 @@ async function main() {
         sourceId: source.id,
         year: 2023,
         problemNumber: "PG-1",
-        difficulty: 2,
         topicIds: [topic.id],
         classes: [9],
-        tagIds: [],
       },
       admin.id
     );
@@ -103,7 +73,7 @@ async function main() {
       if (!/O(?:'|&#x27;|&apos;)chirish/.test(body)) {
         throw new Error(`detail page missing "O'chirish" delete control`);
       }
-      console.log(`[3] /admin/problems/${createdId.slice(0, 8)}… -> 200 OK with body + controls`);
+      console.log(`[1] /admin/problems/${createdId.slice(0, 8)}… -> 200 OK with body + controls`);
     }
 
     // /admin/problems/[id]/edit with cookie
@@ -119,7 +89,7 @@ async function main() {
       if (!/Masalani tahrirlash/.test(body)) {
         throw new Error(`edit page missing heading`);
       }
-      console.log(`[4] /admin/problems/${createdId.slice(0, 8)}…/edit -> 200 OK`);
+      console.log(`[2] /admin/problems/${createdId.slice(0, 8)}…/edit -> 200 OK`);
     }
 
     // /admin/problems/[id] for unknown id -> 404
@@ -131,7 +101,7 @@ async function main() {
       if (r.status !== 404) {
         throw new Error(`unknown id: expected 404, got ${r.status}`);
       }
-      console.log(`[5] unknown problem id -> 404`);
+      console.log(`[3] unknown problem id -> 404`);
     }
   } catch (e) {
     failed = e instanceof Error ? e : new Error(String(e));

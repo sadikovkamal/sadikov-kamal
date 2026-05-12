@@ -1,8 +1,8 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { topics, sources, tags, problemTags } from "@/db/schema";
+import { topics, sources } from "@/db/schema";
 
 // --- Topics -----------------------------------------------------------------
 
@@ -66,56 +66,4 @@ export async function updateSource(
 /** Like deleteTopic, ON DELETE RESTRICT trips on referencing problems. */
 export async function deleteSource(id: string): Promise<void> {
   await db.delete(sources).where(eq(sources.id, id));
-}
-
-// --- Tags -------------------------------------------------------------------
-
-export interface TagInput {
-  name: string;
-  slug: string;
-}
-
-export async function createTag(input: TagInput): Promise<string> {
-  const [created] = await db
-    .insert(tags)
-    .values(input)
-    .returning({ id: tags.id });
-  return created.id;
-}
-
-export async function updateTag(id: string, input: TagInput): Promise<void> {
-  await db.update(tags).set(input).where(eq(tags.id, id));
-}
-
-export async function deleteTag(id: string): Promise<void> {
-  await db.delete(tags).where(eq(tags.id, id));
-}
-
-/**
- * Merge tag `fromId` into `toId`:
- * 1. Re-point every `problem_tags` row pointing at `fromId` to `toId`,
- *    skipping rows where the same `problem_id` already has `toId` (those
- *    would violate the composite primary key).
- * 2. Delete the leftover `(problem_id, fromId)` rows that we couldn't
- *    re-point because the destination already existed.
- * 3. Delete the `fromId` tag itself.
- *
- * Wrapped in a transaction so all three steps land or none do.
- */
-export async function mergeTag(fromId: string, toId: string): Promise<void> {
-  if (fromId === toId) return;
-  await db.transaction(async (tx) => {
-    await tx.execute(sql`
-      UPDATE problem_tags AS pt
-      SET tag_id = ${toId}
-      WHERE pt.tag_id = ${fromId}
-        AND NOT EXISTS (
-          SELECT 1 FROM problem_tags AS pt2
-          WHERE pt2.problem_id = pt.problem_id
-            AND pt2.tag_id = ${toId}
-        )
-    `);
-    await tx.delete(problemTags).where(eq(problemTags.tagId, fromId));
-    await tx.delete(tags).where(eq(tags.id, fromId));
-  });
 }

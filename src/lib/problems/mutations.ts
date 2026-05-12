@@ -1,15 +1,8 @@
 import "server-only";
 
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import {
-  problems,
-  problemTopics,
-  problemTags,
-  problemClasses,
-  tags,
-} from "@/db/schema";
-import { slugify } from "@/lib/utils/slug";
+import { problems, problemTopics, problemClasses } from "@/db/schema";
 
 export interface ProblemInput {
   bodyMd: string;
@@ -18,10 +11,8 @@ export interface ProblemInput {
   sourceId: string;
   year: number | null;
   problemNumber: string | null;
-  difficulty: number;
   topicIds: string[];
   classes: number[];
-  tagIds: string[];
   metadata?: Record<string, unknown>;
 }
 
@@ -40,7 +31,6 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
         sourceId: input.sourceId,
         year: input.year,
         problemNumber: input.problemNumber,
-        difficulty: input.difficulty,
         createdBy,
         metadata: input.metadata ?? {},
       })
@@ -62,11 +52,6 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
         }))
       );
     }
-    if (input.tagIds.length) {
-      await tx.insert(problemTags).values(
-        input.tagIds.map((tagId) => ({ problemId: created.id, tagId }))
-      );
-    }
 
     return created.id;
   });
@@ -74,8 +59,8 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
 
 /**
  * Update a problem and replace its junction rows wholesale.
- * Diffing for MVP isn't worth the complexity — three deletes + three
- * inserts inside a transaction is cheap enough.
+ * Diffing for MVP isn't worth the complexity — deletes + inserts inside a
+ * transaction is cheap enough.
  */
 export async function updateProblemTx(id: string, input: ProblemInput) {
   return db.transaction(async (tx) => {
@@ -88,14 +73,12 @@ export async function updateProblemTx(id: string, input: ProblemInput) {
         sourceId: input.sourceId,
         year: input.year,
         problemNumber: input.problemNumber,
-        difficulty: input.difficulty,
         metadata: input.metadata ?? {},
         updatedAt: new Date(),
       })
       .where(eq(problems.id, id));
 
     await tx.delete(problemTopics).where(eq(problemTopics.problemId, id));
-    await tx.delete(problemTags).where(eq(problemTags.problemId, id));
     await tx.delete(problemClasses).where(eq(problemClasses.problemId, id));
 
     if (input.topicIds.length) {
@@ -108,59 +91,10 @@ export async function updateProblemTx(id: string, input: ProblemInput) {
         input.classes.map((classNumber) => ({ problemId: id, classNumber }))
       );
     }
-    if (input.tagIds.length) {
-      await tx.insert(problemTags).values(
-        input.tagIds.map((tagId) => ({ problemId: id, tagId }))
-      );
-    }
   });
 }
 
 export async function deleteProblemTx(id: string) {
   // Junction rows + images cascade via FK constraints (Phase 1 schema).
   await db.delete(problems).where(eq(problems.id, id));
-}
-
-/**
- * Resolve a list of free-form tag names into tag IDs in the same order.
- * Creates missing tags on the fly. Idempotent: a slug collision is a
- * no-op insert thanks to onConflictDoNothing, then the row is read back
- * for its existing ID.
- *
- * Note: onConflictDoNothing returns nothing for existing rows, which is
- * why we re-query rather than relying on RETURNING.
- */
-export async function ensureTagsByName(names: string[]): Promise<string[]> {
-  if (!names.length) return [];
-
-  const trimmed = names.map((n) => n.trim()).filter((n) => n.length > 0);
-  if (!trimmed.length) return [];
-
-  const slugs = trimmed.map((n) => slugify(n));
-
-  // Build unique (name, slug) pairs preserving the first occurrence's name.
-  const uniquePairs = new Map<string, string>(); // slug -> name
-  trimmed.forEach((name, i) => {
-    const slug = slugs[i];
-    if (!uniquePairs.has(slug)) uniquePairs.set(slug, name);
-  });
-
-  const valuesToInsert = Array.from(uniquePairs.entries()).map(
-    ([slug, name]) => ({ name, slug })
-  );
-
-  await db
-    .insert(tags)
-    .values(valuesToInsert)
-    .onConflictDoNothing({ target: tags.slug });
-
-  const rows = await db
-    .select({ id: tags.id, slug: tags.slug })
-    .from(tags)
-    .where(inArray(tags.slug, Array.from(uniquePairs.keys())));
-
-  const bySlug = new Map(rows.map((r) => [r.slug, r.id]));
-  return slugs
-    .map((s) => bySlug.get(s))
-    .filter((x): x is string => typeof x === "string");
 }

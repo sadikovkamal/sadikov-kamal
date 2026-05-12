@@ -1,23 +1,18 @@
 // E2E smoke for Phase 6 list query + URL-state parsing.
-// Inserts ~10 problems with a mix of source/year/difficulty/topic/class/tag,
+// Inserts ~10 problems with a mix of source/year/topic/class,
 // then exercises listProblems with each filter dimension and verifies counts.
 //
 // Run: NODE_OPTIONS="--conditions=react-server" npx tsx scripts/list-smoke.ts
 
 import "../src/db/load-env";
 
-import { eq, inArray, sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { db } from "../src/db";
 import {
-  users,
-  topics,
-  sources,
-  tags,
   problems,
 } from "../src/db/schema";
 import {
   createProblemTx,
-  ensureTagsByName,
 } from "../src/lib/problems/mutations";
 import {
   listProblems,
@@ -40,22 +35,20 @@ async function main() {
   const geometry = (await db.query.topics.findMany()).find((t) => t.slug === "geometry")!;
   const imo = (await db.query.sources.findMany()).find((s) => s.slug === "imo")!;
   const national = (await db.query.sources.findMany()).find((s) => s.slug === "uzbekistan-national")!;
-  const tagIds = await ensureTagsByName(["smoke-list-99"]);
-  const smokeTagId = tagIds[0];
 
   // --- Seed test fixtures ---------------------------------------------------
   // Generate a deterministic body using a unique marker so we can clean up
   // afterwards by exact match.
   const MARKER = "PHASE6_SMOKE_MARKER";
   const fixtures = [
-    { topic: algebra, source: imo, year: 2020, diff: 1, classes: [9], tagged: false, body: `${MARKER} cauchy-schwarz problem` },
-    { topic: algebra, source: imo, year: 2021, diff: 2, classes: [9, 10], tagged: false, body: `${MARKER} algebra basic` },
-    { topic: algebra, source: imo, year: 2022, diff: 3, classes: [10], tagged: true, body: `${MARKER} prove inequality cauchy` },
-    { topic: inequalities, source: imo, year: 2023, diff: 4, classes: [10, 11], tagged: false, body: `${MARKER} hard inequality` },
-    { topic: inequalities, source: national, year: 2024, diff: 5, classes: [11], tagged: true, body: `${MARKER} extremely hard cauchy schwarz` },
-    { topic: geometry, source: national, year: 2020, diff: 2, classes: [7, 8], tagged: false, body: `${MARKER} triangle area` },
-    { topic: geometry, source: national, year: null, diff: 3, classes: [9], tagged: false, body: `${MARKER} circle inscribed` },
-    { topic: algebra, source: imo, year: 2024, diff: 5, classes: [11], tagged: false, body: `${MARKER} polynomial roots` },
+    { topic: algebra, source: imo, year: 2020, diff: 1, classes: [9], body: `${MARKER} cauchy-schwarz problem` },
+    { topic: algebra, source: imo, year: 2021, diff: 2, classes: [9, 10], body: `${MARKER} algebra basic` },
+    { topic: algebra, source: imo, year: 2022, diff: 3, classes: [10], body: `${MARKER} prove inequality cauchy` },
+    { topic: inequalities, source: imo, year: 2023, diff: 4, classes: [10, 11], body: `${MARKER} hard inequality` },
+    { topic: inequalities, source: national, year: 2024, diff: 5, classes: [11], body: `${MARKER} extremely hard cauchy schwarz` },
+    { topic: geometry, source: national, year: 2020, diff: 2, classes: [7, 8], body: `${MARKER} triangle area` },
+    { topic: geometry, source: national, year: null, diff: 3, classes: [9], body: `${MARKER} circle inscribed` },
+    { topic: algebra, source: imo, year: 2024, diff: 5, classes: [11], body: `${MARKER} polynomial roots` },
   ];
 
   const created: string[] = [];
@@ -68,10 +61,8 @@ async function main() {
         sourceId: f.source.id,
         year: f.year,
         problemNumber: null,
-        difficulty: f.diff,
         topicIds: [f.topic.id],
         classes: f.classes,
-        tagIds: f.tagged ? [smokeTagId] : [],
       },
       admin.id
     );
@@ -112,24 +103,6 @@ async function main() {
       console.log(`[2] FTS "cauchy" -> ${r.total} rows`);
     }
 
-    // --- Difficulty filter --------------------------------------------------
-    {
-      const r = await listProblems(
-        withMarker({ difficulties: [4, 5] }),
-        { field: "difficulty", direction: "desc" },
-        1,
-        25
-      );
-      assert(r.total === 3, `difficulty 4,5 total=${r.total}, want 3`);
-      assert(
-        r.rows.every((row) => [4, 5].includes(row.difficulty)),
-        "difficulty filter leaked"
-      );
-      // First row should be a 5 (sorted desc)
-      assert(r.rows[0].difficulty === 5, `first row diff=${r.rows[0].difficulty}, want 5`);
-      console.log(`[3] difficulty 4,5 desc -> ${r.total} rows, first=${r.rows[0].difficulty}`);
-    }
-
     // --- Year range ---------------------------------------------------------
     {
       const r = await listProblems(
@@ -143,7 +116,7 @@ async function main() {
         r.rows.every((row) => row.year !== null && row.year >= 2021 && row.year <= 2023),
         "year range leaked"
       );
-      console.log(`[4] year 2021..2023 asc -> ${r.total} rows`);
+      console.log(`[3] year 2021..2023 asc -> ${r.total} rows`);
     }
 
     // --- Source filter ------------------------------------------------------
@@ -156,7 +129,7 @@ async function main() {
       );
       assert(r.total === 3, `national total=${r.total}, want 3`);
       assert(r.rows.every((row) => row.sourceName === national.name), "source leaked");
-      console.log(`[5] source=national -> ${r.total} rows`);
+      console.log(`[4] source=national -> ${r.total} rows`);
     }
 
     // --- Topic filter (EXISTS subquery, no duplicates) ---------------------
@@ -171,7 +144,7 @@ async function main() {
       // Verify no duplicate ids
       const ids = new Set(r.rows.map((row) => row.id));
       assert(ids.size === r.rows.length, "duplicate rows from topic join");
-      console.log(`[6] topic=algebra -> ${r.total} rows, no dupes`);
+      console.log(`[5] topic=algebra -> ${r.total} rows, no dupes`);
     }
 
     // --- Class filter -------------------------------------------------------
@@ -184,19 +157,7 @@ async function main() {
       );
       assert(r.total === 3, `class 11 total=${r.total}, want 3`);
       assert(r.rows.every((row) => row.classes.includes(11)), "class filter leaked");
-      console.log(`[7] class=11 -> ${r.total} rows`);
-    }
-
-    // --- Tag filter ---------------------------------------------------------
-    {
-      const r = await listProblems(
-        withMarker({ tagIds: [smokeTagId] }),
-        { field: "createdAt", direction: "desc" },
-        1,
-        25
-      );
-      assert(r.total === 2, `smoke-list-99 tag total=${r.total}, want 2`);
-      console.log(`[8] tag=smoke-list-99 -> ${r.total} rows`);
+      console.log(`[6] class=11 -> ${r.total} rows`);
     }
 
     // --- Combined filters ---------------------------------------------------
@@ -204,18 +165,17 @@ async function main() {
       const r = await listProblems(
         withMarker({
           topicIds: [algebra.id],
-          difficulties: [3, 4, 5],
           yearFrom: 2022,
         }),
         { field: "year", direction: "desc" },
         1,
         25
       );
-      // Algebra problems with difficulty 3-5 and year >= 2022:
-      // 2022/diff3, 2024/diff5 → 2 rows
+      // Algebra problems with year >= 2022:
+      // 2022, 2024 → 2 rows
       assert(r.total === 2, `combined total=${r.total}, want 2`);
       assert(r.rows[0].year === 2024, `first year=${r.rows[0].year}, want 2024`);
-      console.log(`[9] combined filters -> ${r.total} rows, first year=${r.rows[0].year}`);
+      console.log(`[7] combined filters -> ${r.total} rows, first year=${r.rows[0].year}`);
     }
 
     // --- Pagination ---------------------------------------------------------
@@ -239,23 +199,22 @@ async function main() {
       const ids2 = new Set(r2.rows.map((r) => r.id));
       const overlap = [...ids1].filter((id) => ids2.has(id));
       assert(overlap.length === 0, `pagination overlap: ${overlap.length}`);
-      console.log(`[10] pagination ok (page 1 + page 2 distinct)`);
+      console.log(`[8] pagination ok (page 1 + page 2 distinct)`);
     }
 
     // --- URL state parser ---------------------------------------------------
     {
       const sp = new URLSearchParams(
-        "q=cauchy&difficulty=4,5&class=10,11&yearFrom=2020&yearTo=2024&sortField=year&sortDir=asc&page=2"
+        "q=cauchy&class=10,11&yearFrom=2020&yearTo=2024&sortField=year&sortDir=asc&page=2"
       );
       const parsed = parseSearchParams(sp);
       assert(parsed.filters.search === "cauchy", "search not parsed");
-      assert(JSON.stringify(parsed.filters.difficulties) === "[4,5]", "difficulty csv parse");
       assert(JSON.stringify(parsed.filters.classes) === "[10,11]", "class csv parse");
       assert(parsed.filters.yearFrom === 2020 && parsed.filters.yearTo === 2024, "year range parse");
       assert(parsed.sort.field === "year", "sortField parse");
       assert(parsed.sort.direction === "asc", "sortDir parse");
       assert(parsed.page === 2, "page parse");
-      console.log(`[11] parseSearchParams ok`);
+      console.log(`[9] parseSearchParams ok`);
     }
 
     // --- FTS index plan -----------------------------------------------------
@@ -274,15 +233,14 @@ async function main() {
         return /problems_body_fts_idx/i.test(planText);
       });
       assert(usesIndex, "FTS plan did not pick problems_body_fts_idx even with seqscan disabled");
-      console.log(`[12] EXPLAIN (with seqscan off) confirms problems_body_fts_idx is reachable`);
+      console.log(`[10] EXPLAIN (with seqscan off) confirms problems_body_fts_idx is reachable`);
     }
   } finally {
     // --- Cleanup -----------------------------------------------------------
     if (created.length) {
       await db.delete(problems).where(inArray(problems.id, created));
     }
-    await db.delete(tags).where(eq(tags.slug, "smoke-list-99"));
-    console.log(`[cleanup] deleted ${created.length} fixtures + smoke tag`);
+    console.log(`[cleanup] deleted ${created.length} fixtures`);
   }
 
   console.log(`\nList query smoke: PASSED`);

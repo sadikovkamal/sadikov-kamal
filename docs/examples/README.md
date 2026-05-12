@@ -57,7 +57,7 @@ The three problems exercise distinct parser paths:
 | Problem | What it covers |
 |---|---|
 | #1 (IMO 2024 P1) | Required fields only, no images, has `# Yechim` |
-| #2 (National 2023 P2) | Tags, image reference (`images/sample-fig1.png`), display math |
+| #2 (National 2023 P2) | Image reference (`images/sample-fig1.png`), display math |
 | #3 (Shortlist 2022 C2) | Image reference, no `# Yechim` |
 
 The sample images are 67-byte 1×1 transparent PNGs — placeholders so
@@ -71,7 +71,7 @@ batches will have meaningful images.
 3. Upload `sample-batch.zip`
 4. Preview should show 3 problems, all valid
 5. Confirm import → 3 rows added to the `problems` table, plus
-   junctions for topics, classes, tags
+   junctions for topics and classes
 
 ## Adding a new sample
 

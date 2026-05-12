@@ -4,8 +4,6 @@ year: 2024
 problem_number: "1"
 classes: [10, 11]
 topics: [number-theory]
-difficulty: 4
-tags: [divisibility]
 ---
 
 # Shart
@@ -27,8 +25,6 @@ year: 2023
 problem_number: "P2"
 classes: [9, 10]
 topics: [algebra, inequalities]
-difficulty: 3
-tags: [am-gm]
 ---
 
 # Shart
@@ -56,7 +52,6 @@ year: 2022
 problem_number: "C2"
 classes: [10, 11]
 topics: [combinatorics]
-difficulty: 5
 ---
 
 # Shart

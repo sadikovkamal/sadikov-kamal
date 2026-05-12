@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { desc, sql } from "drizzle-orm";
+import { ArrowUpRight } from "lucide-react";
 import { db } from "@/db";
 import {
   problems,
   topics,
   sources,
-  tags,
   problemTopics,
   importBatches,
 } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
+import { formatCount, formatDateTime } from "@/lib/utils";
 import { DashboardCharts } from "./dashboard-charts";
+import { PageHeader } from "./_components/page-header";
 
 const STATUS_LABELS: Record<string, string> = {
   success: "muvaffaqiyatli",
@@ -38,16 +40,13 @@ export default async function AdminDashboard() {
     problemsCountRow,
     topicsCountRow,
     sourcesCountRow,
-    tagsCountRow,
     byTopic,
     bySource,
-    byDifficulty,
     recentImports,
   ] = await Promise.all([
     db.select({ value: sql<number>`count(*)::int` }).from(problems),
     db.select({ value: sql<number>`count(*)::int` }).from(topics),
     db.select({ value: sql<number>`count(*)::int` }).from(sources),
-    db.select({ value: sql<number>`count(*)::int` }).from(tags),
     db
       .select({
         topicName: topics.name,
@@ -69,14 +68,6 @@ export default async function AdminDashboard() {
       .orderBy(sql`count(*) desc`)
       .limit(8),
     db
-      .select({
-        difficulty: problems.difficulty,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(problems)
-      .groupBy(problems.difficulty)
-      .orderBy(problems.difficulty),
-    db
       .select()
       .from(importBatches)
       .orderBy(desc(importBatches.createdAt))
@@ -86,34 +77,36 @@ export default async function AdminDashboard() {
   const totalProblems = problemsCountRow[0]?.value ?? 0;
   const totalTopics = topicsCountRow[0]?.value ?? 0;
   const totalSources = sourcesCountRow[0]?.value ?? 0;
-  const totalTags = tagsCountRow[0]?.value ?? 0;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Boshqaruv paneli</h1>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          label="Masalalar"
-          value={totalProblems}
-          href="/admin/problems"
-        />
-        <StatCard label="Mavzular" value={totalTopics} href="/admin/topics" />
-        <StatCard label="Manbalar" value={totalSources} href="/admin/sources" />
-        <StatCard label="Teglar" value={totalTags} href="/admin/tags" />
-      </div>
-
-      <DashboardCharts
-        byTopic={byTopic}
-        bySource={bySource}
-        byDifficulty={byDifficulty}
+      <PageHeader
+        title="Dashboard"
+        subtitle="Masalalar bazasining umumiy holati."
       />
 
+      <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <StatCard label="Masalalar" value={totalProblems} href="/admin/problems" />
+        <StatCard label="Mavzular" value={totalTopics} href="/admin/topics" />
+        <StatCard label="Manbalar" value={totalSources} href="/admin/sources" />
+      </section>
+
+      <DashboardCharts byTopic={byTopic} bySource={bySource} />
+
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">So&apos;nggi importlar</h2>
-        <div className="border rounded-md divide-y text-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium">So&apos;nggi importlar</h2>
+          <Link
+            href="/admin/import"
+            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5"
+          >
+            Hammasi
+            <ArrowUpRight className="size-3" aria-hidden />
+          </Link>
+        </div>
+        <div className="rounded-lg border bg-card divide-y text-sm overflow-hidden">
           {recentImports.length === 0 && (
-            <div className="p-3 text-muted-foreground">
+            <div className="py-10 px-4 text-center text-sm text-muted-foreground">
               Hali import qilinmagan.
             </div>
           )}
@@ -121,18 +114,23 @@ export default async function AdminDashboard() {
             <Link
               key={b.id}
               href={`/admin/import/${b.id}`}
-              className="block p-3 hover:bg-muted"
+              className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/60 transition-colors"
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate">{b.filename}</span>
-                <Badge variant={STATUS_VARIANTS[b.status] ?? "outline"}>
-                  {STATUS_LABELS[b.status] ?? b.status}
-                </Badge>
+              <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+                <span className="truncate text-[13px] font-medium">
+                  {b.filename}
+                </span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {b.successCount} / {b.totalCount} ·{" "}
+                  {formatDateTime(b.createdAt)}
+                </span>
               </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {b.successCount} / {b.totalCount} ·{" "}
-                {new Date(b.createdAt).toLocaleString("uz-UZ")}
-              </div>
+              <Badge
+                variant={STATUS_VARIANTS[b.status] ?? "outline"}
+                className="shrink-0 text-[10px] px-1.5 py-0"
+              >
+                {STATUS_LABELS[b.status] ?? b.status}
+              </Badge>
             </Link>
           ))}
         </div>
@@ -153,11 +151,19 @@ function StatCard({
   return (
     <Link
       href={href}
-      className="border rounded-md p-4 hover:bg-muted transition-colors"
+      className="group rounded-lg border bg-card p-4 hover:border-foreground/30 transition-colors"
     >
-      <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="text-3xl font-bold mt-1">
-        {value.toLocaleString("uz-UZ")}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground font-medium">
+          {label}
+        </span>
+        <ArrowUpRight
+          className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-hidden
+        />
+      </div>
+      <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">
+        {formatCount(value)}
       </div>
     </Link>
   );

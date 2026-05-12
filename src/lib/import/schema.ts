@@ -23,8 +23,6 @@ export const problemFrontmatterSchema = z.object({
     .optional(),
   classes: z.array(z.number().int().min(5).max(11)).min(1),
   topics: z.array(z.string().min(1)).min(1),
-  difficulty: z.number().int().min(1).max(5),
-  tags: z.array(z.string()).default([]),
   answer: z.string().optional(),
 });
 
@@ -39,8 +37,6 @@ export const manifestSchema = z.object({
       year: z.number().int().optional(),
       classes: z.array(z.number().int()).optional(),
       topics: z.array(z.string()).optional(),
-      difficulty: z.number().int().optional(),
-      tags: z.array(z.string()).optional(),
     })
     .optional(),
 });

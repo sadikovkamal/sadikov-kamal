@@ -2,14 +2,7 @@ import "server-only";
 
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import {
-  topics,
-  sources,
-  tags,
-  problems,
-  problemTopics,
-  problemTags,
-} from "@/db/schema";
+import { topics, sources, problems, problemTopics } from "@/db/schema";
 
 export interface TopicWithCount {
   id: string;
@@ -64,29 +57,5 @@ export async function listSourcesWithCounts(): Promise<SourceWithCount[]> {
     })
     .from(sources)
     .orderBy(sources.name);
-  return rows;
-}
-
-export interface TagWithCount {
-  id: string;
-  name: string;
-  slug: string;
-  usageCount: number;
-}
-
-export async function listTagsWithCounts(): Promise<TagWithCount[]> {
-  const rows = await db
-    .select({
-      id: tags.id,
-      name: tags.name,
-      slug: tags.slug,
-      usageCount: sql<number>`(
-        SELECT count(*)::int
-        FROM ${problemTags}
-        WHERE ${problemTags.tagId} = ${tags.id}
-      )`,
-    })
-    .from(tags)
-    .orderBy(tags.name);
   return rows;
 }

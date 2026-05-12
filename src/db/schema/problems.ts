@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./users";
-import { sources, topics, tags } from "./taxonomy";
+import { sources, topics } from "./taxonomy";
 import { importBatches } from "./imports";
 
 export const problems = pgTable(
@@ -27,7 +27,6 @@ export const problems = pgTable(
       .references(() => sources.id, { onDelete: "restrict" }),
     year: integer("year"),
     problemNumber: text("problem_number"), // text because "Day 2 / 3" is valid
-    difficulty: integer("difficulty").notNull(), // 1..5
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -44,7 +43,6 @@ export const problems = pgTable(
   },
   (t) => [
     index("problems_source_year_idx").on(t.sourceId, t.year),
-    index("problems_difficulty_idx").on(t.difficulty),
     // Full-text search index on body_md (Uzbek content -> 'simple' config)
     index("problems_body_fts_idx").using(
       "gin",
@@ -54,10 +52,6 @@ export const problems = pgTable(
     uniqueIndex("problems_source_year_number_unique")
       .on(t.sourceId, t.year, t.problemNumber)
       .where(sql`${t.problemNumber} IS NOT NULL`),
-    check(
-      "problems_difficulty_check",
-      sql`${t.difficulty} >= 1 AND ${t.difficulty} <= 5`
-    ),
     check(
       "problems_year_check",
       sql`${t.year} IS NULL OR (${t.year} >= 1900 AND ${t.year} <= 2100)`
@@ -100,22 +94,6 @@ export const problemTopics = pgTable(
   ]
 );
 
-export const problemTags = pgTable(
-  "problem_tags",
-  {
-    problemId: uuid("problem_id")
-      .notNull()
-      .references(() => problems.id, { onDelete: "cascade" }),
-    tagId: uuid("tag_id")
-      .notNull()
-      .references(() => tags.id, { onDelete: "restrict" }),
-  },
-  (t) => [
-    primaryKey({ columns: [t.problemId, t.tagId] }),
-    index("problem_tags_tag_id_idx").on(t.tagId),
-  ]
-);
-
 export const problemClasses = pgTable(
   "problem_classes",
   {
@@ -138,5 +116,4 @@ export type NewProblem = typeof problems.$inferInsert;
 export type Image = typeof images.$inferSelect;
 export type NewImage = typeof images.$inferInsert;
 export type ProblemTopic = typeof problemTopics.$inferSelect;
-export type ProblemTag = typeof problemTags.$inferSelect;
 export type ProblemClass = typeof problemClasses.$inferSelect;

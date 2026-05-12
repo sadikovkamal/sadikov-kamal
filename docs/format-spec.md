@@ -71,7 +71,6 @@ defaults:
   source: imo                     # source slug
   year: 2024
   classes: [10, 11]
-  difficulty: 4
 ```
 
 ### Fields
@@ -99,8 +98,6 @@ year: 2024                        # int, required (or via manifest)
 problem_number: "P3"              # string, required
 classes: [10, 11]                 # array, >= 1, required
 topics: [algebra, inequalities]   # array, >= 1, required
-difficulty: 4                     # int 1-5, required
-tags: [induction, vieta]          # array, optional
 answer: "x = 3"                   # string, optional
 ---
 
@@ -144,10 +141,8 @@ sections and stay as-is in the markdown.
 | `source` | string (slug) | yes | Auto-created if missing in `sources` table. Display name is derived from the slug (`"imo-shortlist"` → `"Imo Shortlist"`); rename in `/admin/sources` after import. |
 | `year` | int 1900..2100 | recommended | May be omitted; stored as null. |
 | `problem_number` | string, max 50 chars | yes | "1", "P3", "Day 2 / 5", "A1" — anything goes. |
-| `classes` | int[] from {5..11} | yes (>= 1) | School-grade tags. |
+| `classes` | int[] from {5..11} | yes (>= 1) | School grades. |
 | `topics` | string[] (slugs) | yes (>= 1) | Auto-created if missing in `topics` table. Same naming behavior as `source`. |
-| `difficulty` | int 1..5 | yes | 1 = intro, 3 = national olympiad median, 5 = IMO P6 level. |
-| `tags` | string[] | no | Free-form. Auto-created and slugified server-side. |
 | `answer` | string | no | Short answer for non-proof problems. |
 
 ### Body rules
@@ -177,7 +172,6 @@ year: 2024
 problem_number: "1"
 classes: [10, 11]
 topics: [number-theory]
-difficulty: 4
 ---
 
 # Shart
@@ -191,7 +185,6 @@ year: 2024
 problem_number: "2"
 classes: [10, 11]
 topics: [algebra]
-difficulty: 5
 ---
 
 # Shart
@@ -216,13 +209,12 @@ when any of the following holds:
 3. `manifest.yaml` is present but malformed.
 4. A problem's frontmatter is missing a required field.
 5. A frontmatter value is the wrong type (e.g. `year: "twenty"`).
-6. `difficulty` is outside 1..5.
-7. A `class` value is outside 5..11.
-8. A markdown image references a file not present under `images/`.
-9. A markdown image path doesn't start with `images/`, or escapes the
+6. A `class` value is outside 5..11.
+7. A markdown image references a file not present under `images/`.
+8. A markdown image path doesn't start with `images/`, or escapes the
    bundle root via `..`.
-10. The bundle exceeds 50 MB total uncompressed, or 200 problems.
-11. An image exceeds 5 MB or has a non-allowed mime type.
+9. The bundle exceeds 50 MB total uncompressed, or 200 problems.
+10. An image exceeds 5 MB or has a non-allowed mime type.
 
 A duplicate `(source, year, problem_number)` already in the database
 is **not** an error — it is surfaced as a warning so the admin can
@@ -242,7 +234,6 @@ year: 2024
 problem_number: "1"
 classes: [10, 11]
 topics: [algebra]
-difficulty: 3
 ---
 
 # Shart
@@ -260,8 +251,6 @@ year: 2023
 problem_number: "P2"
 classes: [9, 10]
 topics: [geometry]
-difficulty: 4
-tags: [circles, tangent-lines]
 ---
 
 # Shart
