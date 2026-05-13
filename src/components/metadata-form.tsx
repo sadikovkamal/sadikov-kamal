@@ -24,9 +24,8 @@ import {
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CLASS_NUMBERS } from "@/lib/classes";
 import type { Topic, Source } from "@/db/schema";
-
-const CLASS_NUMBERS = [5, 6, 7, 8, 9, 10, 11] as const;
 
 export interface MetadataFormProps {
   topicsAvailable: Topic[];

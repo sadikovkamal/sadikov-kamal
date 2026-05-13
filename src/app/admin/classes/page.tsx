@@ -3,9 +3,8 @@ import { sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/db";
 import { problemClasses } from "@/db/schema";
+import { CLASS_NUMBERS } from "@/lib/classes";
 import { PageHeader } from "../_components/page-header";
-
-const CLASS_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
 
 export default async function ClassesPage() {
   await requireAdmin();
@@ -29,7 +28,7 @@ export default async function ClassesPage() {
         subtitle="Masalalarni sinflar bo'yicha ko'rish."
       />
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
         {CLASS_NUMBERS.map((n) => {
           const count = counts.get(n) ?? 0;
           const empty = count === 0;
