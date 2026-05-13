@@ -40,8 +40,9 @@ export interface ExecuteResult {
  *     image only upload once.
  *  4. For each problem with status !== "error" and not duplicate, run a
  *     transaction: insert problems row, junction rows, image rows. Rewrite
- *     `images/foo.png` markdown refs to the R2 public URL inside `body_md`
- *     and `solution_md`.
+ *     `images/foo.png` markdown refs to the R2 public URL inside `body_md`.
+ *     Solutions are intentionally not imported (admins add them in the UI),
+ *     so `solution_md` is stored as null on every imported row.
  *  5. Mark the batch as `success` / `partial` / `failed` and persist the
  *     accumulated error log.
  *
@@ -185,7 +186,10 @@ export async function executeImport(params: {
           .insert(problems)
           .values({
             bodyMd: rewrite(parsed.bodyMd) ?? "",
-            solutionMd: rewrite(parsed.solutionMd),
+            // Import never carries solutions — admins add them in the UI.
+            // The parser already drops `# Yechim` sections, so this is null
+            // by construction; kept explicit as defense-in-depth.
+            solutionMd: null,
             answer: fm.answer ?? null,
             sourceId,
             year: fm.year ?? null,

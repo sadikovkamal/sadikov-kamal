@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useForm, FormProvider } from "react-hook-form";
+import { useRef, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import dynamic from "next/dynamic";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { uploadImageAction } from "@/app/admin/_actions/upload-image";
 import {
   Tabs,
   TabsList,
@@ -26,12 +30,20 @@ const MarkdownEditor = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="rounded-xl ring-1 ring-foreground/10 bg-card p-4 min-h-[500px] text-muted-foreground text-sm">
+      <div className="rounded-xl ring-1 ring-foreground/10 bg-card p-4 min-h-[240px] text-muted-foreground text-sm">
         Loading editor…
       </div>
     ),
   }
 );
+
+const imageSchema = z.object({
+  storageKey: z.string().min(1),
+  publicUrl: z.string().url(),
+  originalFilename: z.string(),
+  sizeBytes: z.number().int().nonnegative(),
+  mimeType: z.string().min(1),
+});
 
 const formSchema = z.object({
   bodyMd: z.string().min(1, "Masala matni bo'sh bo'lmasligi kerak"),
@@ -41,7 +53,8 @@ const formSchema = z.object({
   year: z.number().int().min(1900).max(2100).nullable(),
   problemNumber: z.string().max(50).nullable(),
   topicIds: z.array(z.string()).min(1, "Kamida bitta mavzu tanlang"),
-  classes: z.array(z.number()).min(1, "Kamida bitta sinfni tanlang"),
+  classes: z.array(z.number()).min(1, "Sinfni tanlang"),
+  image: imageSchema.nullable(),
 });
 
 export type ProblemFormValues = z.infer<typeof formSchema>;
@@ -53,12 +66,9 @@ export interface ProblemFormProps {
   topicsAvailable: Topic[];
   sourcesAvailable: Source[];
   uploadPrefix: string;
-  /** Compact mode — used by the new-problem modal. Hides the "Yechim" tab
-   *  and the "Yil", "Masala raqami", "Javob" metadata fields. */
+  /** Compact mode — used by the standalone create page. Hides the
+   *  "Yechim" tab and the "Yil", "Masala raqami", "Javob" metadata fields. */
   compact?: boolean;
-  /** Optional cancel handler — when present (modal flow) renders a
-   *  "Bekor qilish" button alongside the primary action. */
-  onCancel?: () => void;
 }
 
 export function ProblemForm({
@@ -69,8 +79,8 @@ export function ProblemForm({
   sourcesAvailable,
   uploadPrefix,
   compact = false,
-  onCancel,
 }: ProblemFormProps) {
+  const router = useRouter();
   const methods = useForm<ProblemFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues,
@@ -113,14 +123,55 @@ export function ProblemForm({
     <FormProvider {...methods}>
       <form
         onSubmit={methods.handleSubmit(onSubmit)}
-        className="grid grid-rows-[1fr_auto] min-h-0"
+        className="space-y-6"
       >
-        {/* Scrollable body — content can grow, footer stays pinned. */}
-        <div className="overflow-y-auto px-5 py-4 space-y-5">
-          <section className="space-y-3">
+        {/* Metadata first — Topics lead the form, so the writer commits to
+            classification before drafting the markdown body. */}
+        <section className="space-y-3">
+          <SectionLabel>Tafsilotlar</SectionLabel>
+          <MetadataForm
+            topicsAvailable={topicsAvailable}
+            sourcesAvailable={sourcesAvailable}
+            compact={compact}
+          />
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
             <SectionLabel>Masala matni</SectionLabel>
-            {compact ? (
-              <>
+            <Controller
+              control={methods.control}
+              name="image"
+              render={({ field }) => (
+                <ImageUploadField
+                  value={field.value}
+                  onChange={field.onChange}
+                  uploadPrefix={uploadPrefix}
+                />
+              )}
+            />
+          </div>
+          {compact ? (
+            <>
+              <SplitView
+                source={bodyMd}
+                onChange={(v) =>
+                  methods.setValue("bodyMd", v, { shouldDirty: true })
+                }
+                uploadPrefix={uploadPrefix}
+              />
+              <FieldHint
+                message={methods.formState.errors.bodyMd?.message}
+              />
+            </>
+          ) : (
+            <Tabs defaultValue="problem" className="w-full">
+              <TabsList>
+                <TabsTrigger value="problem">Shart</TabsTrigger>
+                <TabsTrigger value="solution">Yechim</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="problem">
                 <SplitView
                   source={bodyMd}
                   onChange={(v) =>
@@ -128,57 +179,30 @@ export function ProblemForm({
                   }
                   uploadPrefix={uploadPrefix}
                 />
-                <FieldHint message={methods.formState.errors.bodyMd?.message} />
-              </>
-            ) : (
-              <Tabs defaultValue="problem" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="problem">Shart</TabsTrigger>
-                  <TabsTrigger value="solution">Yechim</TabsTrigger>
-                </TabsList>
+                <FieldHint
+                  message={methods.formState.errors.bodyMd?.message}
+                />
+              </TabsContent>
 
-                <TabsContent value="problem">
-                  <SplitView
-                    source={bodyMd}
-                    onChange={(v) =>
-                      methods.setValue("bodyMd", v, { shouldDirty: true })
-                    }
-                    uploadPrefix={uploadPrefix}
-                  />
-                  <FieldHint
-                    message={methods.formState.errors.bodyMd?.message}
-                  />
-                </TabsContent>
+              <TabsContent value="solution">
+                <SplitView
+                  source={solutionMd}
+                  onChange={(v) =>
+                    methods.setValue(
+                      "solutionMd",
+                      v.length === 0 ? null : v,
+                      { shouldDirty: true }
+                    )
+                  }
+                  uploadPrefix={uploadPrefix}
+                />
+              </TabsContent>
+            </Tabs>
+          )}
+        </section>
 
-                <TabsContent value="solution">
-                  <SplitView
-                    source={solutionMd}
-                    onChange={(v) =>
-                      methods.setValue(
-                        "solutionMd",
-                        v.length === 0 ? null : v,
-                        { shouldDirty: true }
-                      )
-                    }
-                    uploadPrefix={uploadPrefix}
-                  />
-                </TabsContent>
-              </Tabs>
-            )}
-          </section>
-
-          <section className="space-y-3">
-            <SectionLabel>Tafsilotlar</SectionLabel>
-            <MetadataForm
-              topicsAvailable={topicsAvailable}
-              sourcesAvailable={sourcesAvailable}
-              compact={compact}
-            />
-          </section>
-        </div>
-
-        {/* Sticky footer — actions always visible regardless of scroll. */}
-        <footer className="px-5 py-3 border-t bg-popover flex items-center justify-between gap-3">
+        {/* Inline footer — actions sit at the bottom of the form. */}
+        <footer className="pt-4 border-t flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             {serverError && (
               <p className="text-sm text-destructive truncate">
@@ -187,16 +211,14 @@ export function ProblemForm({
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {onCancel && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={onCancel}
-                disabled={isSaving}
-              >
-                Bekor qilish
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => router.back()}
+              disabled={isSaving}
+            >
+              Bekor qilish
+            </Button>
             <Button type="submit" disabled={isSaving}>
               {isSaving
                 ? "Saqlanmoqda…"
@@ -225,6 +247,107 @@ function FieldHint({ message }: { message?: unknown }) {
   return <p className="text-destructive text-xs mt-2">{message}</p>;
 }
 
+type ImageValue = z.infer<typeof imageSchema> | null;
+
+function ImageUploadField({
+  value,
+  onChange,
+  uploadPrefix,
+}: {
+  value: ImageValue;
+  onChange: (v: ImageValue) => void;
+  uploadPrefix: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(file: File) {
+    setUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("prefix", uploadPrefix);
+      const res = await uploadImageAction(fd);
+      if ("success" in res && res.success) {
+        onChange({
+          storageKey: res.storageKey,
+          publicUrl: res.publicUrl,
+          originalFilename: file.name,
+          sizeBytes: res.sizeBytes,
+          mimeType: res.mimeType,
+        });
+      } else {
+        setError(res.error ?? "Yuklab bo'lmadi");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Yuklab bo'lmadi");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+        className="sr-only"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+        }}
+      />
+      {value ? (
+        <>
+          <div className="flex items-center gap-2 rounded-md ring-1 ring-foreground/10 bg-card pl-1 pr-2 py-1">
+            <div className="relative h-6 w-6 overflow-hidden rounded-sm bg-muted shrink-0">
+              <Image
+                src={value.publicUrl}
+                alt={value.originalFilename}
+                fill
+                sizes="24px"
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+            <span className="text-xs max-w-[140px] truncate">
+              {value.originalFilename}
+            </span>
+            <button
+              type="button"
+              aria-label="Rasmni o'chirish"
+              onClick={() => onChange(null)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        </>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <Loader2 data-icon="inline-start" className="animate-spin" />
+          ) : (
+            <ImagePlus data-icon="inline-start" />
+          )}
+          {uploading ? "Yuklanmoqda…" : "Rasm yuklash"}
+        </Button>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
 function SplitView({
   source,
   onChange,
@@ -235,15 +358,16 @@ function SplitView({
   uploadPrefix: string;
 }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3">
       <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card">
         <MarkdownEditor
           value={source}
           onChange={onChange}
           uploadPrefix={uploadPrefix}
+          minHeight="240px"
         />
       </div>
-      <div className="rounded-xl ring-1 ring-foreground/10 bg-card p-4 min-h-[500px] overflow-auto">
+      <div className="rounded-xl ring-1 ring-foreground/10 bg-card p-4 min-h-[200px] overflow-auto">
         <MarkdownPreview source={source || "*Bo'sh*"} />
       </div>
     </div>

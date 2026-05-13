@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import { FileArchive, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   previewImportAction,
@@ -12,6 +11,7 @@ import {
 } from "./_actions";
 
 export function ImportUploader() {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewSuccess | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,31 +71,68 @@ export function ImportUploader() {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="zip">Bundle ZIP</Label>
-        <Input
-          id="zip"
-          type="file"
-          accept=".zip,application/zip"
+      <input
+        ref={inputRef}
+        id="zip"
+        type="file"
+        accept=".zip,application/zip"
+        className="sr-only"
+        disabled={isPreviewing || isImporting}
+        onChange={(e) => {
+          setFile(e.target.files?.[0] ?? null);
+          setPreview(null);
+          setError(null);
+        }}
+      />
+
+      {file ? (
+        <div className="flex items-center gap-2.5 rounded-lg ring-1 ring-foreground/10 bg-card px-3 py-2">
+          <div className="rounded-md bg-muted p-1.5 shrink-0">
+            <FileArchive
+              className="size-4 text-muted-foreground"
+              aria-hidden
+            />
+          </div>
+          <div className="flex-1 min-w-0 text-sm">
+            <p className="font-medium truncate">{file.name}</p>
+            <p className="text-muted-foreground text-xs tabular-nums">
+              {(file.size / (1024 * 1024)).toFixed(2)} MB
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Faylni olib tashlash"
+            disabled={isPreviewing || isImporting}
+            onClick={() => {
+              setFile(null);
+              setPreview(null);
+              setError(null);
+              if (inputRef.current) inputRef.current.value = "";
+            }}
+            className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
           disabled={isPreviewing || isImporting}
-          onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null);
-            setPreview(null);
-            setError(null);
-          }}
-        />
-        <p className="text-muted-foreground text-xs">
-          Format spec: <code>docs/format-spec.md</code>. Bundle limits: 50 MB,
-          200 problems, 5 MB per image.
-        </p>
-      </div>
+          className="w-full flex flex-col items-center justify-center gap-1.5 rounded-lg ring-1 ring-dashed ring-foreground/15 bg-card/40 hover:bg-card hover:ring-foreground/25 transition-colors px-4 py-6 text-center disabled:opacity-50"
+        >
+          <Upload className="size-4 text-muted-foreground" aria-hidden />
+          <span className="text-sm font-medium">Arxiv faylni tanlang</span>
+          <span className="text-xs text-muted-foreground">.zip</span>
+        </button>
+      )}
 
       <div className="flex gap-2">
         <Button
           onClick={onPreview}
           disabled={!file || isPreviewing || isImporting}
         >
-          {isPreviewing ? "Tekshirilmoqda…" : "Tekshirish"}
+          {isPreviewing ? "Qo'shilmoqda…" : "Qo'shish"}
         </Button>
         {canImport && (
           <Button onClick={onExecute} disabled={isImporting || isPreviewing}>

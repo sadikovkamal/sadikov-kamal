@@ -22,9 +22,21 @@ const problemSchema = z.object({
   year: z.number().int().min(1900).max(2100).nullable(),
   problemNumber: z.string().max(50).nullable(),
   topicIds: z.array(z.string().uuid()).min(1, "Pick at least one topic"),
+  // Form picks one class, but the DB junction (problem_classes) keeps the
+  // many-to-many shape so we can broaden the UI later without migration.
   classes: z
     .array(z.number().int().min(5).max(11))
-    .min(1, "Pick at least one class"),
+    .length(1, "Sinfni tanlang"),
+  image: z
+    .object({
+      storageKey: z.string().min(1),
+      publicUrl: z.string().url(),
+      originalFilename: z.string(),
+      sizeBytes: z.number().int().nonnegative(),
+      mimeType: z.string().min(1),
+    })
+    .nullable()
+    .default(null),
 });
 
 export type ProblemActionResult = { error: string } | void;

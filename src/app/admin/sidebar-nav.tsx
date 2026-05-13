@@ -8,6 +8,7 @@ import {
   Library,
   GraduationCap,
   FolderTree,
+  FilePlus,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ const SECTIONS: NavSection[] = [
   {
     label: "Taksonomiya",
     items: [
+      { href: "/admin/problems/new", label: "Masala yaratish", icon: FilePlus },
       { href: "/admin/topics", label: "Mavzular", icon: FolderTree, prefix: true },
       { href: "/admin/sources", label: "Manbalar", icon: Library, prefix: true },
       {
@@ -49,6 +51,28 @@ const SECTIONS: NavSection[] = [
     ],
   },
 ];
+
+const ALL_ITEMS = SECTIONS.flatMap((s) => s.items);
+
+/** Most-specific match wins. If both `/admin/problems` (prefix) and
+ *  `/admin/problems/new` (exact) match the pathname, only the longer
+ *  href stays active so the nav doesn't double-highlight. */
+function matches(pathname: string, item: NavItem): boolean {
+  return item.prefix
+    ? pathname === item.href || pathname.startsWith(`${item.href}/`)
+    : pathname === item.href;
+}
+
+function isActive(pathname: string, item: NavItem): boolean {
+  if (!matches(pathname, item)) return false;
+  const longerMatch = ALL_ITEMS.some(
+    (other) =>
+      other !== item &&
+      other.href.length > item.href.length &&
+      matches(pathname, other)
+  );
+  return !longerMatch;
+}
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -64,9 +88,7 @@ export function SidebarNav() {
           )}
           {section.items.map((item) => {
             const Icon = item.icon;
-            const active = item.prefix
-              ? pathname === item.href || pathname.startsWith(`${item.href}/`)
-              : pathname === item.href;
+            const active = isActive(pathname, item);
 
             return (
               <Link

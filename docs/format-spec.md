@@ -70,7 +70,7 @@ batch_name: "IMO 2024"            # human-readable label, optional
 defaults:
   source: imo                     # source slug
   year: 2024
-  classes: [10, 11]
+  classes: [10]
 ```
 
 ### Fields
@@ -96,7 +96,7 @@ Each problem is a markdown document with YAML frontmatter at the top.
 source: imo                       # slug, required
 year: 2024                        # int, required (or via manifest)
 problem_number: "P3"              # string, required
-classes: [10, 11]                 # array, >= 1, required
+classes: [10]                 # array, >= 1, required
 topics: [algebra, inequalities]   # array, >= 1, required
 answer: "x = 3"                   # string, optional
 ---
@@ -111,11 +111,10 @@ $$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$$
 You can include images:
 
 ![Geometry diagram](images/p3-fig1.png)
-
-# Yechim
-
-The full solution. Same markdown + LaTeX rules apply.
 ```
+
+(Any `# Yechim` heading and content after it would be dropped on import —
+add the solution in the admin UI later.)
 
 ### Required headings
 
@@ -123,16 +122,18 @@ Every problem markdown body MUST contain a `# Shart` heading.
 
 - Text **before** `# Shart` is ignored. Use this region for author notes
   or import-time scratch text.
-- Text between `# Shart` and the next top-level (`#`) heading becomes
-  `body_md`.
+- Text from `# Shart` to the end of the document (or to a `# Yechim`
+  heading, see below) becomes `body_md`.
 
-A `# Yechim` heading is **optional**. If present:
+**Solutions are not imported.** If the source includes a `# Yechim`
+(or `# Solution`) heading, everything from that heading onward is
+**dropped** — it's not stored in the database. Admins write or paste
+the solution in the admin UI after the import. The intent is to keep
+bulk imports focused on the statement; solutions are too sensitive to
+LaTeX/formatting issues to be inserted automatically.
 
-- Text from `# Yechim` to the next top-level heading (or end of document)
-  becomes `solution_md`.
-
-Other headings (`## Lemma 1`, `### Step 2`) are allowed inside both
-sections and stay as-is in the markdown.
+Other headings (`## Lemma 1`, `### Step 2`) inside the body are allowed
+and stay as-is in the markdown.
 
 ### Frontmatter rules
 
@@ -141,7 +142,7 @@ sections and stay as-is in the markdown.
 | `source` | string (slug) | yes | Auto-created if missing in `sources` table. Display name is derived from the slug (`"imo-shortlist"` → `"Imo Shortlist"`); rename in `/admin/sources` after import. |
 | `year` | int 1900..2100 | recommended | May be omitted; stored as null. |
 | `problem_number` | string, max 50 chars | yes | "1", "P3", "Day 2 / 5", "A1" — anything goes. |
-| `classes` | int[] from {5..11} | yes (>= 1) | School grades. |
+| `classes` | int[] from {5..11} | yes (exactly 1) | School grade. Pass a single-element array, e.g. `[10]`. The DB junction supports many-to-many, but the admin UI is single-select and the importer enforces the same. |
 | `topics` | string[] (slugs) | yes (>= 1) | Auto-created if missing in `topics` table. Same naming behavior as `source`. |
 | `answer` | string | no | Short answer for non-proof problems. |
 
@@ -170,7 +171,7 @@ that contains exactly `---`, surrounded by blank lines:
 source: imo
 year: 2024
 problem_number: "1"
-classes: [10, 11]
+classes: [10]
 topics: [number-theory]
 ---
 
@@ -183,7 +184,7 @@ topics: [number-theory]
 source: imo
 year: 2024
 problem_number: "2"
-classes: [10, 11]
+classes: [10]
 topics: [algebra]
 ---
 
@@ -209,7 +210,7 @@ when any of the following holds:
 3. `manifest.yaml` is present but malformed.
 4. A problem's frontmatter is missing a required field.
 5. A frontmatter value is the wrong type (e.g. `year: "twenty"`).
-6. A `class` value is outside 5..11.
+6. `classes` is missing, empty, contains more than one value, or has a value outside 5..11.
 7. A markdown image references a file not present under `images/`.
 8. A markdown image path doesn't start with `images/`, or escapes the
    bundle root via `..`.
@@ -232,7 +233,7 @@ preview UX.)
 source: imo
 year: 2024
 problem_number: "1"
-classes: [10, 11]
+classes: [10]
 topics: [algebra]
 ---
 
@@ -242,15 +243,16 @@ Find all positive integers $n$ such that $n^2 + 1$ is divisible by
 $n + 1$.
 ```
 
-### With solution and images
+### With image and short answer
 
 ```markdown
 ---
 source: uzbekistan-national
 year: 2023
 problem_number: "P2"
-classes: [9, 10]
+classes: [9]
 topics: [geometry]
+answer: "AB = AC"
 ---
 
 # Shart
@@ -260,12 +262,6 @@ In triangle $ABC$, the inscribed circle touches side $BC$ at $D$.
 ![Triangle diagram](images/uzn-2023-p2.png)
 
 Prove that $AD$ bisects angle $\angle BAC$ if and only if $AB = AC$.
-
-# Yechim
-
-**Forward direction.** Suppose $AD$ bisects $\angle BAC$. ...
-
-**Reverse direction.** Suppose $AB = AC$. ...
 ```
 
 ---

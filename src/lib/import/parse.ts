@@ -227,9 +227,13 @@ function parseProblemMarkdown(
 }
 
 /**
- * Cut the markdown body at top-level `# Shart` and `# Yechim` headings.
- * Text outside those sections (preamble, between sections beyond a third
- * heading) is dropped — it's typically author scratch.
+ * Cut the markdown body at the top-level `# Shart` heading.
+ *
+ * Solutions are intentionally not imported — admins write/edit them in the
+ * admin UI after the bulk insert. If a `# Yechim` (or `# Solution`) heading
+ * is present in the source, everything from that heading onward is dropped
+ * so it doesn't bleed into `body_md`. The function always returns
+ * `solutionMd: null` for that reason.
  */
 export function splitBodyAndSolution(content: string): {
   bodyMd: string;
@@ -238,7 +242,6 @@ export function splitBodyAndSolution(content: string): {
   const lines = content.split(/\r?\n/);
   let shartStart = -1;
   let yechimStart = -1;
-  let nextTopLevelAfterYechim = -1;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -248,8 +251,6 @@ export function splitBodyAndSolution(content: string): {
         shartStart = i;
       } else if (yechimStart === -1 && /^#\s+(Yechim|Solution)\b/i.test(line)) {
         yechimStart = i;
-      } else if (yechimStart !== -1 && i > yechimStart && nextTopLevelAfterYechim === -1) {
-        nextTopLevelAfterYechim = i;
       }
     }
   }
@@ -265,15 +266,7 @@ export function splitBodyAndSolution(content: string): {
   const bodyEnd = yechimStart === -1 ? lines.length : yechimStart;
   const bodyMd = lines.slice(shartStart + 1, bodyEnd).join("\n").trim();
 
-  let solutionMd: string | null = null;
-  if (yechimStart !== -1) {
-    const solutionEnd =
-      nextTopLevelAfterYechim === -1 ? lines.length : nextTopLevelAfterYechim;
-    const text = lines.slice(yechimStart + 1, solutionEnd).join("\n").trim();
-    solutionMd = text.length > 0 ? text : null;
-  }
-
-  return { bodyMd, solutionMd };
+  return { bodyMd, solutionMd: null };
 }
 
 /**

@@ -47,9 +47,27 @@ export function MetadataForm({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Topics — placed first so the writer commits to classification
+          before drafting the body. Spans both columns. */}
+      <div className="space-y-2 lg:col-span-2">
+        <Label>Mavzular</Label>
+        <Controller
+          control={control}
+          name="topicIds"
+          render={({ field }) => (
+            <TopicMultiSelect
+              available={topicsAvailable}
+              value={field.value ?? []}
+              onChange={field.onChange}
+            />
+          )}
+        />
+        <FieldError message={errors.topicIds?.message} />
+      </div>
+
       {/* Source */}
       <div className="space-y-2">
-        <Label htmlFor="sourceId">Manba (source)</Label>
+        <Label htmlFor="sourceId">Manba</Label>
         <Controller
           control={control}
           name="sourceId"
@@ -59,7 +77,12 @@ export function MetadataForm({
               onValueChange={(v) => field.onChange(v)}
             >
               <SelectTrigger id="sourceId" className="w-full">
-                <SelectValue placeholder="Manbani tanlang" />
+                <SelectValue placeholder="Manbani tanlang">
+                  {(value) =>
+                    sourcesAvailable.find((s) => s.id === value)?.name ??
+                    "Manbani tanlang"
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {sourcesAvailable.map((s) => (
@@ -124,37 +147,37 @@ export function MetadataForm({
         </>
       )}
 
-      {/* Classes */}
-      <div className="space-y-2 lg:col-span-2">
-        <Label>Sinflar</Label>
+      {/* Class — single selection. DB still supports multiple per problem
+          (problem_classes is many-to-many), but the create flow picks one. */}
+      <div className="space-y-2">
+        <Label htmlFor="class">Sinf</Label>
         <Controller
           control={control}
           name="classes"
-          render={({ field }) => (
-            <ClassMultiSelect
-              value={field.value ?? []}
-              onChange={field.onChange}
-            />
-          )}
+          render={({ field }) => {
+            const current = field.value?.[0];
+            return (
+              <Select
+                value={current != null ? String(current) : ""}
+                onValueChange={(v) =>
+                  field.onChange(v ? [Number(v)] : [])
+                }
+              >
+                <SelectTrigger id="class" className="w-full">
+                  <SelectValue placeholder="Sinfni tanlang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASS_NUMBERS.map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}-sinf
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            );
+          }}
         />
         <FieldError message={errors.classes?.message} />
-      </div>
-
-      {/* Topics */}
-      <div className="space-y-2 lg:col-span-2">
-        <Label>Mavzular (kamida bittasi)</Label>
-        <Controller
-          control={control}
-          name="topicIds"
-          render={({ field }) => (
-            <TopicMultiSelect
-              available={topicsAvailable}
-              value={field.value ?? []}
-              onChange={field.onChange}
-            />
-          )}
-        />
-        <FieldError message={errors.topicIds?.message} />
       </div>
 
     </div>
@@ -256,91 +279,4 @@ function TopicMultiSelect({
   );
 }
 
-function ClassMultiSelect({
-  value,
-  onChange,
-}: {
-  value: number[];
-  onChange: (v: number[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  function toggle(n: number) {
-    if (value.includes(n)) {
-      onChange(value.filter((v) => v !== n));
-    } else {
-      onChange([...value, n].sort((a, b) => a - b));
-    }
-  }
-
-  return (
-    <div className="space-y-2">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          render={
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full justify-between"
-            >
-              <span className="text-muted-foreground text-sm">
-                {value.length === 0
-                  ? "Sinflarni tanlang…"
-                  : `${value.length} ta tanlangan`}
-              </span>
-              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-            </Button>
-          }
-        />
-        <PopoverContent
-          className="w-[--radix-popover-trigger-width] p-0"
-          align="start"
-        >
-          <Command>
-            <CommandList>
-              <CommandGroup>
-                {CLASS_NUMBERS.map((n) => {
-                  const isSelected = value.includes(n);
-                  return (
-                    <CommandItem
-                      key={n}
-                      value={`${n}-sinf`}
-                      onSelect={() => toggle(n)}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 size-4",
-                          isSelected ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {n}-sinf
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {value.map((n) => (
-            <Badge key={n} variant="secondary" className="gap-1">
-              {n}-sinf
-              <button
-                type="button"
-                aria-label={`Remove ${n}-sinf`}
-                onClick={() => toggle(n)}
-                className="hover:opacity-70"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 

@@ -51,7 +51,7 @@ The first `---` of the file opens the first frontmatter; subsequent
 | `source` | yes | Slug of the olympiad: lowercase, hyphens. Examples: `imo`, `imo-shortlist`, `uzbekistan-national`, `tournament-of-towns`, `putnam`, `usamo`. If unsure, use a reasonable slug derived from the source name. |
 | `year` | recommended | 4-digit integer, or omit if unknown. |
 | `problem_number` | yes | String. Examples: `"1"`, `"P3"`, `"Day 2 / 5"`, `"A1"`. |
-| `classes` | yes (>= 1) | Array of integers in [5..11]. If unsure, default to `[10, 11]` for IMO-level, `[8, 9, 10, 11]` for national-level, `[5, 6, 7]` for early-grade. |
+| `classes` | yes (exactly 1) | Single-element array, integer in [5..11]. Pick the most representative grade for the problem's level. If unsure, default to `[11]` for IMO-level, `[10]` for national-level, `[7]` for early-grade. |
 | `topics` | yes (>= 1) | Array of slugs from this list: `algebra`, `geometry`, `number-theory`, `combinatorics`, `inequalities`, `functional-equations`. Pick 1–3 most relevant. |
 | `answer` | optional | Short text answer for non-proof problems. Omit for proof-based problems. |
 
@@ -67,8 +67,9 @@ The first `---` of the file opens the first frontmatter; subsequent
   a consistent naming pattern, e.g.
   `{source-slug}-{year}-p{problem_number}.png`. The user will provide
   actual image files separately; you only write the reference.
-- If the source provides a solution, include it after a `# Yechim`
-  heading. Otherwise omit `# Yechim` entirely.
+- **Do not include the solution.** Even if the source provides one,
+  omit it. The importer drops any `# Yechim` (or `# Solution`) section
+  on import — solutions are added by admins in the admin UI later.
 
 **Strict rules**
 
@@ -89,7 +90,7 @@ The first `---` of the file opens the first frontmatter; subsequent
 source: imo
 year: 2024
 problem_number: "1"
-classes: [10, 11]
+classes: [11]
 topics: [number-theory]
 ---
 
@@ -98,16 +99,12 @@ topics: [number-theory]
 Barcha musbat butun sonlar $n$ ni toping, shunday qilib $n+1$ son
 $n^2 + 1$ ga qoldiqsiz bo'linsin.
 
-# Yechim
-
-$n^2 + 1 = (n+1)(n-1) + 2$ ekanidan, $n+1 \mid 2$ bo'ladi.
-
 ---
 
 source: imo
 year: 2024
 problem_number: "2"
-classes: [10, 11]
+classes: [11]
 topics: [algebra, inequalities]
 ---
 

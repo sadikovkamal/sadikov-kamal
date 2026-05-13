@@ -1,10 +1,10 @@
-import { db } from "@/db";
-import { topics, sources } from "@/db/schema";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { listProblems } from "@/lib/problems/queries";
+import { Button } from "@/components/ui/button";
 import { parseSearchParams } from "./_url-state";
 import { ProblemsTable } from "./problems-table";
-import { NewProblemDialog } from "./new-problem-dialog";
 import { ProblemSearchInput } from "./search-input";
 import { PageHeader } from "../_components/page-header";
 
@@ -30,12 +30,7 @@ export default async function ProblemsListPage({
   }
   const { filters, sort, page, pageSize } = parseSearchParams(usp);
 
-  const [{ rows, total }, topicsAvailable, sourcesAvailable] =
-    await Promise.all([
-      listProblems(filters, sort, page, pageSize),
-      db.select().from(topics).orderBy(topics.name),
-      db.select().from(sources).orderBy(sources.name),
-    ]);
+  const { rows, total } = await listProblems(filters, sort, page, pageSize);
 
   return (
     <div className="space-y-5">
@@ -43,9 +38,15 @@ export default async function ProblemsListPage({
         title="Masalalar"
         subtitle={`Jami ${total.toLocaleString("en-US").replace(/,/g, " ")} ta`}
         actions={
-          <NewProblemDialog
-            topicsAvailable={topicsAvailable}
-            sourcesAvailable={sourcesAvailable}
+          <Button
+            size="sm"
+            nativeButton={false}
+            render={
+              <Link href="/admin/problems/new">
+                <Plus data-icon="inline-start" />
+                Yangi masala
+              </Link>
+            }
           />
         }
       />

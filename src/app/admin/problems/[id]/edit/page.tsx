@@ -35,6 +35,15 @@ export default async function EditProblemPage({
           problemNumber: p.problemNumber,
           topicIds: p.topics.map((t) => t.id),
           classes: p.classes,
+          image: p.images[0]
+            ? {
+                storageKey: p.images[0].storageKey,
+                publicUrl: `${process.env.R2_PUBLIC_URL?.replace(/\/+$/, "") ?? ""}/${p.images[0].storageKey}`,
+                originalFilename: p.images[0].originalFilename,
+                sizeBytes: p.images[0].sizeBytes,
+                mimeType: p.images[0].mimeType,
+              }
+            : null,
         }}
         topicsAvailable={topicsAvailable}
         sourcesAvailable={sourcesAvailable}

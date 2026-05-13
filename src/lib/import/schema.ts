@@ -21,7 +21,12 @@ export const problemFrontmatterSchema = z.object({
     .transform((v) => String(v))
     .pipe(z.string().min(1).max(50))
     .optional(),
-  classes: z.array(z.number().int().min(5).max(11)).min(1),
+  // Single-select in the UI; import enforces exactly one to stay aligned.
+  // The DB junction (problem_classes) keeps the many-to-many shape so the
+  // UI can broaden later without a migration or import-format break.
+  classes: z
+    .array(z.number().int().min(5).max(11))
+    .length(1, "Exactly one class required"),
   topics: z.array(z.string().min(1)).min(1),
   answer: z.string().optional(),
 });
@@ -35,7 +40,9 @@ export const manifestSchema = z.object({
     .object({
       source: z.string().optional(),
       year: z.number().int().optional(),
-      classes: z.array(z.number().int()).optional(),
+      // Same single-class rule as per-problem frontmatter — manifest
+      // defaults must also be a one-element array.
+      classes: z.array(z.number().int()).length(1).optional(),
       topics: z.array(z.string()).optional(),
     })
     .optional(),

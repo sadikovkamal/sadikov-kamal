@@ -2,7 +2,14 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { problems, problemTopics, problemClasses } from "@/db/schema";
+import { problems, problemTopics, problemClasses, images } from "@/db/schema";
+
+export interface ProblemImageInput {
+  storageKey: string;
+  originalFilename: string;
+  sizeBytes: number;
+  mimeType: string;
+}
 
 export interface ProblemInput {
   bodyMd: string;
@@ -13,6 +20,7 @@ export interface ProblemInput {
   problemNumber: string | null;
   topicIds: string[];
   classes: number[];
+  image?: ProblemImageInput | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -53,6 +61,16 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
       );
     }
 
+    if (input.image) {
+      await tx.insert(images).values({
+        problemId: created.id,
+        storageKey: input.image.storageKey,
+        originalFilename: input.image.originalFilename,
+        sizeBytes: input.image.sizeBytes,
+        mimeType: input.image.mimeType,
+      });
+    }
+
     return created.id;
   });
 }
@@ -80,6 +98,8 @@ export async function updateProblemTx(id: string, input: ProblemInput) {
 
     await tx.delete(problemTopics).where(eq(problemTopics.problemId, id));
     await tx.delete(problemClasses).where(eq(problemClasses.problemId, id));
+    // Image is single-slot in the UI; replace wholesale.
+    await tx.delete(images).where(eq(images.problemId, id));
 
     if (input.topicIds.length) {
       await tx.insert(problemTopics).values(
@@ -90,6 +110,16 @@ export async function updateProblemTx(id: string, input: ProblemInput) {
       await tx.insert(problemClasses).values(
         input.classes.map((classNumber) => ({ problemId: id, classNumber }))
       );
+    }
+
+    if (input.image) {
+      await tx.insert(images).values({
+        problemId: id,
+        storageKey: input.image.storageKey,
+        originalFilename: input.image.originalFilename,
+        sizeBytes: input.image.sizeBytes,
+        mimeType: input.image.mimeType,
+      });
     }
   });
 }
