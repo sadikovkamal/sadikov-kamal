@@ -415,7 +415,7 @@ function SplitView({
         <header className="flex items-center justify-between px-3 h-9 border-b bg-muted/30">
           <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             <Eye className="size-3" aria-hidden />
-            <span>Oldindan ko&apos;rish</span>
+            <span>Ko&apos;rinish</span>
           </div>
           {isStale && (
             <span
