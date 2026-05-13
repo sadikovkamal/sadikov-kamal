@@ -30,9 +30,9 @@ async function main() {
   );
   assert(admin, "admin missing");
 
-  const algebra = (await db.query.topics.findMany()).find((t) => t.slug === "algebra")!;
-  const inequalities = (await db.query.topics.findMany()).find((t) => t.slug === "inequalities")!;
-  const geometry = (await db.query.topics.findMany()).find((t) => t.slug === "geometry")!;
+  const algebra = (await db.query.topics.findMany()).find((t) => t.name === "Algebra")!;
+  const inequalities = (await db.query.topics.findMany()).find((t) => t.name === "Tengsizliklar")!;
+  const geometry = (await db.query.topics.findMany()).find((t) => t.name === "Geometriya")!;
   const imo = (await db.query.sources.findMany()).find((s) => s.slug === "imo")!;
   const national = (await db.query.sources.findMany()).find((s) => s.slug === "uzbekistan-national")!;
 

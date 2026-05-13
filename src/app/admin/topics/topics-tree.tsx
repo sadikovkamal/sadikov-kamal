@@ -99,9 +99,6 @@ export function TopicsTree({ topics }: { topics: TopicWithCount[] }) {
                         <span className="font-medium truncate">
                           {topic.name}
                         </span>
-                        <code className="text-[11px] text-muted-foreground font-mono">
-                          {topic.slug}
-                        </code>
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-xs text-muted-foreground">

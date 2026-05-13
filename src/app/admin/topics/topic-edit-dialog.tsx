@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { slugify } from "@/lib/utils/slug";
 import {
   createTopicAction,
   updateTopicAction,
@@ -30,7 +29,6 @@ export interface TopicShape {
   id: string;
   code: string;
   name: string;
-  slug: string;
   parentId: string | null;
   description: string | null;
 }
@@ -49,24 +47,15 @@ export function TopicEditDialog({
   onClose: () => void;
 }) {
   const [name, setName] = useState(topic?.name ?? "");
-  const [slug, setSlug] = useState(topic?.slug ?? "");
-  const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [parentId, setParentId] = useState<string>(topic?.parentId ?? NO_PARENT);
   const [description, setDescription] = useState(topic?.description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function onNameChange(value: string) {
-    setName(value);
-    if (!slugTouched) setSlug(slugify(value));
-  }
-
   function onSave() {
     setError(null);
-    const finalSlug = slug.trim() || slugify(name);
     const payload = {
       name: name.trim(),
-      slug: finalSlug,
       parentId: parentId === NO_PARENT ? null : parentId,
       description: description.trim() || null,
     };
@@ -119,19 +108,8 @@ export function TopicEditDialog({
             <Input
               id="topic-name"
               value={name}
-              onChange={(e) => onNameChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="topic-slug">Slug</Label>
-            <Input
-              id="topic-slug"
-              value={slug}
-              onChange={(e) => {
-                setSlug(e.target.value);
-                setSlugTouched(true);
-              }}
-              placeholder="masalan: am-gm-inequality"
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Masalan: Tengsizliklar"
             />
           </div>
           <div className="space-y-1">

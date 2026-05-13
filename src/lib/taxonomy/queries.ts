@@ -8,7 +8,6 @@ export interface TopicWithCount {
   id: string;
   code: string;
   name: string;
-  slug: string;
   parentId: string | null;
   description: string | null;
   problemCount: number;
@@ -20,7 +19,6 @@ export async function listTopicsWithCounts(): Promise<TopicWithCount[]> {
       id: topics.id,
       code: topics.code,
       name: topics.name,
-      slug: topics.slug,
       parentId: topics.parentId,
       description: topics.description,
       problemCount: sql<number>`(

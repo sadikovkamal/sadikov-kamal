@@ -34,7 +34,7 @@ export async function getProblemById(id: string) {
 
   const [topicRows, classRows, source, imageRows] = await Promise.all([
     db
-      .select({ id: topics.id, name: topics.name, slug: topics.slug })
+      .select({ id: topics.id, code: topics.code, name: topics.name })
       .from(problemTopics)
       .innerJoin(topics, eq(topics.id, problemTopics.topicId))
       .where(eq(problemTopics.problemId, id)),

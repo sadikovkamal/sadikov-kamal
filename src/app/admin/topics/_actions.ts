@@ -11,11 +11,6 @@ import {
 
 const topicSchema = z.object({
   name: z.string().min(1).max(100),
-  slug: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9-]+$/, "Slug faqat a-z, 0-9 va `-` belgilarini qabul qiladi"),
   parentId: z.string().uuid().nullable(),
   description: z.string().max(1000).nullable(),
 });
@@ -32,7 +27,7 @@ export async function createTopicAction(raw: unknown): Promise<ActionResult> {
     await createTopic(parsed.data);
   } catch (e) {
     return {
-      error: friendlyError(e, "Mavzu yaratib bo'lmadi (slug band bo'lishi mumkin)"),
+      error: friendlyError(e, "Mavzu yaratib bo'lmadi (nom band bo'lishi mumkin)"),
     };
   }
   revalidatePath("/admin/topics");
@@ -83,7 +78,7 @@ function friendlyError(e: unknown, fallback: string): string {
   const msg = e instanceof Error ? e.message : String(e);
   // Postgres unique constraint
   if (/unique/i.test(msg) || /23505/.test(msg)) {
-    return "Slug allaqachon ishlatilgan";
+    return "Bu nomli mavzu allaqachon mavjud";
   }
   // Foreign key violation (RESTRICT)
   if (/foreign key|23503/i.test(msg)) {

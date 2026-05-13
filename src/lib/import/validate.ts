@@ -41,13 +41,15 @@ export async function validateBundle(
 ): Promise<ValidationReport> {
   const imageNames = new Set(bundle.images.keys());
 
-  // Pre-fetch slug lookups in one round trip each.
+  // Pre-fetch lookup sets in one round trip each. Sources still match by
+  // slug (admin-managed handle). Topics match by name (case-insensitive)
+  // since the slug column was dropped in migration 0006.
   const [allSources, allTopics] = await Promise.all([
     db.select({ slug: sources.slug }).from(sources),
-    db.select({ slug: topics.slug }).from(topics),
+    db.select({ name: topics.name }).from(topics),
   ]);
   const sourceSlugs = new Set(allSources.map((r) => r.slug));
-  const topicSlugs = new Set(allTopics.map((r) => r.slug));
+  const topicNames = new Set(allTopics.map((r) => r.name.toLowerCase()));
 
   const result: ProblemValidation[] = [];
   for (const p of bundle.problems) {
@@ -55,7 +57,7 @@ export async function validateBundle(
       p,
       bundle.manifest,
       sourceSlugs,
-      topicSlugs,
+      topicNames,
       imageNames
     );
     result.push(v);
@@ -74,7 +76,8 @@ async function validateProblem(
   parsed: ParsedProblem,
   manifest: Manifest | null,
   existingSourceSlugs: Set<string>,
-  existingTopicSlugs: Set<string>,
+  /** Lowercased names for case-insensitive lookup. */
+  existingTopicNames: Set<string>,
   imageNames: Set<string>
 ): Promise<ProblemValidation> {
   const errors: string[] = [];
@@ -129,7 +132,7 @@ async function validateProblem(
     warnings.push(`Source "${fm.source}" will be auto-created`);
   }
   for (const t of fm.topics) {
-    if (!existingTopicSlugs.has(t)) {
+    if (!existingTopicNames.has(t.toLowerCase())) {
       newTopics.push(t);
       warnings.push(`Topic "${t}" will be auto-created`);
     }

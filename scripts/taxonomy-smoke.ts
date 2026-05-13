@@ -50,18 +50,16 @@ async function main() {
 
   // --- Topics CRUD ------------------------------------------------------
   const topicId = await createTopic({
-    name: "Smoke Topic",
-    slug: "smoke-topic-99",
+    name: "Smoke Topic 99",
     parentId: null,
     description: null,
   });
   assert(typeof topicId === "string" && topicId.length > 0, "createTopic id");
 
   const childId = await createTopic({
-    name: "Smoke Child",
-    slug: "smoke-child-99",
+    name: "Smoke Child 99",
     parentId: topicId,
-    description: "child of smoke-topic-99",
+    description: "child of Smoke Topic 99",
   });
 
   const topicsList = await listTopicsWithCounts();
@@ -75,7 +73,6 @@ async function main() {
   // --- Update topic -----------------------------------------------------
   await updateTopic(topicId, {
     name: "Smoke Topic Renamed",
-    slug: "smoke-topic-99",
     parentId: null,
     description: "updated",
   });

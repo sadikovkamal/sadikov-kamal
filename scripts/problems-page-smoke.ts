@@ -26,7 +26,7 @@ async function main() {
   });
   if (!admin) throw new Error("seeded admin missing");
 
-  const topic = (await db.query.topics.findMany()).find((t) => t.slug === "algebra");
+  const topic = (await db.query.topics.findMany()).find((t) => t.name === "Algebra");
   const source = (await db.query.sources.findMany()).find((s) => s.slug === "imo");
   if (!topic || !source) throw new Error("seed data missing");
 

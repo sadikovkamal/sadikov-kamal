@@ -36,10 +36,10 @@ async function main() {
   assert(admin, "seeded admin missing");
 
   const algebraTopic = await db.query.topics.findFirst({
-    where: eq(topics.slug, "algebra"),
+    where: eq(topics.name, "Algebra"),
   });
   const inequalitiesTopic = await db.query.topics.findFirst({
-    where: eq(topics.slug, "inequalities"),
+    where: eq(topics.name, "Tengsizliklar"),
   });
   const imoSource = await db.query.sources.findFirst({
     where: eq(sources.slug, "imo"),

@@ -97,7 +97,7 @@ source: imo                       # slug, required
 year: 2024                        # int, required (or via manifest)
 problem_number: "P3"              # string, required
 classes: [10]                 # array, >= 1, required
-topics: [algebra, inequalities]   # array, >= 1, required
+topics: ["Algebra", "Tengsizliklar"]   # case-insensitive name match
 answer: "x = 3"                   # string, optional
 ---
 
@@ -143,7 +143,7 @@ and stay as-is in the markdown.
 | `year` | int 1900..2100 | recommended | May be omitted; stored as null. |
 | `problem_number` | string, max 50 chars | yes | "1", "P3", "Day 2 / 5", "A1" — anything goes. |
 | `classes` | int[] from {5..11} | yes (exactly 1) | School grade. Pass a single-element array, e.g. `[10]`. The DB junction supports many-to-many, but the admin UI is single-select and the importer enforces the same. |
-| `topics` | string[] (slugs) | yes (>= 1) | Auto-created if missing in `topics` table. Same naming behavior as `source`. |
+| `topics` | string[] (names) | yes (>= 1) | Case-insensitive match against `topics.name`. Auto-created if no row matches. Use the same wording you'd type in the admin UI (e.g. `"Algebra"`, `"Tengsizliklar"`). |
 | `answer` | string | no | Short answer for non-proof problems. |
 
 ### Body rules
@@ -172,7 +172,7 @@ source: imo
 year: 2024
 problem_number: "1"
 classes: [10]
-topics: [number-theory]
+topics: ["Sonlar nazariyasi"]
 ---
 
 # Shart
@@ -185,7 +185,7 @@ source: imo
 year: 2024
 problem_number: "2"
 classes: [10]
-topics: [algebra]
+topics: ["Algebra"]
 ---
 
 # Shart
@@ -234,7 +234,7 @@ source: imo
 year: 2024
 problem_number: "1"
 classes: [10]
-topics: [algebra]
+topics: ["Algebra"]
 ---
 
 # Shart
@@ -251,7 +251,7 @@ source: uzbekistan-national
 year: 2023
 problem_number: "P2"
 classes: [9]
-topics: [geometry]
+topics: ["Geometriya"]
 answer: "AB = AC"
 ---
 

@@ -27,31 +27,30 @@ async function seed() {
 
   console.log(`Admin user: ${adminEmail} / ${adminPassword}`);
 
-  // 2. Default top-level topics (Uzbek + slug + auto-assigned code).
-  // Codes are assigned in order so the seed is reproducible: the first
-  // topic in the list gets T000001, the second gets T000002, and so on.
-  // Existing topics with a higher code are preserved — we only fill new
-  // entries on conflict-do-nothing.
+  // 2. Default top-level topics. Codes are assigned in order so the seed
+  // is reproducible: the first topic gets T000001, the second T000002,
+  // and so on. Existing rows with a higher code are preserved — we only
+  // fill new entries on conflict-do-nothing (by name).
   const existing = await db.select({ code: topics.code }).from(topics);
   let nextSeq = existing.reduce((max, r) => {
     const n = Number.parseInt(r.code.replace(/^T/, ""), 10);
     return Number.isFinite(n) && n > max ? n : max;
   }, 0);
   const topicData = [
-    { name: "Algebra", slug: "algebra" },
-    { name: "Geometriya", slug: "geometry" },
-    { name: "Sonlar nazariyasi", slug: "number-theory" },
-    { name: "Kombinatorika", slug: "combinatorics" },
-    { name: "Tengsizliklar", slug: "inequalities" },
-    { name: "Funksional tenglamalar", slug: "functional-equations" },
-  ].map((t) => ({
-    ...t,
+    "Algebra",
+    "Geometriya",
+    "Sonlar nazariyasi",
+    "Kombinatorika",
+    "Tengsizliklar",
+    "Funksional tenglamalar",
+  ].map((name) => ({
+    name,
     code: `T${String(++nextSeq).padStart(6, "0")}`,
   }));
   await db
     .insert(topics)
     .values(topicData)
-    .onConflictDoNothing({ target: topics.slug });
+    .onConflictDoNothing({ target: topics.name });
 
   // 3. Default sources
   const sourceData = [

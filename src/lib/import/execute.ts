@@ -69,28 +69,32 @@ export async function executeImport(params: {
   if (allNewTopics.length) {
     // Auto-assign sequential codes (T######) — read max once, increment
     // locally per new topic. onConflictDoNothing handles the race with
-    // duplicate slugs cleanly; for code collisions we'd hit the UNIQUE
+    // duplicate names cleanly; for code collisions we'd hit the UNIQUE
     // constraint, which is acceptable for the import path (admin retries).
     const existing = await db.select({ code: topics.code }).from(topics);
     const allCodes = existing.map((r) => r.code);
-    const values = allNewTopics.map((slug) => {
+    const values = allNewTopics.map((name) => {
       const code = nextTopicCode(allCodes);
       allCodes.push(code);
-      return { name: slugToName(slug), slug, code };
+      return { name, code };
     });
     await db
       .insert(topics)
       .values(values)
-      .onConflictDoNothing({ target: topics.slug });
+      .onConflictDoNothing({ target: topics.name });
   }
 
-  // Re-read after the inserts so the slug→id map is complete.
+  // Re-read after the inserts so the lookup maps are complete. Topics
+  // match by case-insensitive name (lowercased keys) since the slug
+  // column is gone; sources still match by slug.
   const [allSources, allTopics] = await Promise.all([
     db.select({ id: sources.id, slug: sources.slug }).from(sources),
-    db.select({ id: topics.id, slug: topics.slug }).from(topics),
+    db.select({ id: topics.id, name: topics.name }).from(topics),
   ]);
   const sourceIdBySlug = new Map(allSources.map((r) => [r.slug, r.id]));
-  const topicIdBySlug = new Map(allTopics.map((r) => [r.slug, r.id]));
+  const topicIdByName = new Map(
+    allTopics.map((r) => [r.name.toLowerCase(), r.id])
+  );
 
   // 2. Upload all images once. Prefix is a timestamp folder under
   // `imports/` — random enough to avoid collisions and easy to spot in R2.
@@ -176,7 +180,7 @@ export async function executeImport(params: {
         if (!sourceId) throw new Error(`Source slug not found: ${fm.source}`);
 
         const topicIds = fm.topics
-          .map((t) => topicIdBySlug.get(t))
+          .map((t) => topicIdByName.get(t.toLowerCase()))
           .filter((id): id is string => typeof id === "string");
         if (topicIds.length === 0) {
           throw new Error("No valid topic IDs for this problem");

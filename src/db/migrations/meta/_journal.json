@@ -43,6 +43,13 @@
       "when": 1779148800000,
       "tag": "0005_topics-code",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779235200000,
+      "tag": "0006_drop-topics-slug",
+      "breakpoints": true
     }
   ]
 }

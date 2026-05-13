@@ -26,7 +26,7 @@ async function main() {
     (u) => u.email === "admin@example.com"
   );
   if (!admin) throw new Error("admin missing");
-  const algebra = (await db.query.topics.findMany()).find((t) => t.slug === "algebra")!;
+  const algebra = (await db.query.topics.findMany()).find((t) => t.name === "Algebra")!;
   const imo = (await db.query.sources.findMany()).find((s) => s.slug === "imo")!;
 
   const MARKER = "PAGE_SMOKE_MARKER";

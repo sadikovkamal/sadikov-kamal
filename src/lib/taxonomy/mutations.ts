@@ -9,7 +9,6 @@ import { nextTopicCode } from "./topic-codes";
 
 export interface TopicInput {
   name: string;
-  slug: string;
   parentId: string | null;
   description: string | null;
 }
