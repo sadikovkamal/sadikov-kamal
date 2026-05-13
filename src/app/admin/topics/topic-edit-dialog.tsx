@@ -183,14 +183,11 @@ export function TopicEditDialog({
                   <span className="flex items-center gap-2 text-muted-foreground">
                     <Layers className="size-3.5 shrink-0" aria-hidden />
                     <span>Asosiy mavzu</span>
-                    <span className="text-[10px] text-muted-foreground/60 ml-auto">
-                      (parent yo&apos;q)
-                    </span>
                   </span>
                 </SelectItem>
                 {parentOptions.map(({ topic: t, depth }) => (
                   <SelectItem key={t.id} value={t.id}>
-                    <ParentRow name={t.name} code={t.code} depth={depth} />
+                    <ParentRow name={t.name} depth={depth} />
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -234,36 +231,29 @@ export function TopicEditDialog({
 }
 
 /**
- * Row inside the parent dropdown. Indents by depth, prefixes nested
- * rows with a faint "↳" so the eye catches hierarchy in a long list,
- * and pins the T-code on the right as a muted chip so admins can spot
- * the exact topic when several share a name (e.g. "Boshqa").
+ * Row inside the parent dropdown. Indents by depth and prefixes nested
+ * rows with a faint "↳" so the eye catches hierarchy in a long list.
+ * Admins pick parents by reading the name — codes belong to the edit
+ * header / topic list, not this picker.
  */
 function ParentRow({
   name,
-  code,
   depth,
 }: {
   name: string;
-  code: string;
   depth: number;
 }) {
   return (
-    <span className="flex items-center justify-between gap-2 w-full">
-      <span
-        className="flex items-center gap-1.5 min-w-0"
-        style={{ paddingLeft: `${depth * 14}px` }}
-      >
-        {depth > 0 && (
-          <span className="text-muted-foreground/40 shrink-0" aria-hidden>
-            ↳
-          </span>
-        )}
-        <span className="truncate">{name}</span>
-      </span>
-      <code className="font-mono text-[10px] tabular-nums text-muted-foreground/60 shrink-0">
-        {code}
-      </code>
+    <span
+      className="flex items-center gap-1.5 min-w-0"
+      style={{ paddingLeft: `${depth * 14}px` }}
+    >
+      {depth > 0 && (
+        <span className="text-muted-foreground/40 shrink-0" aria-hidden>
+          ↳
+        </span>
+      )}
+      <span className="truncate">{name}</span>
     </span>
   );
 }
