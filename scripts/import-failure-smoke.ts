@@ -26,7 +26,7 @@ source: imo
 year: 2024
 problem_number: "BAD-2"
 classes: [10]
-topics: ["Algebra"]
+topics: [algebra]
 ---
 
 # Shart
@@ -40,7 +40,7 @@ source: imo
 year: 2024
 problem_number: "BAD-3"
 classes: [10]
-topics: ["Algebra"]
+topics: [algebra]
 ---
 
 (no Shart heading on purpose; whole body is empty)
@@ -50,7 +50,7 @@ source: imo
 year: 2024
 problem_number: "GOOD-1"
 classes: [10]
-topics: ["Algebra"]
+topics: [algebra]
 ---
 
 # Shart

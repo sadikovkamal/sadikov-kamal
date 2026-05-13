@@ -52,7 +52,7 @@ The first `---` of the file opens the first frontmatter; subsequent
 | `year` | recommended | 4-digit integer, or omit if unknown. |
 | `problem_number` | yes | String. Examples: `"1"`, `"P3"`, `"Day 2 / 5"`, `"A1"`. |
 | `classes` | yes (exactly 1) | Single-element array, integer in [5..11]. Pick the most representative grade for the problem's level. If unsure, default to `[11]` for IMO-level, `[10]` for national-level, `[7]` for early-grade. |
-| `topics` | yes (>= 1) | Array of topic names (case-insensitive). Use these defaults: `"Algebra"`, `"Geometriya"`, `"Sonlar nazariyasi"`, `"Kombinatorika"`, `"Tengsizliklar"`, `"Funksional tenglamalar"`. Pick 1–3 most relevant. New topics are auto-created if the names don't match existing rows. |
+| `topics` | yes (>= 1) | Array of slugs from this list: `algebra`, `geometry`, `number-theory`, `combinatorics`, `inequalities`, `functional-equations`. Pick 1–3 most relevant. |
 | `answer` | optional | Short text answer for non-proof problems. Omit for proof-based problems. |
 
 **Body format**
@@ -91,7 +91,7 @@ source: imo
 year: 2024
 problem_number: "1"
 classes: [11]
-topics: ["Sonlar nazariyasi"]
+topics: [number-theory]
 ---
 
 # Shart
@@ -105,7 +105,7 @@ source: imo
 year: 2024
 problem_number: "2"
 classes: [11]
-topics: ["Algebra", "Tengsizliklar"]
+topics: [algebra, inequalities]
 ---
 
 # Shart

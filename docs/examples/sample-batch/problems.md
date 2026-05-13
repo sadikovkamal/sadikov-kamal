@@ -3,7 +3,7 @@ source: imo
 year: 2024
 problem_number: "1"
 classes: [11]
-topics: ["Sonlar nazariyasi"]
+topics: [number-theory]
 ---
 
 # Shart
@@ -17,7 +17,7 @@ source: uzbekistan-national
 year: 2023
 problem_number: "P2"
 classes: [10]
-topics: ["Algebra", "Tengsizliklar"]
+topics: [algebra, inequalities]
 ---
 
 # Shart
@@ -35,7 +35,7 @@ source: imo-shortlist
 year: 2022
 problem_number: "C2"
 classes: [11]
-topics: ["Kombinatorika"]
+topics: [combinatorics]
 ---
 
 # Shart

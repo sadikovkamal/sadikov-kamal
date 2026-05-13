@@ -31,7 +31,7 @@ source: namuna
 year: 2024
 problem_number: "1"
 classes: [10]
-topics: ["Algebra"]
+topics: [algebra]
 ---
 
 # Shart
@@ -45,7 +45,7 @@ source: namuna
 year: 2024
 problem_number: "2"
 classes: [9]
-topics: ["Geometriya"]
+topics: [geometry]
 answer: "AB = AC"
 ---
 
