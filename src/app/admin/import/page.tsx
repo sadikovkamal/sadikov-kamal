@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { desc } from "drizzle-orm";
+import { Inbox } from "lucide-react";
 import { db } from "@/db";
 import { importBatches } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
 import { ImportUploader } from "./import-uploader";
+import { PageHeader } from "../_components/page-header";
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   success: "default",
@@ -32,44 +34,67 @@ export default async function ImportPage() {
     .limit(10);
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Bulk import</h1>
-        <p className="text-muted-foreground text-sm">
-          {"ZIP bundle yuklang, format spec'i: "}
-          <code>docs/format-spec.md</code>.
-        </p>
-      </div>
+    <div className="space-y-6 max-w-4xl">
+      <PageHeader
+        title="Bulk import"
+        subtitle="ZIP arxiv orqali bir nechta masalani birdaniga qo'shing."
+      />
 
-      <ImportUploader />
+      <section className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm p-5">
+        <ImportUploader />
+      </section>
 
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">{"So'nggi importlar"}</h2>
-        <div className="border rounded-md divide-y">
-          {recent.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground">
-              Hali import qilinmagan.
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+            So&apos;nggi importlar
+          </h2>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {recent.length} ta
+          </span>
+        </div>
+
+        {recent.length === 0 ? (
+          <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm px-6 py-12 text-center space-y-2">
+            <Inbox
+              className="size-7 mx-auto text-muted-foreground"
+              aria-hidden
+              strokeWidth={1.5}
+            />
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Hali import qilinmagan</p>
+              <p className="text-xs text-muted-foreground">
+                Yuqoridagi forma orqali birinchi arxivni yuklang.
+              </p>
             </div>
-          )}
-          {recent.map((b) => (
-            <Link
-              key={b.id}
-              href={`/admin/import/${b.id}`}
-              className="block p-3 hover:bg-muted text-sm"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium truncate">{b.filename}</span>
-                <Badge variant={STATUS_VARIANTS[b.status] ?? "outline"}>
+          </div>
+        ) : (
+          <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm divide-y overflow-hidden">
+            {recent.map((b) => (
+              <Link
+                key={b.id}
+                href={`/admin/import/${b.id}`}
+                className="group flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
+              >
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="text-sm font-medium truncate group-hover:text-foreground">
+                    {b.filename}
+                  </p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {b.successCount} / {b.totalCount} muvaffaqiyatli ·{" "}
+                    {formatDateTime(b.createdAt)}
+                  </p>
+                </div>
+                <Badge
+                  variant={STATUS_VARIANTS[b.status] ?? "outline"}
+                  className="shrink-0 text-[10px] font-normal py-0 px-1.5"
+                >
                   {STATUS_LABELS[b.status] ?? b.status}
                 </Badge>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {b.successCount} / {b.totalCount} muvaffaqiyatli ·{" "}
-                {formatDateTime(b.createdAt)}
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

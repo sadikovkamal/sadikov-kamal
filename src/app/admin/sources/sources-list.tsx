@@ -1,16 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Library, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { SourceEditDialog, type SourceShape } from "./source-edit-dialog";
 import type { SourceWithCount } from "@/lib/taxonomy/queries";
 
@@ -31,58 +24,88 @@ export function SourcesList({ sources }: { sources: SourceWithCount[] }) {
 
   return (
     <div className="space-y-4">
-      <Button onClick={() => setEditingId("new")}>+ Yangi manba</Button>
-
-      <div className="border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nomi</TableHead>
-              <TableHead>Slug</TableHead>
-              <TableHead>Tur</TableHead>
-              <TableHead>Davlat</TableHead>
-              <TableHead>Masalalar</TableHead>
-              <TableHead className="w-24"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sources.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center py-8 text-muted-foreground text-sm"
-                >
-                  Hozircha manbalar yo&apos;q.
-                </TableCell>
-              </TableRow>
-            )}
-            {sources.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="font-medium">{s.name}</TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {s.slug}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{KIND_LABELS[s.kind]}</Badge>
-                </TableCell>
-                <TableCell className="text-xs">{s.country ?? "—"}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{s.problemCount}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingId(s.id)}
-                  >
-                    Tahrirlash
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {sources.length} ta manba
+        </p>
+        <Button size="sm" onClick={() => setEditingId("new")}>
+          <Plus data-icon="inline-start" />
+          Yangi manba
+        </Button>
       </div>
+
+      {sources.length === 0 ? (
+        <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm px-6 py-12 text-center space-y-2">
+          <Library
+            className="size-7 mx-auto text-muted-foreground"
+            aria-hidden
+            strokeWidth={1.5}
+          />
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium">Manbalar topilmadi</p>
+            <p className="text-xs text-muted-foreground">
+              {"Olimpiadalar, kitoblar va kurslarni qo'shib boshlang."}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs text-muted-foreground">
+                <tr className="border-b">
+                  <Th>Nomi</Th>
+                  <Th>Slug</Th>
+                  <Th>Tur</Th>
+                  <Th>Davlat</Th>
+                  <Th className="text-right">Masalalar</Th>
+                  <Th className="w-24"></Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {sources.map((s) => (
+                  <tr
+                    key={s.id}
+                    className="group hover:bg-muted/40 transition-colors"
+                  >
+                    <td className="px-3 py-2.5 font-medium">{s.name}</td>
+                    <td className="px-3 py-2.5">
+                      <code className="font-mono text-xs text-muted-foreground">
+                        {s.slug}
+                      </code>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] font-normal py-0 px-1.5"
+                      >
+                        {KIND_LABELS[s.kind]}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                      {s.country ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-xs text-muted-foreground">
+                      {s.problemCount}
+                    </td>
+                    <td className="px-3 py-2.5 pr-3 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingId(s.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Pencil data-icon="inline-start" />
+                        Tahrirlash
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {editingId !== null && (
         <SourceEditDialog
@@ -92,5 +115,21 @@ export function SourcesList({ sources }: { sources: SourceWithCount[] }) {
         />
       )}
     </div>
+  );
+}
+
+function Th({
+  children,
+  className,
+}: {
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <th
+      className={`text-left font-medium px-3 py-2 whitespace-nowrap ${className ?? ""}`}
+    >
+      {children}
+    </th>
   );
 }
