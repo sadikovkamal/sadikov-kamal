@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { topics, sources } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { ProblemForm } from "@/components/problem-form";
-import { ImportUploader } from "../../import/import-uploader";
+import { ImportUploader } from "./import-uploader";
 
 export default async function NewProblemPage() {
   await requireAdmin();

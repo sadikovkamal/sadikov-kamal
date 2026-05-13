@@ -1,6 +1,6 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { desc, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { ArrowUpRight } from "lucide-react";
 import { db } from "@/db";
 import {
@@ -8,16 +8,14 @@ import {
   topics,
   sources,
   problemTopics,
-  importBatches,
 } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
-import { Badge } from "@/components/ui/badge";
-import { formatCount, formatDateTime } from "@/lib/utils";
+import { formatCount } from "@/lib/utils";
 import { PageHeader } from "./_components/page-header";
 
 // recharts is ~200 KB of JS — split it off the dashboard's initial bundle
-// so the stat cards + activity feed paint immediately and the charts
-// stream in once their JS arrives.
+// so the stat cards paint immediately and the charts stream in once their
+// JS arrives.
 const DashboardCharts = dynamic(
   () => import("./dashboard-charts").then((m) => m.DashboardCharts),
   {
@@ -30,24 +28,6 @@ const DashboardCharts = dynamic(
   }
 );
 
-const STATUS_LABELS: Record<string, string> = {
-  success: "muvaffaqiyatli",
-  partial: "qisman",
-  failed: "xato",
-  pending: "kutilmoqda",
-  processing: "ishlamoqda",
-};
-const STATUS_VARIANTS: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  success: "default",
-  partial: "secondary",
-  failed: "destructive",
-  pending: "outline",
-  processing: "outline",
-};
-
 export default async function AdminDashboard() {
   await requireAdmin();
 
@@ -57,7 +37,6 @@ export default async function AdminDashboard() {
     sourcesCountRow,
     byTopic,
     bySource,
-    recentImports,
   ] = await Promise.all([
     db.select({ value: sql<number>`count(*)::int` }).from(problems),
     db.select({ value: sql<number>`count(*)::int` }).from(topics),
@@ -82,11 +61,6 @@ export default async function AdminDashboard() {
       .groupBy(sources.id, sources.name)
       .orderBy(sql`count(*) desc`)
       .limit(8),
-    db
-      .select()
-      .from(importBatches)
-      .orderBy(desc(importBatches.createdAt))
-      .limit(5),
   ]);
 
   const totalProblems = problemsCountRow[0]?.value ?? 0;
@@ -107,49 +81,6 @@ export default async function AdminDashboard() {
       </section>
 
       <DashboardCharts byTopic={byTopic} bySource={bySource} />
-
-      <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium">So&apos;nggi importlar</h2>
-          <Link
-            href="/admin/import"
-            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5"
-          >
-            Hammasi
-            <ArrowUpRight className="size-3" aria-hidden />
-          </Link>
-        </div>
-        <div className="rounded-lg border bg-card divide-y text-sm overflow-hidden">
-          {recentImports.length === 0 && (
-            <div className="py-10 px-4 text-center text-sm text-muted-foreground">
-              Hali import qilinmagan.
-            </div>
-          )}
-          {recentImports.map((b) => (
-            <Link
-              key={b.id}
-              href={`/admin/import/${b.id}`}
-              className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/60 transition-colors"
-            >
-              <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-                <span className="truncate text-[13px] font-medium">
-                  {b.filename}
-                </span>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {b.successCount} / {b.totalCount} ·{" "}
-                  {formatDateTime(b.createdAt)}
-                </span>
-              </div>
-              <Badge
-                variant={STATUS_VARIANTS[b.status] ?? "outline"}
-                className="shrink-0 text-[10px] px-1.5 py-0"
-              >
-                {STATUS_LABELS[b.status] ?? b.status}
-              </Badge>
-            </Link>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }

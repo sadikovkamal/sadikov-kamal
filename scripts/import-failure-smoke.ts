@@ -1,13 +1,13 @@
-// Phase 8 failure-path smoke. Builds a broken bundle in memory and
-// confirms the validator surfaces each kind of error correctly without
-// inserting any rows.
+// Failure-path smoke. Builds a broken bundle in memory and confirms the
+// validator surfaces each kind of error correctly and the executor only
+// commits the well-formed problem.
 
 import "../src/db/load-env";
 
 import JSZip from "jszip";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { db } from "../src/db";
-import { users, problems, importBatches } from "../src/db/schema";
+import { users, problems } from "../src/db/schema";
 import { parseBundle } from "../src/lib/import/parse";
 import { validateBundle } from "../src/lib/import/validate";
 import { executeImport } from "../src/lib/import/execute";
@@ -25,7 +25,7 @@ async function buildBrokenZip(): Promise<Uint8Array> {
 source: imo
 year: 2024
 problem_number: "BAD-2"
-classes: [10, 11]
+classes: [10]
 topics: [algebra]
 ---
 
@@ -39,7 +39,7 @@ This problem references a missing image.
 source: imo
 year: 2024
 problem_number: "BAD-3"
-classes: [10, 11]
+classes: [10]
 topics: [algebra]
 ---
 
@@ -49,7 +49,7 @@ topics: [algebra]
 source: imo
 year: 2024
 problem_number: "GOOD-1"
-classes: [10, 11]
+classes: [10]
 topics: [algebra]
 ---
 
@@ -60,7 +60,8 @@ coexist in one bundle.
 `
   );
 
-  return new Uint8Array(await zip.generateAsync({ type: "uint8array" }));
+  const buffer = await zip.generateAsync({ type: "nodebuffer" });
+  return new Uint8Array(buffer);
 }
 
 async function main() {
@@ -68,6 +69,7 @@ async function main() {
     (u) => u.email === "admin@example.com"
   );
   assert(admin, "admin missing");
+  void users;
 
   const zipBytes = await buildBrokenZip();
   const bundle = await parseBundle(zipBytes);
@@ -89,61 +91,37 @@ async function main() {
   assert(bad3, "empty body not detected");
   console.log(`[3] empty body surfaced: ${bad3!.errors[0]}`);
 
-  // GOOD-1: should be ok or warning (duplicate not relevant — different number)
+  // GOOD-1: should be ok or warning
   const good = report.problems.find((p) => p.frontmatter?.problem_number === "GOOD-1");
   assert(good, "GOOD-1 not found in report");
   assert(good!.status !== "error", `GOOD-1 status was ${good!.status}, want ok/warning`);
   console.log(`[4] GOOD-1 status=${good!.status}`);
 
-  // Now run executeImport with this broken validation. Errors should be
-  // recorded in the batch row, only GOOD-1 should land in DB.
-  const [batch] = await db
-    .insert(importBatches)
-    .values({
-      uploadedBy: admin.id,
-      filename: "broken-batch.zip",
-      status: "pending",
-      totalCount: bundle.problems.length,
-    })
-    .returning({ id: importBatches.id });
-
+  // Now run executeImport. Only GOOD-1 should land in DB.
   let createdProblemIds: string[] = [];
   try {
     const result = await executeImport({
-      batchId: batch.id,
       bundle,
       validation: report,
       uploadedBy: admin.id,
     });
-    assert(result.status === "partial", `exec status=${result.status}, want partial`);
-    assert(result.successCount === 1, `success=${result.successCount}, want 1`);
+    assert(result.successCount === 1, `success=${result.successCount}, want 1 (errorLog=${JSON.stringify(result.errorLog)})`);
     assert(result.errorLog.length === 2, `errorLog len=${result.errorLog.length}, want 2`);
-    console.log(`[5] executeImport partial: 1 success, 2 errors recorded`);
+    console.log(`[5] executeImport: 1 success, 2 errors recorded in returned errorLog`);
 
-    // Verify only GOOD-1 was inserted
     const inserted = await db
       .select({ id: problems.id, problemNumber: problems.problemNumber })
       .from(problems)
-      .where(eq(problems.importBatchId, batch.id));
+      .where(inArray(problems.problemNumber, ["BAD-2", "BAD-3", "GOOD-1"]));
     createdProblemIds = inserted.map((p) => p.id);
     assert(inserted.length === 1, `inserted=${inserted.length}, want 1`);
     assert(inserted[0].problemNumber === "GOOD-1", `inserted=${inserted[0].problemNumber}`);
     console.log(`[6] only GOOD-1 landed in DB (id=${inserted[0].id.slice(0, 8)}…)`);
-
-    // Verify finalized batch row reflects the error log
-    const finalBatch = await db.query.importBatches.findFirst({
-      where: eq(importBatches.id, batch.id),
-    });
-    assert(finalBatch?.status === "partial", `final status=${finalBatch?.status}`);
-    const errorLog = (finalBatch?.errorLog as Array<{ error: string }>) ?? [];
-    assert(errorLog.length === 2, `final errorLog len=${errorLog.length}, want 2`);
-    console.log(`[7] batch row partial with 2 entries in error_log`);
   } finally {
     if (createdProblemIds.length) {
       await db.delete(problems).where(inArray(problems.id, createdProblemIds));
     }
-    await db.delete(importBatches).where(eq(importBatches.id, batch.id));
-    console.log(`[cleanup] removed ${createdProblemIds.length} problems + batch row`);
+    console.log(`[cleanup] removed ${createdProblemIds.length} problems`);
   }
 
   console.log(`\nFailure-path smoke: PASSED`);

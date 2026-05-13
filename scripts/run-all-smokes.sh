@@ -21,7 +21,6 @@ PLAIN=(
   "auth-http-smoke.ts"
   "markdown-smoke.ts"
   "r2-smoke.ts"
-  "import-page-smoke.ts"
   "taxonomy-pages-smoke.ts"
   "cron-smoke.ts"
 )

@@ -1,6 +1,5 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   problems,
@@ -9,7 +8,6 @@ import {
   images,
   sources,
   topics,
-  importBatches,
 } from "@/db/schema";
 import { uploadFile } from "@/lib/storage/r2";
 import type { ParsedBundle } from "./parse";
@@ -22,50 +20,40 @@ export interface ExecuteErrorEntry {
 }
 
 export interface ExecuteResult {
-  batchId: string;
   successCount: number;
   totalCount: number;
   errorLog: ExecuteErrorEntry[];
-  status: "success" | "partial" | "failed";
 }
 
 /**
  * Execute an already-validated import.
  *
  * Order of operations:
- *  1. Mark the batch row as `processing`.
- *  2. Auto-create missing sources and topics in two bulk inserts (idempotent).
- *  3. Upload every image once to R2 under `batches/{batchId}/`. We cache
+ *  1. Auto-create missing sources and topics in two bulk inserts (idempotent).
+ *  2. Upload every image once to R2 under `imports/{timestamp}/`. We cache
  *     the public URL by filename so multiple problems referencing the same
  *     image only upload once.
- *  4. For each problem with status !== "error" and not duplicate, run a
+ *  3. For each problem with status !== "error" and not duplicate, run a
  *     transaction: insert problems row, junction rows, image rows. Rewrite
  *     `images/foo.png` markdown refs to the R2 public URL inside `body_md`.
  *     Solutions are intentionally not imported (admins add them in the UI),
  *     so `solution_md` is stored as null on every imported row.
- *  5. Mark the batch as `success` / `partial` / `failed` and persist the
- *     accumulated error log.
  *
- * Orphan images (uploaded but their owning problem failed to insert) stay
- * in R2 — Phase 10 will add a cleanup pass.
+ * Batch history was removed: we don't persist a row for this operation,
+ * the caller just gets back the counts + per-problem error list. Orphan
+ * images (uploaded but their owning problem failed to insert) stay in R2
+ * — a future cleanup pass can sweep them.
  */
 export async function executeImport(params: {
-  batchId: string;
   bundle: ParsedBundle;
   validation: ValidationReport;
   uploadedBy: string;
 }): Promise<ExecuteResult> {
-  const { batchId, bundle, validation, uploadedBy } = params;
+  const { bundle, validation, uploadedBy } = params;
   const errorLog: ExecuteErrorEntry[] = [];
   let successCount = 0;
 
-  // 1. Mark processing.
-  await db
-    .update(importBatches)
-    .set({ status: "processing" })
-    .where(eq(importBatches.id, batchId));
-
-  // 2. Auto-create missing sources/topics.
+  // 1. Auto-create missing sources/topics.
   const allNewSources = uniq(validation.problems.flatMap((p) => p.newSources));
   if (allNewSources.length) {
     await db
@@ -94,7 +82,9 @@ export async function executeImport(params: {
   const sourceIdBySlug = new Map(allSources.map((r) => [r.slug, r.id]));
   const topicIdBySlug = new Map(allTopics.map((r) => [r.slug, r.id]));
 
-  // 3. Upload all images once.
+  // 2. Upload all images once. Prefix is a timestamp folder under
+  // `imports/` — random enough to avoid collisions and easy to spot in R2.
+  const uploadPrefix = `imports/${Date.now()}`;
   interface UploadedImage {
     storageKey: string;
     publicUrl: string;
@@ -111,7 +101,7 @@ export async function executeImport(params: {
         file: bytes,
         mimeType,
         originalFilename: filename,
-        prefix: `batches/${batchId}`,
+        prefix: uploadPrefix,
       });
       imageUrlByFilename.set(filename, {
         ...uploaded,
@@ -126,7 +116,7 @@ export async function executeImport(params: {
     }
   }
 
-  // 4. Insert each valid, non-duplicate problem in its own transaction.
+  // 3. Insert each valid, non-duplicate problem in its own transaction.
   for (const v of validation.problems) {
     if (v.status === "error" || !v.frontmatter) {
       errorLog.push({
@@ -187,15 +177,12 @@ export async function executeImport(params: {
           .values({
             bodyMd: rewrite(parsed.bodyMd) ?? "",
             // Import never carries solutions — admins add them in the UI.
-            // The parser already drops `# Yechim` sections, so this is null
-            // by construction; kept explicit as defense-in-depth.
             solutionMd: null,
             answer: fm.answer ?? null,
             sourceId,
             year: fm.year ?? null,
             problemNumber: fm.problem_number ?? null,
             createdBy: uploadedBy,
-            importBatchId: batchId,
             metadata: {},
           })
           .returning({ id: problems.id });
@@ -238,26 +225,11 @@ export async function executeImport(params: {
     }
   }
 
-  // 5. Finalize batch row.
-  const total = validation.problems.length;
-  const status: ExecuteResult["status"] =
-    successCount === total
-      ? "success"
-      : successCount === 0
-        ? "failed"
-        : "partial";
-
-  await db
-    .update(importBatches)
-    .set({
-      status,
-      successCount,
-      errorLog,
-      finishedAt: new Date(),
-    })
-    .where(eq(importBatches.id, batchId));
-
-  return { batchId, successCount, totalCount: total, errorLog, status };
+  return {
+    successCount,
+    totalCount: validation.problems.length,
+    errorLog,
+  };
 }
 
 function uniq<T>(arr: T[]): T[] {

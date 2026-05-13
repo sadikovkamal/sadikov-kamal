@@ -2,8 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { db } from "@/db";
-import { importBatches } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { parseBundle } from "@/lib/import/parse";
 import { validateBundle, type ValidationReport } from "@/lib/import/validate";
@@ -56,8 +54,10 @@ export async function previewImportAction(
 }
 
 /**
- * Stage 2: create an import_batches row and run the executor synchronously.
- * Redirects to the batch detail page on completion (success / partial / failed).
+ * Stage 2: run the executor synchronously and redirect to the problems
+ * list. Batch history was removed (admins don't need to revisit past
+ * imports), so there's no DB row tracking the operation — only the
+ * imported `problems` rows survive.
  */
 export async function executeImportAction(
   formData: FormData
@@ -71,31 +71,25 @@ export async function executeImportAction(
   const bundle = await parseBundle(bytes);
   const validation = await validateBundle(bundle);
 
-  // Reject early if the bundle itself is broken — no point creating a row.
+  // Reject early if the bundle itself is broken — no point spinning up
+  // the executor for a structurally invalid ZIP.
   if (validation.bundleErrors.length > 0) {
     return {
       error: `Bundle has errors: ${validation.bundleErrors.join("; ")}`,
     };
   }
 
-  const [batch] = await db
-    .insert(importBatches)
-    .values({
-      uploadedBy: user.id,
-      filename: file.name,
-      status: "pending",
-      totalCount: bundle.problems.length,
-    })
-    .returning({ id: importBatches.id });
-
-  await executeImport({
-    batchId: batch.id,
+  const result = await executeImport({
     bundle,
     validation,
     uploadedBy: user.id,
   });
 
+  if (result.successCount === 0) {
+    const firstErr = result.errorLog[0]?.error ?? "Import failed";
+    return { error: firstErr };
+  }
+
   revalidatePath("/admin/problems");
-  revalidatePath("/admin/import");
-  redirect(`/admin/import/${batch.id}`);
+  redirect("/admin/problems");
 }

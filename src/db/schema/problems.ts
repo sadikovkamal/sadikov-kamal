@@ -13,7 +13,6 @@ import {
 import { sql } from "drizzle-orm";
 import { users } from "./users";
 import { sources, topics } from "./taxonomy";
-import { importBatches } from "./imports";
 
 export const problems = pgTable(
   "problems",
@@ -30,9 +29,6 @@ export const problems = pgTable(
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    importBatchId: uuid("import_batch_id").references(() => importBatches.id, {
-      onDelete: "set null",
-    }),
     metadata: jsonb("metadata").notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
