@@ -47,10 +47,13 @@ async function seed() {
     name,
     code: `T${String(++nextSeq).padStart(6, "0")}`,
   }));
+  // Conflict on code (only unique column left on topics). The seed
+  // assigns codes sequentially after max(existing), so collisions only
+  // happen on re-runs — onConflictDoNothing keeps the seed idempotent.
   await db
     .insert(topics)
     .values(topicData)
-    .onConflictDoNothing({ target: topics.name });
+    .onConflictDoNothing({ target: topics.code });
 
   // 3. Default sources
   const sourceData = [

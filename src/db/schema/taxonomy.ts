@@ -28,12 +28,13 @@ export const topics = pgTable(
      */
     code: text("code").notNull().unique(),
     /**
-     * Display name. Doubles as the portable identifier in bulk-import
-     * bundles (case-insensitive match), so dev/prod environments stay
-     * compatible without forcing admins to track per-environment codes
-     * in their YAML. No more `slug` column — the name is the slug.
+     * Display name. Not globally unique — generic labels like "Boshqa"
+     * are allowed to appear under multiple parents. The case-insensitive
+     * lookup at import time still works because we narrow by parent or
+     * accept any match for free-form rows; for stable lookups, code is
+     * the authoritative handle.
      */
-    name: text("name").notNull().unique(),
+    name: text("name").notNull(),
     parentId: uuid("parent_id").references((): AnyPgColumn => topics.id, {
       onDelete: "set null",
     }),

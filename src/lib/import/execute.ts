@@ -78,10 +78,12 @@ export async function executeImport(params: {
       allCodes.push(code);
       return { name, code };
     });
+    // Conflict on code (only unique column on topics). Race-protection
+    // for two parallel imports trying to grab the same T-code at once.
     await db
       .insert(topics)
       .values(values)
-      .onConflictDoNothing({ target: topics.name });
+      .onConflictDoNothing({ target: topics.code });
   }
 
   // Re-read after the inserts so the lookup maps are complete. Topics

@@ -50,6 +50,13 @@
       "when": 1779235200000,
       "tag": "0006_drop-topics-slug",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779321600000,
+      "tag": "0007_drop-topics-name-unique",
+      "breakpoints": true
     }
   ]
 }
