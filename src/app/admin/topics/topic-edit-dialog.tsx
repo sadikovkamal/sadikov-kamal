@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  buildTopicTree,
+  flattenTopicTree,
+} from "@/lib/taxonomy/topic-codes";
 import {
   createTopicAction,
   updateTopicAction,
@@ -51,6 +55,44 @@ export function TopicEditDialog({
   const [description, setDescription] = useState(topic?.description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Build the topic tree once. Flatten depth-first so the parent dropdown
+  // can render each row with its indent level + show "↳" markers.
+  const flat = useMemo(
+    () => flattenTopicTree(buildTopicTree(allTopics)),
+    [allTopics]
+  );
+
+  // Block cycles: when editing, hide the topic itself and every descendant
+  // from the parent picker. Without this, an admin could parent Algebra
+  // under one of its own grandchildren and orphan the whole subtree.
+  const blockedIds = useMemo(() => {
+    if (!topic) return new Set<string>();
+    const childrenByParent = new Map<string, string[]>();
+    for (const t of allTopics) {
+      if (t.parentId) {
+        const arr = childrenByParent.get(t.parentId) ?? [];
+        arr.push(t.id);
+        childrenByParent.set(t.parentId, arr);
+      }
+    }
+    const blocked = new Set<string>([topic.id]);
+    const queue = [topic.id];
+    while (queue.length) {
+      const next = queue.shift()!;
+      for (const childId of childrenByParent.get(next) ?? []) {
+        if (!blocked.has(childId)) {
+          blocked.add(childId);
+          queue.push(childId);
+        }
+      }
+    }
+    return blocked;
+  }, [allTopics, topic]);
+
+  const parentOptions = flat.filter((n) => !blockedIds.has(n.topic.id));
+
+  const selectedParent = parentOptions.find((n) => n.topic.id === parentId);
 
   function onSave() {
     setError(null);
@@ -85,10 +127,6 @@ export function TopicEditDialog({
     });
   }
 
-  // Don't allow setting self as parent. (A full descendant filter would
-  // be safer for deeper trees; for the seeded 6-topic tree this is fine.)
-  const validParents = allTopics.filter((t) => t.id !== topic?.id);
-
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
@@ -119,13 +157,25 @@ export function TopicEditDialog({
               onValueChange={(v) => setParentId(v ?? NO_PARENT)}
             >
               <SelectTrigger id="topic-parent" className="w-full">
-                <SelectValue />
+                {/* Trigger shows just the picked topic's name (or root
+                    sentinel) — no indent, no code chip — so the closed
+                    state stays compact. */}
+                <SelectValue placeholder="Tanlang">
+                  {(value) => {
+                    if (!value || value === NO_PARENT) return "— Yo'q (root) —";
+                    return selectedParent?.topic.name ?? "Tanlang";
+                  }}
+                </SelectValue>
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_PARENT}>— Yo&apos;q (root) —</SelectItem>
-                {validParents.map((t) => (
+              <SelectContent className="max-h-[320px]">
+                <SelectItem value={NO_PARENT}>
+                  <span className="text-muted-foreground">
+                    — Yo&apos;q (root) —
+                  </span>
+                </SelectItem>
+                {parentOptions.map(({ topic: t, depth }) => (
                   <SelectItem key={t.id} value={t.id}>
-                    {t.name}
+                    <ParentRow name={t.name} code={t.code} depth={depth} />
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -165,5 +215,40 @@ export function TopicEditDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Row inside the parent dropdown. Indents by depth, prefixes nested
+ * rows with a faint "↳" so the eye catches hierarchy in a long list,
+ * and pins the T-code on the right as a muted chip so admins can spot
+ * the exact topic when several share a name (e.g. "Boshqa").
+ */
+function ParentRow({
+  name,
+  code,
+  depth,
+}: {
+  name: string;
+  code: string;
+  depth: number;
+}) {
+  return (
+    <span className="flex items-center justify-between gap-2 w-full">
+      <span
+        className="flex items-center gap-1.5 min-w-0"
+        style={{ paddingLeft: `${depth * 14}px` }}
+      >
+        {depth > 0 && (
+          <span className="text-muted-foreground/40 shrink-0" aria-hidden>
+            ↳
+          </span>
+        )}
+        <span className="truncate">{name}</span>
+      </span>
+      <code className="font-mono text-[10px] tabular-nums text-muted-foreground/60 shrink-0">
+        {code}
+      </code>
+    </span>
   );
 }
