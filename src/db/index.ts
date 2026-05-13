@@ -5,7 +5,6 @@ import * as schema from "./schema";
 const connectionString = process.env.DATABASE_URL!;
 
 declare global {
-  // eslint-disable-next-line no-var
   var _pgClient: ReturnType<typeof postgres> | undefined;
 }
 

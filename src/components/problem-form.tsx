@@ -3,7 +3,13 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useForm, FormProvider, Controller } from "react-hook-form";
+import {
+  useForm,
+  FormProvider,
+  Controller,
+  useFormContext,
+  useWatch,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import dynamic from "next/dynamic";
@@ -66,8 +72,10 @@ export interface ProblemFormProps {
   topicsAvailable: Topic[];
   sourcesAvailable: Source[];
   uploadPrefix: string;
-  /** Compact mode — used by the standalone create page. Hides the
-   *  "Yechim" tab and the "Yil", "Masala raqami", "Javob" metadata fields. */
+  /** Compact mode — used by the create page. Hides the "Yechim" tab plus
+   *  the "Yil", "Masala raqami", "Javob" metadata fields so the create
+   *  flow stays focused on body + topics. Edit mode passes `false` to
+   *  expose every field. */
   compact?: boolean;
 }
 
@@ -116,9 +124,6 @@ export function ProblemForm({
     }
   }
 
-  const bodyMd = methods.watch("bodyMd");
-  const solutionMd = methods.watch("solutionMd") ?? "";
-
   return (
     <FormProvider {...methods}>
       <form
@@ -152,18 +157,11 @@ export function ProblemForm({
             />
           </div>
           {compact ? (
-            <>
-              <SplitView
-                source={bodyMd}
-                onChange={(v) =>
-                  methods.setValue("bodyMd", v, { shouldDirty: true })
-                }
-                uploadPrefix={uploadPrefix}
-              />
-              <FieldHint
-                message={methods.formState.errors.bodyMd?.message}
-              />
-            </>
+            <BodyEditor
+              fieldName="bodyMd"
+              uploadPrefix={uploadPrefix}
+              showError
+            />
           ) : (
             <Tabs defaultValue="problem" className="w-full">
               <TabsList>
@@ -172,29 +170,18 @@ export function ProblemForm({
               </TabsList>
 
               <TabsContent value="problem">
-                <SplitView
-                  source={bodyMd}
-                  onChange={(v) =>
-                    methods.setValue("bodyMd", v, { shouldDirty: true })
-                  }
+                <BodyEditor
+                  fieldName="bodyMd"
                   uploadPrefix={uploadPrefix}
-                />
-                <FieldHint
-                  message={methods.formState.errors.bodyMd?.message}
+                  showError
                 />
               </TabsContent>
 
               <TabsContent value="solution">
-                <SplitView
-                  source={solutionMd}
-                  onChange={(v) =>
-                    methods.setValue(
-                      "solutionMd",
-                      v.length === 0 ? null : v,
-                      { shouldDirty: true }
-                    )
-                  }
+                <BodyEditor
+                  fieldName="solutionMd"
                   uploadPrefix={uploadPrefix}
+                  nullable
                 />
               </TabsContent>
             </Tabs>
@@ -302,31 +289,29 @@ function ImageUploadField({
         }}
       />
       {value ? (
-        <>
-          <div className="flex items-center gap-2 rounded-md ring-1 ring-foreground/10 bg-card pl-1 pr-2 py-1">
-            <div className="relative h-6 w-6 overflow-hidden rounded-sm bg-muted shrink-0">
-              <Image
-                src={value.publicUrl}
-                alt={value.originalFilename}
-                fill
-                sizes="24px"
-                className="object-cover"
-                unoptimized
-              />
-            </div>
-            <span className="text-xs max-w-[140px] truncate">
-              {value.originalFilename}
-            </span>
-            <button
-              type="button"
-              aria-label="Rasmni o'chirish"
-              onClick={() => onChange(null)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
+        <div className="flex items-center gap-2 rounded-md ring-1 ring-foreground/10 bg-card pl-1 pr-2 py-1">
+          <div className="relative h-6 w-6 overflow-hidden rounded-sm bg-muted shrink-0">
+            <Image
+              src={value.publicUrl}
+              alt={value.originalFilename}
+              fill
+              sizes="24px"
+              className="object-cover"
+              unoptimized
+            />
           </div>
-        </>
+          <span className="text-xs max-w-[140px] truncate">
+            {value.originalFilename}
+          </span>
+          <button
+            type="button"
+            aria-label="Rasmni o'chirish"
+            onClick={() => onChange(null)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
       ) : (
         <Button
           type="button"
@@ -345,6 +330,45 @@ function ImageUploadField({
       )}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
+  );
+}
+
+/**
+ * Subscribes to a single text field via `useWatch` so keystrokes only
+ * re-render this subtree, not the whole form (which would force the
+ * MetadataForm + select/popover/command trees to re-render too).
+ */
+function BodyEditor({
+  fieldName,
+  uploadPrefix,
+  showError,
+  nullable,
+}: {
+  fieldName: "bodyMd" | "solutionMd";
+  uploadPrefix: string;
+  showError?: boolean;
+  nullable?: boolean;
+}) {
+  const { control, setValue, formState } = useFormContext<ProblemFormValues>();
+  const value = useWatch({ control, name: fieldName }) ?? "";
+
+  return (
+    <>
+      <SplitView
+        source={value}
+        onChange={(v) =>
+          setValue(
+            fieldName,
+            nullable && v.length === 0 ? null : v,
+            { shouldDirty: true }
+          )
+        }
+        uploadPrefix={uploadPrefix}
+      />
+      {showError && (
+        <FieldHint message={formState.errors[fieldName]?.message} />
+      )}
+    </>
   );
 }
 

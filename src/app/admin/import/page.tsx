@@ -36,14 +36,15 @@ export default async function ImportPage() {
       <div>
         <h1 className="text-2xl font-bold">Bulk import</h1>
         <p className="text-muted-foreground text-sm">
-          ZIP bundle yuklang, format spec'i: <code>docs/format-spec.md</code>.
+          {"ZIP bundle yuklang, format spec'i: "}
+          <code>docs/format-spec.md</code>.
         </p>
       </div>
 
       <ImportUploader />
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">So'nggi importlar</h2>
+        <h2 className="text-lg font-semibold">{"So'nggi importlar"}</h2>
         <div className="border rounded-md divide-y">
           {recent.length === 0 && (
             <div className="p-4 text-sm text-muted-foreground">

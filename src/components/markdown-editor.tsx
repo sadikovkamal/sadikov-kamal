@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
@@ -60,34 +60,45 @@ export function MarkdownEditor({
     [uploadPrefix]
   );
 
-  const dropExtension = EditorView.domEventHandlers({
-    drop: (event, view) => {
-      // CodeMirror types the listener as returning void | boolean; ours
-      // returns a Promise so we kick it off without blocking the event.
-      void handleDrop(event, view);
-      // Returning true tells CodeMirror we handled it.
-      return true;
-    },
-    dragover: (event) => {
-      event.preventDefault();
-      return false;
-    },
-  });
+  // Memoize the extensions array so CodeMirror doesn't reconfigure its
+  // EditorState on every keystroke. Without this, every parent re-render
+  // hands CodeMirror a fresh extensions array — it tears down and rebuilds
+  // its internal state machine, which is both slow and a large source of
+  // memory churn (especially noticeable on Windows where the OS-level
+  // thread pool / paging file are tight).
+  const extensions = useMemo(
+    () => [
+      markdown({ base: markdownLanguage }),
+      EditorView.lineWrapping,
+      EditorView.domEventHandlers({
+        drop: (event, view) => {
+          void handleDrop(event, view);
+          return true;
+        },
+        dragover: (event) => {
+          event.preventDefault();
+          return false;
+        },
+      }),
+    ],
+    [handleDrop]
+  );
+
+  const basicSetup = useMemo(
+    () => ({
+      lineNumbers: false,
+      foldGutter: false,
+      highlightActiveLine: false,
+    }),
+    []
+  );
 
   return (
     <CodeMirror
       value={value}
       onChange={onChange}
-      extensions={[
-        markdown({ base: markdownLanguage }),
-        EditorView.lineWrapping,
-        dropExtension,
-      ]}
-      basicSetup={{
-        lineNumbers: false,
-        foldGutter: false,
-        highlightActiveLine: false,
-      }}
+      extensions={extensions}
+      basicSetup={basicSetup}
       height="auto"
       minHeight={minHeight}
       style={{ fontSize: "14px" }}

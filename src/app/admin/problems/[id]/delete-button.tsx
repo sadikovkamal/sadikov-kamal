@@ -26,14 +26,12 @@ export function DeleteProblemButton({ id }: { id: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="destructive">O'chirish</Button>} />
+      <DialogTrigger render={<Button variant="destructive">{"O'chirish"}</Button>} />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Bu masalani o'chirasizmi?</DialogTitle>
+          <DialogTitle>{"Bu masalani o'chirasizmi?"}</DialogTitle>
           <DialogDescription>
-            Bu amal qaytarib bo'lmaydi. Masala yozuvi va uning mavzu/teg/sinf
-            aloqalari o'chiriladi. R2'dagi rasmlar saqlanadi (alohida tozalash
-            ishi keyinroq qo'shiladi).
+            {"Bu amal qaytarib bo'lmaydi. Masala yozuvi va uning mavzu/sinf aloqalari o'chiriladi. R2'dagi rasmlar saqlanadi (alohida tozalash ishi keyinroq qo'shiladi)."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

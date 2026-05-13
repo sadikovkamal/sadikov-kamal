@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 // Allow next/image to load from the configured R2 public URL. We resolve
 // the hostname at build/start time; if R2_PUBLIC_URL is unset (e.g. early
@@ -14,6 +15,13 @@ if (r2PublicUrl) {
 }
 
 const nextConfig: NextConfig = {
+  // Pin Turbopack's workspace root to this directory. Without it, Next sees
+  // the parent repo's lockfile (when running from a git worktree under
+  // `.claude/worktrees/`) and infers the wrong root, which silently serves
+  // routes from the parent worktree — every new route here turns into 404.
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   images: {
     remotePatterns: r2Hostname
       ? [{ protocol: "https", hostname: r2Hostname }]

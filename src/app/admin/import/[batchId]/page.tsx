@@ -90,7 +90,7 @@ export default async function BatchDetailPage({
 
       {errorLog.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-lg font-semibold">Xatolar va o'tkazib yuborishlar</h2>
+          <h2 className="text-lg font-semibold">{"Xatolar va o'tkazib yuborishlar"}</h2>
           <div className="border rounded-md divide-y text-xs">
             {errorLog.map((e, i) => (
               <div key={i} className="p-2 flex flex-wrap gap-2">
@@ -111,7 +111,7 @@ export default async function BatchDetailPage({
         <div className="border rounded-md divide-y">
           {importedProblems.length === 0 && (
             <div className="p-3 text-sm text-muted-foreground">
-              Bu batch'dan hech qanday masala import qilinmagan.
+              {"Bu batch'dan hech qanday masala import qilinmagan."}
             </div>
           )}
           {importedProblems.map((p) => (

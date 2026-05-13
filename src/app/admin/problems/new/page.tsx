@@ -63,10 +63,10 @@ export default async function NewProblemPage() {
               </div>
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold tracking-tight">
-                  Bir nechta masala qo'shish
+                  {"Bir nechta masala qo'shish"}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  ZIP arxiv orqali bir nechta masalani birdaniga qo'shing.
+                  {"ZIP arxiv orqali bir nechta masalani birdaniga qo'shing."}
                 </p>
               </div>
             </div>
@@ -84,7 +84,7 @@ export default async function NewProblemPage() {
                   Arxiv fayl tuzilishi
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  ZIP arxiv quyidagi tartibda bo'lishi kerak.
+                  {"ZIP arxiv quyidagi tartibda bo'lishi kerak."}
                 </p>
               </div>
             </div>
@@ -104,8 +104,8 @@ export default async function NewProblemPage() {
               </li>
               <li>
                 <span className="text-foreground font-medium">Sarlavha:</span>{" "}
-                <code className="font-mono">{`# Shart`}</code> majburiy.
-                Yechim import qilinmaydi — admin panelda qo'shiladi.
+                <code className="font-mono">{`# Shart`}</code>{" "}
+                {"majburiy. Yechim import qilinmaydi — admin panelda qo'shiladi."}
               </li>
               <li>
                 <span className="text-foreground font-medium">Cheklovlar:</span>{" "}

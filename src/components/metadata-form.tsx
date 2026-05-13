@@ -32,8 +32,9 @@ export interface MetadataFormProps {
   topicsAvailable: Topic[];
   sourcesAvailable: Source[];
   /** Compact mode hides "Yil", "Masala raqami" and "Javob" — used by the
-   *  modal create flow. The hidden fields stay at their default values
-   *  (year/problemNumber/answer = null). */
+   *  create page so the writer commits to topics + source first. The
+   *  hidden fields stay at their default values (year/problemNumber/
+   *  answer = null) and are filled in later via the edit page. */
   compact?: boolean;
 }
 
@@ -278,5 +279,3 @@ function TopicMultiSelect({
     </div>
   );
 }
-
-

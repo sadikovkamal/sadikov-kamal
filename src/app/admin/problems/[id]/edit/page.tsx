@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { topics, sources } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemById } from "@/lib/problems/queries";
+import { getPublicUrl } from "@/lib/storage/r2";
 import { ProblemForm } from "@/components/problem-form";
 
 export default async function EditProblemPage({
@@ -38,7 +39,7 @@ export default async function EditProblemPage({
           image: p.images[0]
             ? {
                 storageKey: p.images[0].storageKey,
-                publicUrl: `${process.env.R2_PUBLIC_URL?.replace(/\/+$/, "") ?? ""}/${p.images[0].storageKey}`,
+                publicUrl: getPublicUrl(p.images[0].storageKey),
                 originalFilename: p.images[0].originalFilename,
                 sizeBytes: p.images[0].sizeBytes,
                 mimeType: p.images[0].mimeType,
