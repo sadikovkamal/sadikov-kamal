@@ -13,7 +13,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import dynamic from "next/dynamic";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { Eye, ImagePlus, Loader2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImageAction } from "@/app/admin/_actions/upload-image";
 import {
@@ -386,10 +386,22 @@ function SplitView({
   // pipeline (remark-math + rehype-katex + rehype-highlight + sanitize) is
   // ~10-20ms per render — without this, every keystroke blocks the editor.
   const deferredSource = useDeferredValue(source);
+  const isStale = source !== deferredSource;
+  const isEmpty = deferredSource.trim().length === 0;
 
   return (
     <div className="grid grid-cols-1 gap-3">
-      <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card">
+      {/* Editor pane */}
+      <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card shadow-sm">
+        <header className="flex items-center justify-between px-3 h-9 border-b bg-muted/30">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <Pencil className="size-3" aria-hidden />
+            <span>Tahrir</span>
+          </div>
+          <span className="text-[10px] text-muted-foreground/60 font-mono">
+            Markdown · LaTeX
+          </span>
+        </header>
         <MarkdownEditor
           value={source}
           onChange={onChange}
@@ -397,9 +409,50 @@ function SplitView({
           minHeight="240px"
         />
       </div>
-      <div className="rounded-xl ring-1 ring-foreground/10 bg-card p-4 min-h-[200px] overflow-auto">
-        <MarkdownPreview source={deferredSource || "*Bo'sh*"} />
+
+      {/* Preview pane */}
+      <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card shadow-sm">
+        <header className="flex items-center justify-between px-3 h-9 border-b bg-muted/30">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <Eye className="size-3" aria-hidden />
+            <span>Oldindan ko&apos;rish</span>
+          </div>
+          {isStale && (
+            <span
+              className="flex items-center gap-1 text-[10px] text-muted-foreground/70"
+              aria-live="polite"
+            >
+              <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+              Yangilanmoqda
+            </span>
+          )}
+        </header>
+        <div className="p-5 min-h-[200px] overflow-auto">
+          {isEmpty ? (
+            <EmptyPreview />
+          ) : (
+            <MarkdownPreview source={deferredSource} />
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function EmptyPreview() {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-8 gap-2">
+      <Eye
+        className="size-5 text-muted-foreground/40"
+        aria-hidden
+        strokeWidth={1.5}
+      />
+      <p className="text-xs text-muted-foreground">
+        {"Yozayotgan matningiz bu yerda render bo'lib turadi"}
+      </p>
+      <p className="text-[10px] text-muted-foreground/60 font-mono">
+        $x^2 + y^2 = z^2$
+      </p>
     </div>
   );
 }
