@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useDeferredValue, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -381,6 +381,12 @@ function SplitView({
   onChange: (v: string) => void;
   uploadPrefix: string;
 }) {
+  // React 18+ idiom: keep the previous preview content rendered while the
+  // user is mid-keystroke, then catch up when typing pauses. The markdown
+  // pipeline (remark-math + rehype-katex + rehype-highlight + sanitize) is
+  // ~10-20ms per render — without this, every keystroke blocks the editor.
+  const deferredSource = useDeferredValue(source);
+
   return (
     <div className="grid grid-cols-1 gap-3">
       <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card">
@@ -392,7 +398,7 @@ function SplitView({
         />
       </div>
       <div className="rounded-xl ring-1 ring-foreground/10 bg-card p-4 min-h-[200px] overflow-auto">
-        <MarkdownPreview source={source || "*Bo'sh*"} />
+        <MarkdownPreview source={deferredSource || "*Bo'sh*"} />
       </div>
     </div>
   );

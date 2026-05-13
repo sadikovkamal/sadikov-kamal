@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { desc, sql } from "drizzle-orm";
 import { ArrowUpRight } from "lucide-react";
 import { db } from "@/db";
@@ -12,8 +13,22 @@ import {
 import { requireAdmin } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { formatCount, formatDateTime } from "@/lib/utils";
-import { DashboardCharts } from "./dashboard-charts";
 import { PageHeader } from "./_components/page-header";
+
+// recharts is ~200 KB of JS — split it off the dashboard's initial bundle
+// so the stat cards + activity feed paint immediately and the charts
+// stream in once their JS arrives.
+const DashboardCharts = dynamic(
+  () => import("./dashboard-charts").then((m) => m.DashboardCharts),
+  {
+    loading: () => (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="rounded-lg border bg-card h-[244px] animate-pulse" />
+        <div className="rounded-lg border bg-card h-[244px] animate-pulse" />
+      </div>
+    ),
+  }
+);
 
 const STATUS_LABELS: Record<string, string> = {
   success: "muvaffaqiyatli",
