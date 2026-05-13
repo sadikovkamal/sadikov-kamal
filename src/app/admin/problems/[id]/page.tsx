@@ -85,7 +85,7 @@ export default async function ProblemDetailPage({
       </header>
 
       {/* Two-column body */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-6">
         <article className="space-y-5 min-w-0">
           <Section title="Shart">
             <MarkdownPreview source={p.bodyMd} />
@@ -128,57 +128,74 @@ export default async function ProblemDetailPage({
 
         {/* Sticky metadata sidebar */}
         <aside className="lg:sticky lg:top-6 self-start">
-          <div className="rounded-lg border bg-card p-4 space-y-4 text-sm">
-            {p.source && (
-              <MetaRow label="Manba">
-                <Link
-                  href={`/admin/sources`}
-                  className="hover:text-foreground hover:underline underline-offset-4"
-                >
-                  {p.source.name}
-                </Link>
-              </MetaRow>
-            )}
-            {p.year && (
-              <MetaRow label="Yil">
-                <span className="tabular-nums">{p.year}</span>
-              </MetaRow>
-            )}
-            {p.problemNumber && (
-              <MetaRow label="Raqami">
-                <span className="font-mono text-xs">{p.problemNumber}</span>
-              </MetaRow>
-            )}
-            {p.classes.length > 0 && (
-              <MetaRow label="Sinflar">
-                <div className="flex flex-wrap gap-1">
-                  {p.classes.map((c) => (
-                    <Badge
-                      key={c}
-                      variant="secondary"
-                      className="text-[10px] font-normal py-0 px-1.5 tabular-nums"
-                    >
-                      {c}
-                    </Badge>
-                  ))}
-                </div>
-              </MetaRow>
-            )}
-            {p.topics.length > 0 && (
-              <MetaRow label="Mavzular">
-                <div className="flex flex-wrap gap-1">
-                  {p.topics.map((t) => (
-                    <Badge
-                      key={t.id}
-                      variant="outline"
-                      className="text-[10px] font-normal py-0 px-1.5"
-                    >
-                      {t.name}
-                    </Badge>
-                  ))}
-                </div>
-              </MetaRow>
-            )}
+          <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                Tafsilotlar
+              </span>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              {p.source && (
+                <MetaRow label="Manba">
+                  <Link
+                    href={`/admin/problems?source=${p.sourceId}`}
+                    className="hover:text-foreground hover:underline underline-offset-4"
+                  >
+                    {p.source.name}
+                  </Link>
+                </MetaRow>
+              )}
+              {p.year && (
+                <MetaRow label="Yil">
+                  <span className="tabular-nums">{p.year}</span>
+                </MetaRow>
+              )}
+              {p.problemNumber && (
+                <MetaRow label="Raqami">
+                  <span className="font-mono text-xs">{p.problemNumber}</span>
+                </MetaRow>
+              )}
+              {p.classes.length > 0 && (
+                <MetaRow label={p.classes.length > 1 ? "Sinflar" : "Sinf"}>
+                  <div className="flex flex-wrap gap-1">
+                    {p.classes.map((c) => (
+                      <Link
+                        key={c}
+                        href={`/admin/problems?class=${c}`}
+                        className="inline-flex items-center"
+                      >
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] font-normal py-0 px-1.5 tabular-nums hover:bg-muted-foreground/15 transition-colors"
+                        >
+                          {c}-sinf
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                </MetaRow>
+              )}
+              {p.topics.length > 0 && (
+                <MetaRow label="Mavzular">
+                  <div className="flex flex-wrap gap-1">
+                    {p.topics.map((t) => (
+                      <Link
+                        key={t.id}
+                        href={`/admin/problems?topic=${t.id}`}
+                        className="inline-flex items-center"
+                      >
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-normal py-0 px-1.5 hover:bg-muted/60 transition-colors"
+                        >
+                          {t.name}
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                </MetaRow>
+              )}
+            </div>
           </div>
         </aside>
       </div>
@@ -198,7 +215,9 @@ function Section({
       <h2 className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
         {title}
       </h2>
-      <div className="rounded-lg border bg-card px-5 py-4">{children}</div>
+      <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm px-5 py-4">
+        {children}
+      </div>
     </section>
   );
 }

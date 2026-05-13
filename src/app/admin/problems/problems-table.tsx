@@ -116,7 +116,7 @@ export function ProblemsTable({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-lg border bg-card py-16 px-6 text-center space-y-2">
+      <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm py-16 px-6 text-center space-y-2">
         <Inbox
           className="size-7 mx-auto text-muted-foreground"
           aria-hidden
@@ -162,7 +162,7 @@ export function ProblemsTable({
       )}
 
       {/* Real data table — sticky header, dense rows, hover highlight. */}
-      <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs text-muted-foreground">
@@ -180,10 +180,10 @@ export function ProblemsTable({
                   direction={sort.direction}
                   onClick={() => changeSort("year")}
                 >
-                  Manba
+                  Manba · Yil
                 </ThSortable>
                 <Th>Mavzular</Th>
-                <Th>Sinflar</Th>
+                <Th>Sinf</Th>
                 <ThSortable
                   active={sort.field === "createdAt"}
                   direction={sort.direction}

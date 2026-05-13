@@ -121,9 +121,11 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm overflow-hidden">
       <div className="px-4 pt-3 pb-1">
-        <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
+        <h3 className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+          {title}
+        </h3>
       </div>
       <div className="px-2 pb-2">{children}</div>
     </div>

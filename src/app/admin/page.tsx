@@ -21,8 +21,8 @@ const DashboardCharts = dynamic(
   {
     loading: () => (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div className="rounded-lg border bg-card h-[244px] animate-pulse" />
-        <div className="rounded-lg border bg-card h-[244px] animate-pulse" />
+        <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm h-[244px] animate-pulse" />
+        <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm h-[244px] animate-pulse" />
       </div>
     ),
   }
@@ -97,10 +97,10 @@ function StatCard({
   return (
     <Link
       href={href}
-      className="group rounded-lg border bg-card p-4 hover:border-foreground/30 transition-colors"
+      className="group rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm hover:ring-foreground/30 hover:shadow-md transition-all p-4"
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground font-medium">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
           {label}
         </span>
         <ArrowUpRight
@@ -108,7 +108,7 @@ function StatCard({
           aria-hidden
         />
       </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">
+      <div className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">
         {formatCount(value)}
       </div>
     </Link>
