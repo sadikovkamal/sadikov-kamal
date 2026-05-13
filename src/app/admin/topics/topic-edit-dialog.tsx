@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { Layers } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -162,15 +163,29 @@ export function TopicEditDialog({
                     state stays compact. */}
                 <SelectValue placeholder="Tanlang">
                   {(value) => {
-                    if (!value || value === NO_PARENT) return "— Yo'q (root) —";
+                    if (!value || value === NO_PARENT) {
+                      return (
+                        <span className="flex items-center gap-2">
+                          <Layers
+                            className="size-3.5 text-muted-foreground"
+                            aria-hidden
+                          />
+                          Asosiy mavzu
+                        </span>
+                      );
+                    }
                     return selectedParent?.topic.name ?? "Tanlang";
                   }}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-[320px]">
                 <SelectItem value={NO_PARENT}>
-                  <span className="text-muted-foreground">
-                    — Yo&apos;q (root) —
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Layers className="size-3.5 shrink-0" aria-hidden />
+                    <span>Asosiy mavzu</span>
+                    <span className="text-[10px] text-muted-foreground/60 ml-auto">
+                      (parent yo&apos;q)
+                    </span>
                   </span>
                 </SelectItem>
                 {parentOptions.map(({ topic: t, depth }) => (
