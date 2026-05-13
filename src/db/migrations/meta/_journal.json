@@ -36,6 +36,13 @@
       "when": 1779062400000,
       "tag": "0004_drop-import-batches",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779148800000,
+      "tag": "0005_topics-code",
+      "breakpoints": true
     }
   ]
 }

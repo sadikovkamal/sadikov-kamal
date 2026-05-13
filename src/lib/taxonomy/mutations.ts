@@ -3,6 +3,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { topics, sources } from "@/db/schema";
+import { nextTopicCode } from "./topic-codes";
 
 // --- Topics -----------------------------------------------------------------
 
@@ -14,9 +15,16 @@ export interface TopicInput {
 }
 
 export async function createTopic(input: TopicInput): Promise<string> {
+  // Compute the next code from the existing set. The DB has a UNIQUE
+  // constraint on `code`, so a race between two parallel creates surfaces
+  // as a clean constraint error that the caller can retry — we don't
+  // pre-lock the table.
+  const existing = await db.select({ code: topics.code }).from(topics);
+  const code = nextTopicCode(existing.map((r) => r.code));
+
   const [created] = await db
     .insert(topics)
-    .values(input)
+    .values({ ...input, code })
     .returning({ id: topics.id });
   return created.id;
 }

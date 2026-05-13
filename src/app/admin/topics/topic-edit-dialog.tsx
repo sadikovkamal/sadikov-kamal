@@ -28,6 +28,7 @@ import {
 
 export interface TopicShape {
   id: string;
+  code: string;
   name: string;
   slug: string;
   parentId: string | null;
@@ -103,8 +104,13 @@ export function TopicEditDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
             {mode === "create" ? "Yangi mavzu" : "Mavzuni tahrirlash"}
+            {mode === "edit" && topic && (
+              <code className="font-mono text-xs tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {topic.code}
+              </code>
+            )}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">

@@ -18,6 +18,14 @@ export const topics = pgTable(
   "topics",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    /**
+     * Human-readable stable code, format `T######` (six digits zero-padded).
+     * Sequential within the table — never reused, never re-assigned. Admins
+     * use this in conversation ("masalan, T000042"); the code stays stable
+     * even if the name or slug is renamed. Width supports up to 999,999
+     * topics before the digits naturally overflow.
+     */
+    code: text("code").notNull().unique(),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
     parentId: uuid("parent_id").references((): AnyPgColumn => topics.id, {
@@ -27,6 +35,7 @@ export const topics = pgTable(
   },
   (t) => [
     index("topics_slug_idx").on(t.slug),
+    index("topics_code_idx").on(t.code),
     index("topics_parent_id_idx").on(t.parentId),
   ]
 );

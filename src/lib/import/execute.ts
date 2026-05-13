@@ -10,6 +10,7 @@ import {
   topics,
 } from "@/db/schema";
 import { uploadFile } from "@/lib/storage/r2";
+import { nextTopicCode } from "@/lib/taxonomy/topic-codes";
 import type { ParsedBundle } from "./parse";
 import type { ValidationReport } from "./validate";
 
@@ -66,11 +67,20 @@ export async function executeImport(params: {
 
   const allNewTopics = uniq(validation.problems.flatMap((p) => p.newTopics));
   if (allNewTopics.length) {
+    // Auto-assign sequential codes (T######) — read max once, increment
+    // locally per new topic. onConflictDoNothing handles the race with
+    // duplicate slugs cleanly; for code collisions we'd hit the UNIQUE
+    // constraint, which is acceptable for the import path (admin retries).
+    const existing = await db.select({ code: topics.code }).from(topics);
+    const allCodes = existing.map((r) => r.code);
+    const values = allNewTopics.map((slug) => {
+      const code = nextTopicCode(allCodes);
+      allCodes.push(code);
+      return { name: slugToName(slug), slug, code };
+    });
     await db
       .insert(topics)
-      .values(
-        allNewTopics.map((slug) => ({ name: slugToName(slug), slug }))
-      )
+      .values(values)
       .onConflictDoNothing({ target: topics.slug });
   }
 

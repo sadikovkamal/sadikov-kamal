@@ -27,7 +27,16 @@ async function seed() {
 
   console.log(`Admin user: ${adminEmail} / ${adminPassword}`);
 
-  // 2. Default top-level topics (Uzbek + slug)
+  // 2. Default top-level topics (Uzbek + slug + auto-assigned code).
+  // Codes are assigned in order so the seed is reproducible: the first
+  // topic in the list gets T000001, the second gets T000002, and so on.
+  // Existing topics with a higher code are preserved — we only fill new
+  // entries on conflict-do-nothing.
+  const existing = await db.select({ code: topics.code }).from(topics);
+  let nextSeq = existing.reduce((max, r) => {
+    const n = Number.parseInt(r.code.replace(/^T/, ""), 10);
+    return Number.isFinite(n) && n > max ? n : max;
+  }, 0);
   const topicData = [
     { name: "Algebra", slug: "algebra" },
     { name: "Geometriya", slug: "geometry" },
@@ -35,7 +44,10 @@ async function seed() {
     { name: "Kombinatorika", slug: "combinatorics" },
     { name: "Tengsizliklar", slug: "inequalities" },
     { name: "Funksional tenglamalar", slug: "functional-equations" },
-  ];
+  ].map((t) => ({
+    ...t,
+    code: `T${String(++nextSeq).padStart(6, "0")}`,
+  }));
   await db
     .insert(topics)
     .values(topicData)
