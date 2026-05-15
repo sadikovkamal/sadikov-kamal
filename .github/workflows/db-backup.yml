@@ -25,7 +25,11 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
-          pg_dump --version
+          # Ubuntu's pg_wrapper at /usr/bin/pg_dump picks the lowest-versioned
+          # installed client by default (16 here), so prepend the 17 bin dir
+          # to PATH and persist it for later steps.
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version
 
       - name: Install AWS CLI v2
         run: |
