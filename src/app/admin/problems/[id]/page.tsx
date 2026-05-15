@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, Pencil } from "lucide-react";
+import { ChevronRight, Pencil, PlusCircle } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemById } from "@/lib/problems/queries";
 import { MarkdownPreview } from "@/components/markdown-preview";
@@ -26,8 +26,10 @@ export default async function ProblemDetailPage({
     .filter(Boolean)
     .join(" · ");
 
+  const hasChips = p.classes.length > 0 || p.topics.length > 0;
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 max-w-4xl">
       {/* Breadcrumb */}
       <nav
         aria-label="Breadcrumb"
@@ -61,105 +63,94 @@ export default async function ProblemDetailPage({
         )}
       </nav>
 
-      {/* Title + actions */}
-      <header className="flex items-start justify-between gap-4 flex-wrap">
-        <h1 className="text-xl font-semibold tracking-tight min-w-0 break-words">
-          {title || "Masala"}
-        </h1>
-        <div className="flex gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={
-              <Link href={`/admin/problems/${id}/edit`}>
-                <Pencil data-icon="inline-start" />
-                Tahrirlash
-              </Link>
-            }
-          />
-          <DeleteProblemButton id={id} />
+      {/* Hero card — title, taxonomy chips, answer, actions */}
+      <header className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <h1 className="text-2xl font-semibold tracking-tight min-w-0 break-words">
+            {title || "Masala"}
+          </h1>
+          <div className="flex gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={
+                <Link href={`/admin/problems/${id}/edit`}>
+                  <Pencil data-icon="inline-start" />
+                  Tahrirlash
+                </Link>
+              }
+            />
+            <DeleteProblemButton id={id} />
+          </div>
         </div>
+
+        {hasChips && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {p.classes.map((c) => (
+              <Badge
+                key={`class-${c}`}
+                variant="secondary"
+                className="text-[11px] font-medium py-0.5 px-2 tabular-nums"
+              >
+                {c}-sinf
+              </Badge>
+            ))}
+            {p.topics.map((t) => (
+              <Badge
+                key={`topic-${t.id}`}
+                variant="outline"
+                className="text-[11px] font-normal py-0.5 px-2"
+              >
+                {t.name}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {p.answer && (
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+              Javob
+            </span>
+            <code className="inline-block bg-[var(--accent-brand-soft)] text-[var(--accent-brand-strong)] px-2.5 py-1 rounded-md font-mono text-xs">
+              {p.answer}
+            </code>
+          </div>
+        )}
       </header>
 
-      {/* Two-column body */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-6">
-        <article className="space-y-5 min-w-0">
-          <Section title="Shart">
-            <MarkdownPreview source={p.bodyMd} />
-          </Section>
+      {/* Body sections */}
+      <Section title="Shart">
+        <div className="rounded-xl border bg-card px-6 py-5">
+          <MarkdownPreview source={p.bodyMd} />
+        </div>
+      </Section>
 
-          {p.solutionMd && (
-            <Section title="Yechim">
-              <MarkdownPreview source={p.solutionMd} />
-            </Section>
-          )}
-
-          {p.answer && (
-            <Section title="Javob">
-              <code className="inline-block bg-muted px-2.5 py-1 rounded-md font-mono text-xs">
-                {p.answer}
-              </code>
-            </Section>
-          )}
-        </article>
-
-        {/* Sticky metadata sidebar */}
-        <aside className="lg:sticky lg:top-6 self-start">
-          <div className="rounded-lg border bg-card p-4 space-y-4 text-sm">
-            {p.source && (
-              <MetaRow label="Manba">
-                <Link
-                  href={`/admin/sources`}
-                  className="hover:text-foreground hover:underline underline-offset-4"
-                >
-                  {p.source.name}
-                </Link>
-              </MetaRow>
-            )}
-            {p.year && (
-              <MetaRow label="Yil">
-                <span className="tabular-nums">{p.year}</span>
-              </MetaRow>
-            )}
-            {p.problemNumber && (
-              <MetaRow label="Raqami">
-                <span className="font-mono text-xs">{p.problemNumber}</span>
-              </MetaRow>
-            )}
-            {p.classes.length > 0 && (
-              <MetaRow label="Sinflar">
-                <div className="flex flex-wrap gap-1">
-                  {p.classes.map((c) => (
-                    <Badge
-                      key={c}
-                      variant="secondary"
-                      className="text-[10px] font-normal py-0 px-1.5 tabular-nums"
-                    >
-                      {c}
-                    </Badge>
-                  ))}
-                </div>
-              </MetaRow>
-            )}
-            {p.topics.length > 0 && (
-              <MetaRow label="Mavzular">
-                <div className="flex flex-wrap gap-1">
-                  {p.topics.map((t) => (
-                    <Badge
-                      key={t.id}
-                      variant="outline"
-                      className="text-[10px] font-normal py-0 px-1.5"
-                    >
-                      {t.name}
-                    </Badge>
-                  ))}
-                </div>
-              </MetaRow>
-            )}
+      <Section title="Yechim">
+        {p.solutionMd ? (
+          <div className="rounded-xl border bg-card px-6 py-5">
+            <MarkdownPreview source={p.solutionMd} />
           </div>
-        </aside>
-      </div>
+        ) : (
+          <div className="rounded-xl border border-dashed bg-card/50 px-6 py-8 flex flex-col items-center justify-center gap-3 text-center">
+            <p className="text-sm text-muted-foreground">
+              Yechim qo'shilmagan
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={
+                <Link href={`/admin/problems/${id}/edit`}>
+                  <PlusCircle data-icon="inline-start" />
+                  Yechim yozish
+                </Link>
+              }
+            />
+          </div>
+        )}
+      </Section>
     </div>
   );
 }
@@ -172,28 +163,11 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-2">
-      <h2 className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+    <section className="space-y-2.5">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/70 border-b pb-1.5">
         {title}
       </h2>
-      <div className="rounded-lg border bg-card px-5 py-4">{children}</div>
+      {children}
     </section>
-  );
-}
-
-function MetaRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-        {label}
-      </div>
-      <div className="text-[13px]">{children}</div>
-    </div>
   );
 }

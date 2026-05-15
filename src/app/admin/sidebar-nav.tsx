@@ -8,6 +8,7 @@ import {
   Library,
   GraduationCap,
   FolderTree,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,12 @@ const SECTIONS: NavSection[] = [
     label: "Taksonomiya",
     items: [
       { href: "/admin/topics", label: "Mavzular", icon: FolderTree, prefix: true },
+      {
+        href: "/admin/age-categories",
+        label: "Yosh toifalari",
+        icon: Users,
+        prefix: true,
+      },
       { href: "/admin/sources", label: "Manbalar", icon: Library, prefix: true },
       {
         href: "/admin/classes",
@@ -50,17 +57,26 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex-1 flex flex-col gap-4 px-2 py-3 overflow-y-auto">
+    <nav
+      className={cn(
+        "flex-1 flex flex-col overflow-y-auto py-3",
+        collapsed ? "gap-2 px-1.5" : "gap-4 px-2"
+      )}
+    >
       {SECTIONS.map((section, i) => (
         <div key={i} className="space-y-0.5">
-          {section.label && (
+          {section.label && !collapsed && (
             <p className="px-3 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium">
               {section.label}
             </p>
+          )}
+          {/* Subtle separator between groups in collapsed mode */}
+          {section.label && collapsed && i > 0 && (
+            <div className="mx-2 mb-1 h-px bg-border" aria-hidden />
           )}
           {section.items.map((item) => {
             const Icon = item.icon;
@@ -73,8 +89,12 @@ export function SidebarNav() {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                title={collapsed ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-2.5 px-3 h-8 rounded-md text-[13px] transition-colors",
+                  "flex items-center rounded-md text-[13px] transition-colors",
+                  collapsed
+                    ? "size-9 justify-center mx-auto"
+                    : "gap-2.5 px-3 h-8",
                   active
                     ? "bg-[var(--accent-brand)]/10 text-[var(--accent-brand-strong)] font-medium"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -88,7 +108,7 @@ export function SidebarNav() {
                   aria-hidden
                   strokeWidth={active ? 2 : 1.75}
                 />
-                <span>{item.label}</span>
+                {!collapsed && <span>{item.label}</span>}
               </Link>
             );
           })}
