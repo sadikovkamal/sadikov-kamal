@@ -89,12 +89,14 @@ async function main() {
     slug: "smoke-source-99",
     kind: "olympiad",
     country: "UZ",
+    parentId: null,
   });
   await updateSource(sourceId, {
     name: "Smoke Source Updated",
     slug: "smoke-source-99",
     kind: "book",
     country: null,
+    parentId: null,
   });
   const sourcesList = await listSourcesWithCounts();
   const sFound = sourcesList.find((s) => s.id === sourceId);

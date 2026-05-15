@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,13 +24,14 @@ import {
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { Topic, Source } from "@/db/schema";
+import type { Topic, Source, AgeCategory } from "@/db/schema";
 
 const CLASS_NUMBERS = [5, 6, 7, 8, 9, 10, 11] as const;
 
 export interface MetadataFormProps {
   topicsAvailable: Topic[];
   sourcesAvailable: Source[];
+  ageCategoriesAvailable: AgeCategory[];
   /** Compact mode hides "Yil", "Masala raqami" and "Javob" — used by the
    *  modal create flow. The hidden fields stay at their default values
    *  (year/problemNumber/answer = null). */
@@ -40,10 +41,23 @@ export interface MetadataFormProps {
 export function MetadataForm({
   topicsAvailable,
   sourcesAvailable,
+  ageCategoriesAvailable,
   compact = false,
 }: MetadataFormProps) {
   const { control, register, formState } = useFormContext();
   const errors = formState.errors;
+
+  // Only leaf sources are taggable on a problem. A source is a parent when
+  // another source references it via parentId. Existing problems pointing to
+  // parent sources are unchanged; we just don't offer parents as a NEW pick.
+  // (Mirrors the TopicMultiSelect filter — same idea, different relation.)
+  const leafSourcesAvailable = useMemo(() => {
+    const parentIds = new Set<string>();
+    for (const s of sourcesAvailable) {
+      if (s.parentId) parentIds.add(s.parentId);
+    }
+    return sourcesAvailable.filter((s) => !parentIds.has(s.id));
+  }, [sourcesAvailable]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -62,7 +76,7 @@ export function MetadataForm({
                 <SelectValue placeholder="Manbani tanlang" />
               </SelectTrigger>
               <SelectContent>
-                {sourcesAvailable.map((s) => (
+                {leafSourcesAvailable.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name}
                   </SelectItem>
@@ -157,6 +171,24 @@ export function MetadataForm({
         <FieldError message={errors.topicIds?.message} />
       </div>
 
+      {/* Age categories — optional. Flat list, no parent/child. */}
+      {ageCategoriesAvailable.length > 0 && (
+        <div className="space-y-2 lg:col-span-2">
+          <Label>Yosh toifasi (ixtiyoriy)</Label>
+          <Controller
+            control={control}
+            name="ageCategoryIds"
+            render={({ field }) => (
+              <AgeCategoryMultiSelect
+                available={ageCategoriesAvailable}
+                value={field.value ?? []}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </div>
+      )}
+
     </div>
   );
 }
@@ -176,6 +208,19 @@ function TopicMultiSelect({
   onChange: (v: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
+
+  // Only leaf topics are taggable. A topic is a parent when another topic
+  // references it via parentId. Existing rows tagged with parents stay
+  // rendered as chips (they remain in `selected`) — we just don't offer
+  // parents as new picks.
+  const leafAvailable = useMemo(() => {
+    const parentIds = new Set<string>();
+    for (const t of available) {
+      if (t.parentId) parentIds.add(t.parentId);
+    }
+    return available.filter((t) => !parentIds.has(t.id));
+  }, [available]);
+
   const selected = available.filter((t) => value.includes(t.id));
 
   function toggle(id: string) {
@@ -211,7 +256,7 @@ function TopicMultiSelect({
             <CommandList>
               <CommandEmpty>Topilmadi.</CommandEmpty>
               <CommandGroup>
-                {available.map((t) => {
+                {leafAvailable.map((t) => {
                   const isSelected = value.includes(t.id);
                   return (
                     <CommandItem
@@ -244,6 +289,99 @@ function TopicMultiSelect({
                 type="button"
                 aria-label={`Remove ${t.name}`}
                 onClick={() => toggle(t.id)}
+                className="hover:opacity-70"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgeCategoryMultiSelect({
+  available,
+  value,
+  onChange,
+}: {
+  available: AgeCategory[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = available.filter((a) => value.includes(a.id));
+
+  function toggle(id: string) {
+    if (value.includes(id)) {
+      onChange(value.filter((v) => v !== id));
+    } else {
+      onChange([...value, id]);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-between"
+            >
+              <span className="text-muted-foreground text-sm">
+                {selected.length === 0
+                  ? "Yosh toifasini tanlang…"
+                  : `${selected.length} ta tanlangan`}
+              </span>
+              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+            </Button>
+          }
+        />
+        <PopoverContent
+          className="w-[--radix-popover-trigger-width] p-0"
+          align="start"
+        >
+          <Command>
+            <CommandInput placeholder="Yosh toifasi qidirish…" />
+            <CommandList>
+              <CommandEmpty>Topilmadi.</CommandEmpty>
+              <CommandGroup>
+                {available.map((a) => {
+                  const isSelected = value.includes(a.id);
+                  return (
+                    <CommandItem
+                      key={a.id}
+                      value={a.name}
+                      onSelect={() => toggle(a.id)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 size-4",
+                          isSelected ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {a.name}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map((a) => (
+            <Badge key={a.id} variant="secondary" className="gap-1">
+              {a.name}
+              <button
+                type="button"
+                aria-label={`Remove ${a.name}`}
+                onClick={() => toggle(a.id)}
                 className="hover:opacity-70"
               >
                 <X className="size-3" />

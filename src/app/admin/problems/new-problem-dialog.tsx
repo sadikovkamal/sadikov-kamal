@@ -12,16 +12,18 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ProblemForm } from "@/components/problem-form";
-import type { Topic, Source } from "@/db/schema";
+import type { Topic, Source, AgeCategory } from "@/db/schema";
 
 export interface NewProblemDialogProps {
   topicsAvailable: Topic[];
   sourcesAvailable: Source[];
+  ageCategoriesAvailable: AgeCategory[];
 }
 
 export function NewProblemDialog({
   topicsAvailable,
   sourcesAvailable,
+  ageCategoriesAvailable,
 }: NewProblemDialogProps) {
   const [open, setOpen] = useState(false);
 
@@ -56,9 +58,11 @@ export function NewProblemDialog({
             problemNumber: null,
             topicIds: [],
             classes: [],
+            ageCategoryIds: [],
           }}
           topicsAvailable={topicsAvailable}
           sourcesAvailable={sourcesAvailable}
+          ageCategoriesAvailable={ageCategoriesAvailable}
           uploadPrefix="problems/draft"
           compact
           onCancel={() => setOpen(false)}

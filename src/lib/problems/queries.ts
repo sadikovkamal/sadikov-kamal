@@ -17,9 +17,11 @@ import {
   problems,
   problemTopics,
   problemClasses,
+  problemAgeCategories,
   images,
   topics,
   sources,
+  ageCategories,
 } from "@/db/schema";
 
 /**
@@ -32,24 +34,38 @@ export async function getProblemById(id: string) {
   });
   if (!problem) return null;
 
-  const [topicRows, classRows, source, imageRows] = await Promise.all([
-    db
-      .select({ id: topics.id, name: topics.name, slug: topics.slug })
-      .from(problemTopics)
-      .innerJoin(topics, eq(topics.id, problemTopics.topicId))
-      .where(eq(problemTopics.problemId, id)),
-    db
-      .select({ classNumber: problemClasses.classNumber })
-      .from(problemClasses)
-      .where(eq(problemClasses.problemId, id)),
-    db.query.sources.findFirst({ where: eq(sources.id, problem.sourceId) }),
-    db.query.images.findMany({ where: eq(images.problemId, id) }),
-  ]);
+  const [topicRows, classRows, ageCatRows, source, imageRows] =
+    await Promise.all([
+      db
+        .select({ id: topics.id, name: topics.name, slug: topics.slug })
+        .from(problemTopics)
+        .innerJoin(topics, eq(topics.id, problemTopics.topicId))
+        .where(eq(problemTopics.problemId, id)),
+      db
+        .select({ classNumber: problemClasses.classNumber })
+        .from(problemClasses)
+        .where(eq(problemClasses.problemId, id)),
+      db
+        .select({
+          id: ageCategories.id,
+          name: ageCategories.name,
+          slug: ageCategories.slug,
+        })
+        .from(problemAgeCategories)
+        .innerJoin(
+          ageCategories,
+          eq(ageCategories.id, problemAgeCategories.ageCategoryId)
+        )
+        .where(eq(problemAgeCategories.problemId, id)),
+      db.query.sources.findFirst({ where: eq(sources.id, problem.sourceId) }),
+      db.query.images.findMany({ where: eq(images.problemId, id) }),
+    ]);
 
   return {
     ...problem,
     topics: topicRows,
     classes: classRows.map((r) => r.classNumber),
+    ageCategories: ageCatRows,
     source,
     images: imageRows,
   };
@@ -68,6 +84,7 @@ export interface ProblemListFilters {
   yearTo?: number;
   classes?: number[];
   topicIds?: string[];
+  ageCategoryIds?: string[];
 }
 
 export interface ProblemListSort {
@@ -149,6 +166,24 @@ export async function listProblems(
             and(
               eq(problemTopics.problemId, problems.id),
               inArray(problemTopics.topicId, filters.topicIds)
+            )
+          )
+      )
+    );
+  }
+  if (filters.ageCategoryIds?.length) {
+    conds.push(
+      exists(
+        db
+          .select({ one: sql<number>`1` })
+          .from(problemAgeCategories)
+          .where(
+            and(
+              eq(problemAgeCategories.problemId, problems.id),
+              inArray(
+                problemAgeCategories.ageCategoryId,
+                filters.ageCategoryIds
+              )
             )
           )
       )

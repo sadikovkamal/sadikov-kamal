@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./users";
-import { sources, topics } from "./taxonomy";
+import { sources, topics, ageCategories } from "./taxonomy";
 import { importBatches } from "./imports";
 
 export const problems = pgTable(
@@ -111,9 +111,26 @@ export const problemClasses = pgTable(
   ]
 );
 
+export const problemAgeCategories = pgTable(
+  "problem_age_categories",
+  {
+    problemId: uuid("problem_id")
+      .notNull()
+      .references(() => problems.id, { onDelete: "cascade" }),
+    ageCategoryId: uuid("age_category_id")
+      .notNull()
+      .references(() => ageCategories.id, { onDelete: "restrict" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.problemId, t.ageCategoryId] }),
+    index("problem_age_categories_age_category_id_idx").on(t.ageCategoryId),
+  ]
+);
+
 export type Problem = typeof problems.$inferSelect;
 export type NewProblem = typeof problems.$inferInsert;
 export type Image = typeof images.$inferSelect;
 export type NewImage = typeof images.$inferInsert;
 export type ProblemTopic = typeof problemTopics.$inferSelect;
 export type ProblemClass = typeof problemClasses.$inferSelect;
+export type ProblemAgeCategory = typeof problemAgeCategories.$inferSelect;

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tabs";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { MetadataForm } from "@/components/metadata-form";
-import type { Topic, Source } from "@/db/schema";
+import type { Topic, Source, AgeCategory } from "@/db/schema";
 import {
   createProblemAction,
   updateProblemAction,
@@ -42,6 +42,7 @@ const formSchema = z.object({
   problemNumber: z.string().max(50).nullable(),
   topicIds: z.array(z.string()).min(1, "Kamida bitta mavzu tanlang"),
   classes: z.array(z.number()).min(1, "Kamida bitta sinfni tanlang"),
+  ageCategoryIds: z.array(z.string()),
 });
 
 export type ProblemFormValues = z.infer<typeof formSchema>;
@@ -52,6 +53,7 @@ export interface ProblemFormProps {
   defaultValues: ProblemFormValues;
   topicsAvailable: Topic[];
   sourcesAvailable: Source[];
+  ageCategoriesAvailable: AgeCategory[];
   uploadPrefix: string;
   /** Compact mode — used by the new-problem modal. Hides the "Yechim" tab
    *  and the "Yil", "Masala raqami", "Javob" metadata fields. */
@@ -67,6 +69,7 @@ export function ProblemForm({
   defaultValues,
   topicsAvailable,
   sourcesAvailable,
+  ageCategoriesAvailable,
   uploadPrefix,
   compact = false,
   onCancel,
@@ -172,6 +175,7 @@ export function ProblemForm({
             <MetadataForm
               topicsAvailable={topicsAvailable}
               sourcesAvailable={sourcesAvailable}
+              ageCategoriesAvailable={ageCategoriesAvailable}
               compact={compact}
             />
           </section>

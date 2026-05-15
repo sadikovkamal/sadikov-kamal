@@ -2,7 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { topics, sources } from "@/db/schema";
+import { topics, sources, ageCategories } from "@/db/schema";
 
 // --- Topics -----------------------------------------------------------------
 
@@ -46,6 +46,7 @@ export interface SourceInput {
   slug: string;
   kind: SourceKind;
   country: string | null;
+  parentId: string | null;
 }
 
 export async function createSource(input: SourceInput): Promise<string> {
@@ -66,4 +67,39 @@ export async function updateSource(
 /** Like deleteTopic, ON DELETE RESTRICT trips on referencing problems. */
 export async function deleteSource(id: string): Promise<void> {
   await db.delete(sources).where(eq(sources.id, id));
+}
+
+// --- Age categories ---------------------------------------------------------
+
+export interface AgeCategoryInput {
+  name: string;
+  slug: string;
+  description: string | null;
+  sortOrder: number;
+}
+
+export async function createAgeCategory(
+  input: AgeCategoryInput
+): Promise<string> {
+  const [created] = await db
+    .insert(ageCategories)
+    .values(input)
+    .returning({ id: ageCategories.id });
+  return created.id;
+}
+
+export async function updateAgeCategory(
+  id: string,
+  input: AgeCategoryInput
+): Promise<void> {
+  await db.update(ageCategories).set(input).where(eq(ageCategories.id, id));
+}
+
+/**
+ * Delete an age category. The junction `problem_age_categories.ageCategoryId`
+ * is ON DELETE RESTRICT — Postgres throws when problems still reference this
+ * category. The action layer maps that into a friendly error message.
+ */
+export async function deleteAgeCategory(id: string): Promise<void> {
+  await db.delete(ageCategories).where(eq(ageCategories.id, id));
 }

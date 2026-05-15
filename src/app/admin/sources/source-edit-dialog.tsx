@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,7 @@ export interface SourceShape {
   slug: string;
   kind: SourceKind;
   country: string | null;
+  parentId: string | null;
 }
 
 const KIND_LABELS: Record<SourceKind, string> = {
@@ -41,13 +42,17 @@ const KIND_LABELS: Record<SourceKind, string> = {
   other: "Boshqa",
 };
 
+const NO_PARENT = "__none__";
+
 export function SourceEditDialog({
   mode,
   source,
+  allSources,
   onClose,
 }: {
   mode: "create" | "edit";
   source?: SourceShape;
+  allSources: { id: string; name: string; parentId: string | null }[];
   onClose: () => void;
 }) {
   const [name, setName] = useState(source?.name ?? "");
@@ -55,8 +60,32 @@ export function SourceEditDialog({
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [kind, setKind] = useState<SourceKind>(source?.kind ?? "olympiad");
   const [country, setCountry] = useState(source?.country ?? "");
+  const [parentId, setParentId] = useState<string>(
+    source?.parentId ?? NO_PARENT
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Don't allow a source to become its own descendant. Build the set of
+  // descendants of the current source and exclude both the source itself
+  // and any descendant from the parent dropdown.
+  const forbiddenParentIds = useMemo(() => {
+    if (!source) return new Set<string>();
+    const forbidden = new Set<string>([source.id]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const s of allSources) {
+        if (s.parentId && forbidden.has(s.parentId) && !forbidden.has(s.id)) {
+          forbidden.add(s.id);
+          added = true;
+        }
+      }
+    }
+    return forbidden;
+  }, [source, allSources]);
+
+  const validParents = allSources.filter((s) => !forbiddenParentIds.has(s.id));
 
   function onNameChange(value: string) {
     setName(value);
@@ -67,9 +96,10 @@ export function SourceEditDialog({
     setError(null);
     const payload = {
       name: name.trim(),
-      slug: (slug.trim() || slugify(name)),
+      slug: slug.trim() || slugify(name),
       kind,
       country: country.trim() || null,
+      parentId: parentId === NO_PARENT ? null : parentId,
     };
     startTransition(async () => {
       const res =
@@ -119,6 +149,29 @@ export function SourceEditDialog({
               }}
               placeholder="masalan: imo-shortlist"
             />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="source-parent">Parent (ixtiyoriy)</Label>
+            <Select
+              value={parentId}
+              onValueChange={(v) => setParentId(v ?? NO_PARENT)}
+            >
+              <SelectTrigger id="source-parent" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_PARENT}>— Yo&apos;q (root) —</SelectItem>
+                {validParents.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Masalan: IMO → IMO 2020. Faqat leaf (children&apos;siz) manbalarga
+              masala taglanadi.
+            </p>
           </div>
           <div className="space-y-1">
             <Label htmlFor="source-kind">Tur</Label>

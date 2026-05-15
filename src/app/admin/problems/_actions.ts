@@ -25,6 +25,7 @@ const problemSchema = z.object({
   classes: z
     .array(z.number().int().min(5).max(11))
     .min(1, "Pick at least one class"),
+  ageCategoryIds: z.array(z.string().uuid()).optional(),
 });
 
 export type ProblemActionResult = { error: string } | void;

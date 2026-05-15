@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { topics, sources } from "@/db/schema";
+import { topics, sources, ageCategories } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { listProblems } from "@/lib/problems/queries";
 import { parseSearchParams } from "./_url-state";
@@ -30,12 +30,20 @@ export default async function ProblemsListPage({
   }
   const { filters, sort, page, pageSize } = parseSearchParams(usp);
 
-  const [{ rows, total }, topicsAvailable, sourcesAvailable] =
-    await Promise.all([
-      listProblems(filters, sort, page, pageSize),
-      db.select().from(topics).orderBy(topics.name),
-      db.select().from(sources).orderBy(sources.name),
-    ]);
+  const [
+    { rows, total },
+    topicsAvailable,
+    sourcesAvailable,
+    ageCategoriesAvailable,
+  ] = await Promise.all([
+    listProblems(filters, sort, page, pageSize),
+    db.select().from(topics).orderBy(topics.name),
+    db.select().from(sources).orderBy(sources.name),
+    db
+      .select()
+      .from(ageCategories)
+      .orderBy(ageCategories.sortOrder, ageCategories.name),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -46,6 +54,7 @@ export default async function ProblemsListPage({
           <NewProblemDialog
             topicsAvailable={topicsAvailable}
             sourcesAvailable={sourcesAvailable}
+            ageCategoriesAvailable={ageCategoriesAvailable}
           />
         }
       />

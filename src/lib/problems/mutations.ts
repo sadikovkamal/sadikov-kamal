@@ -2,7 +2,12 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { problems, problemTopics, problemClasses } from "@/db/schema";
+import {
+  problems,
+  problemTopics,
+  problemClasses,
+  problemAgeCategories,
+} from "@/db/schema";
 
 export interface ProblemInput {
   bodyMd: string;
@@ -13,6 +18,8 @@ export interface ProblemInput {
   problemNumber: string | null;
   topicIds: string[];
   classes: number[];
+  /** Optional. Empty array == no age categories attached. */
+  ageCategoryIds?: string[];
   metadata?: Record<string, unknown>;
 }
 
@@ -52,6 +59,14 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
         }))
       );
     }
+    if (input.ageCategoryIds?.length) {
+      await tx.insert(problemAgeCategories).values(
+        input.ageCategoryIds.map((ageCategoryId) => ({
+          problemId: created.id,
+          ageCategoryId,
+        }))
+      );
+    }
 
     return created.id;
   });
@@ -80,6 +95,9 @@ export async function updateProblemTx(id: string, input: ProblemInput) {
 
     await tx.delete(problemTopics).where(eq(problemTopics.problemId, id));
     await tx.delete(problemClasses).where(eq(problemClasses.problemId, id));
+    await tx
+      .delete(problemAgeCategories)
+      .where(eq(problemAgeCategories.problemId, id));
 
     if (input.topicIds.length) {
       await tx.insert(problemTopics).values(
@@ -89,6 +107,14 @@ export async function updateProblemTx(id: string, input: ProblemInput) {
     if (input.classes.length) {
       await tx.insert(problemClasses).values(
         input.classes.map((classNumber) => ({ problemId: id, classNumber }))
+      );
+    }
+    if (input.ageCategoryIds?.length) {
+      await tx.insert(problemAgeCategories).values(
+        input.ageCategoryIds.map((ageCategoryId) => ({
+          problemId: id,
+          ageCategoryId,
+        }))
       );
     }
   });

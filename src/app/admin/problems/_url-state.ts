@@ -47,6 +47,7 @@ export function parseSearchParams(sp: URLSearchParams): {
     yearTo: parseInt1(sp.get("yearTo")),
     classes: intCsv(sp.get("class")),
     topicIds: csv(sp.get("topic")),
+    ageCategoryIds: csv(sp.get("ageCategory")),
   };
 
   const sortField = sp.get("sortField");
