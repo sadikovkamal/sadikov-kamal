@@ -1,9 +1,7 @@
 ---
-source: imo
-year: 2024
-problem_number: "1"
-classes: [11]
-topics: [number-theory]
+source: S000001
+age_categories: [A000011]
+topics: [T000001]
 ---
 
 # Shart
@@ -13,11 +11,9 @@ $n^2 + 1$ ga qoldiqsiz bo'linsin.
 
 ---
 
-source: uzbekistan-national
-year: 2023
-problem_number: "P2"
-classes: [10]
-topics: [algebra, inequalities]
+source: S000002
+age_categories: [A000010]
+topics: [T000002, T000003]
 ---
 
 # Shart
@@ -31,11 +27,9 @@ $$a + b + c \geq 3$$
 
 ---
 
-source: imo-shortlist
-year: 2022
-problem_number: "C2"
-classes: [11]
-topics: [combinatorics]
+source: S000003
+age_categories: [A000011]
+topics: [T000004]
 ---
 
 # Shart

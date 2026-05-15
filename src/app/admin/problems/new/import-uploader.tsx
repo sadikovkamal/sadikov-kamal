@@ -1,27 +1,68 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
-import { FileArchive, Upload, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileArchive,
+  Loader2,
+  Upload,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   previewImportAction,
   executeImportAction,
   type PreviewSuccess,
+  type ExecuteSuccess,
 } from "./_actions";
 
+/**
+ * Two-stage import flow:
+ *
+ *   1. Pick ZIP → click "Tekshirish".
+ *   2. Server parses + validates. Modal opens:
+ *      - If clean: "Importni boshlash" button + confirm step.
+ *      - If broken: per-problem error list. Only "Yopish" — user fixes
+ *        the ZIP and retries.
+ *   3. After execute: success modal lists the newly-created P####### codes
+ *      with a "Masalalar ro'yxatiga o'tish" button.
+ */
 export function ImportUploader() {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewSuccess | null>(null);
+  const [success, setSuccess] = useState<ExecuteSuccess | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPreviewing, startPreview] = useTransition();
   const [isImporting, startImport] = useTransition();
 
-  async function onPreview() {
+  function reset() {
+    setFile(null);
+    setPreview(null);
+    setSuccess(null);
+    setError(null);
+    setConfirmOpen(false);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function onPreview() {
     if (!file) return;
     setError(null);
     setPreview(null);
+    setSuccess(null);
     startPreview(async () => {
       const fd = new FormData();
       fd.append("file", file);
@@ -38,39 +79,29 @@ export function ImportUploader() {
     if (!file) return;
     setError(null);
     startImport(async () => {
-      try {
-        const fd = new FormData();
-        fd.append("file", file);
-        const res = await executeImportAction(fd);
-        // On success, the action calls redirect() which throws NEXT_REDIRECT
-        // and never resumes here. If we land here, an error path triggered.
-        if (res && "error" in res) {
-          setError(res.error);
-        }
-      } catch (e) {
-        // Re-throw redirect markers so Next.js can complete the navigation.
-        if (
-          e &&
-          typeof e === "object" &&
-          "digest" in e &&
-          typeof (e as { digest: unknown }).digest === "string" &&
-          (e as { digest: string }).digest.startsWith("NEXT_REDIRECT")
-        ) {
-          throw e;
-        }
-        setError(e instanceof Error ? e.message : "Import failed");
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await executeImportAction(fd);
+      if ("error" in res) {
+        setError(res.error);
+        setConfirmOpen(false);
+      } else {
+        setPreview(null);
+        setConfirmOpen(false);
+        setSuccess(res);
       }
     });
   }
 
-  const canImport =
-    !!preview &&
-    preview.validation.bundleErrors.length === 0 &&
-    preview.validation.errorCount === 0 &&
-    preview.parsedSummary.problemCount > 0;
+  const validation = preview?.validation ?? null;
+  const isClean =
+    !!validation &&
+    validation.bundleErrors.length === 0 &&
+    validation.errorCount === 0 &&
+    validation.problems.length > 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <input
         ref={inputRef}
         id="zip"
@@ -81,6 +112,7 @@ export function ImportUploader() {
         onChange={(e) => {
           setFile(e.target.files?.[0] ?? null);
           setPreview(null);
+          setSuccess(null);
           setError(null);
         }}
       />
@@ -103,12 +135,7 @@ export function ImportUploader() {
             type="button"
             aria-label="Faylni olib tashlash"
             disabled={isPreviewing || isImporting}
-            onClick={() => {
-              setFile(null);
-              setPreview(null);
-              setError(null);
-              if (inputRef.current) inputRef.current.value = "";
-            }}
+            onClick={reset}
             className="text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
             <X className="size-4" />
@@ -127,58 +154,206 @@ export function ImportUploader() {
         </button>
       )}
 
-      <div className="flex gap-2">
-        <Button
-          onClick={onPreview}
-          disabled={!file || isPreviewing || isImporting}
-        >
-          {isPreviewing ? "Qo'shilmoqda…" : "Qo'shish"}
-        </Button>
-        {canImport && (
-          <Button onClick={onExecute} disabled={isImporting || isPreviewing}>
-            {isImporting
-              ? "Import qilinmoqda…"
-              : `${preview!.parsedSummary.problemCount} ta masalani import qilish`}
-          </Button>
+      <Button
+        onClick={onPreview}
+        disabled={!file || isPreviewing || isImporting}
+        className="w-full"
+      >
+        {isPreviewing ? (
+          <>
+            <Loader2 data-icon="inline-start" className="animate-spin" />
+            Tekshirilmoqda…
+          </>
+        ) : (
+          "Tekshirish"
         )}
-      </div>
+      </Button>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p className="text-xs text-destructive leading-relaxed">{error}</p>
+      )}
 
-      {preview && <PreviewReport report={preview} />}
+      {/* Validation result modal */}
+      <Dialog
+        open={!!preview}
+        onOpenChange={(o) => {
+          if (!o) setPreview(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {isClean ? (
+                <>
+                  <CheckCircle2
+                    className="size-4 text-emerald-600"
+                    aria-hidden
+                  />
+                  Arxiv tayyor
+                </>
+              ) : (
+                <>
+                  <AlertTriangle
+                    className="size-4 text-destructive"
+                    aria-hidden
+                  />
+                  Arxivda xatolik bor
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {isClean
+                ? `${preview?.parsedSummary.problemCount} ta masala validatsiyadan o'tdi va importga tayyor.`
+                : "Quyidagi xatolarni tuzating va arxivni qaytadan yuklang."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {validation && (
+            <ValidationDetails
+              validation={validation}
+              parsed={preview!.parsedSummary}
+            />
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPreview(null)}
+              disabled={isImporting}
+            >
+              Yopish
+            </Button>
+            {isClean && (
+              <Button
+                onClick={() => setConfirmOpen(true)}
+                disabled={isImporting}
+              >
+                Importni boshlash
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm modal */}
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(o) => {
+          if (!isImporting) setConfirmOpen(o);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Tasdiqlash</DialogTitle>
+            <DialogDescription>
+              {preview?.parsedSummary.problemCount} ta masala bazaga qo&apos;shiladi.
+              Bu amalni bekor qilib bo&apos;lmaydi. Davom etamizmi?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={isImporting}
+            >
+              Bekor qilish
+            </Button>
+            <Button onClick={onExecute} disabled={isImporting}>
+              {isImporting ? (
+                <>
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                  Qo&apos;shilmoqda…
+                </>
+              ) : (
+                "Ha, qo'shamiz"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success modal */}
+      <Dialog
+        open={!!success}
+        onOpenChange={(o) => {
+          if (!o) reset();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="size-4 text-emerald-600" aria-hidden />
+              {success?.successCount} ta masala qo&apos;shildi
+            </DialogTitle>
+            <DialogDescription>
+              Yangi masala kodlari quyida. Ro&apos;yxatdan ko&apos;rib chiqishingiz mumkin.
+            </DialogDescription>
+          </DialogHeader>
+          {success && success.createdCodes.length > 0 && (
+            <div className="max-h-48 overflow-auto rounded-md ring-1 ring-foreground/10 bg-muted/30 px-3 py-2">
+              <div className="flex flex-wrap gap-1.5">
+                {success.createdCodes.map((c) => (
+                  <code
+                    key={c}
+                    className="inline-flex items-center rounded bg-card px-1.5 py-0.5 text-[10px] font-mono tabular-nums ring-1 ring-foreground/10"
+                  >
+                    {c}
+                  </code>
+                ))}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={reset}>
+              Yana yuklash
+            </Button>
+            <Button
+              nativeButton={false}
+              render={
+                <Link href="/admin/problems" onClick={() => router.refresh()} />
+              }
+            >
+              Masalalar ro&apos;yxati
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function PreviewReport({ report }: { report: PreviewSuccess }) {
-  const { validation, parsedSummary } = report;
+function ValidationDetails({
+  validation,
+  parsed,
+}: {
+  validation: NonNullable<PreviewSuccess["validation"]>;
+  parsed: PreviewSuccess["parsedSummary"];
+}) {
   return (
-    <div className="border rounded-md p-4 space-y-3">
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="outline">
-          {parsedSummary.problemCount} masala
-        </Badge>
-        <Badge variant="outline">{parsedSummary.imageCount} rasm</Badge>
-        {parsedSummary.manifestPresent && (
-          <Badge variant="outline">manifest.yaml</Badge>
-        )}
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5 text-[11px]">
+        <SummaryChip label="Masalalar" value={parsed.problemCount} />
+        <SummaryChip label="Rasmlar" value={parsed.imageCount} />
         {validation.okCount > 0 && (
-          <Badge variant="default">{validation.okCount} OK</Badge>
-        )}
-        {validation.warningCount > 0 && (
-          <Badge variant="secondary">
-            {validation.warningCount} ogohlantirish
-          </Badge>
+          <SummaryChip
+            label="To'g'ri"
+            value={validation.okCount}
+            tone="success"
+          />
         )}
         {validation.errorCount > 0 && (
-          <Badge variant="destructive">{validation.errorCount} xato</Badge>
+          <SummaryChip
+            label="Xato"
+            value={validation.errorCount}
+            tone="error"
+          />
         )}
       </div>
 
       {validation.bundleErrors.length > 0 && (
-        <div className="text-sm text-destructive">
-          <strong>Bundle xatolari:</strong>
-          <ul className="list-disc ml-5 mt-1">
+        <div className="rounded-md ring-1 ring-destructive/30 bg-destructive/5 p-3 text-xs space-y-1">
+          <p className="font-medium text-destructive">Arxiv darajasidagi xatolar</p>
+          <ul className="list-disc ml-4 text-destructive/90">
             {validation.bundleErrors.map((e, i) => (
               <li key={i}>{e}</li>
             ))}
@@ -186,50 +361,52 @@ function PreviewReport({ report }: { report: PreviewSuccess }) {
         </div>
       )}
 
-      <div className="space-y-1.5 max-h-96 overflow-auto">
-        {validation.problems.map((p) => {
-          const tone =
-            p.status === "error"
-              ? "border-destructive/50 bg-destructive/5"
-              : p.status === "warning"
-                ? "border-amber-500/50 bg-amber-500/5"
-                : "border-border";
-          return (
-            <div
-              key={`${p.index}-${p.sourcePath}`}
-              className={`border rounded p-2 text-xs ${tone}`}
-            >
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge
-                  variant={
-                    p.status === "error"
-                      ? "destructive"
-                      : p.status === "warning"
-                        ? "secondary"
-                        : "default"
-                  }
-                >
-                  {p.status}
-                </Badge>
-                <span className="font-mono">{p.sourcePath}</span>
-                {p.isDuplicate && (
-                  <Badge variant="outline">duplikat (skip)</Badge>
-                )}
+      {validation.errorCount > 0 && (
+        <div className="space-y-1.5 max-h-64 overflow-auto">
+          {validation.problems
+            .filter((p) => p.status === "error")
+            .map((p) => (
+              <div
+                key={`${p.index}-${p.sourcePath}`}
+                className="rounded-md ring-1 ring-destructive/30 bg-destructive/5 p-2 text-xs"
+              >
+                <p className="font-mono text-[10px] text-muted-foreground">
+                  {p.sourcePath}
+                </p>
+                <ul className="mt-1 space-y-0.5 text-destructive/90">
+                  {p.errors.map((e, i) => (
+                    <li key={i}>• {e}</li>
+                  ))}
+                </ul>
               </div>
-              {p.errors.map((e, i) => (
-                <div key={`e-${i}`} className="text-destructive mt-1">
-                  • {e}
-                </div>
-              ))}
-              {p.warnings.map((w, i) => (
-                <div key={`w-${i}`} className="text-amber-700 dark:text-amber-300 mt-1">
-                  • {w}
-                </div>
-              ))}
-            </div>
-          );
-        })}
-      </div>
+            ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+function SummaryChip({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: number;
+  tone?: "neutral" | "success" | "error";
+}) {
+  const styles =
+    tone === "success"
+      ? "ring-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+      : tone === "error"
+        ? "ring-destructive/30 bg-destructive/5 text-destructive"
+        : "ring-foreground/10 bg-muted/40 text-muted-foreground";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded px-2 py-0.5 ring-1 ${styles}`}
+    >
+      <span className="font-medium tabular-nums">{value}</span>
+      <span>{label}</span>
+    </span>
   );
 }

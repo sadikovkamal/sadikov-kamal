@@ -1,5 +1,5 @@
 // E2E smoke for Phase 9 taxonomy library + merge logic.
-// Exercises slugify, listTopicsWithCounts/Sources, CRUD via mutations,
+// Exercises listTopicsWithCounts/Sources, CRUD via mutations,
 // FK-restrict on delete.
 //
 // Run: NODE_OPTIONS="--conditions=react-server" npx tsx scripts/taxonomy-smoke.ts
@@ -11,8 +11,8 @@ import { db } from "../src/db";
 import {
   users,
   problems,
+  ageCategories,
 } from "../src/db/schema";
-import { slugify } from "../src/lib/utils/slug";
 import {
   listTopicsWithCounts,
   listSourcesWithCounts,
@@ -32,15 +32,7 @@ function assert(cond: unknown, msg: string): asserts cond {
 }
 
 async function main() {
-  // --- slugify ----------------------------------------------------------
-  assert(slugify("Hello World!") === "hello-world", "slugify hello-world");
-  assert(slugify("  Spaces  ") === "spaces", "slugify trim");
-  assert(slugify("AM-GM Inequality") === "am-gm-inequality", "slugify dashes");
-  assert(slugify("user_typed_underscores") === "user-typed-underscores", "slugify underscores");
-  assert(slugify("don't") === "dont", "slugify apostrophes");
-  assert(slugify("hello---world") === "hello-world", "slugify collapses dashes");
-  assert(slugify("Cyrillic Привет") === "cyrillic", "slugify drops non-ASCII");
-  console.log(`[1] slugify ok (7 cases)`);
+  // (slugify has been removed — taxonomy now uses stable codes S/A/T)
 
   // --- Fixtures ---------------------------------------------------------
   const admin = (await db.query.users.findMany()).find(
@@ -83,34 +75,32 @@ async function main() {
   // --- Sources CRUD -----------------------------------------------------
   const sourceId = await createSource({
     name: "Smoke Source",
-    slug: "smoke-source-99",
-    kind: "olympiad",
-    country: "UZ",
+    parentId: null,
+    logoStorageKey: null,
   });
   await updateSource(sourceId, {
     name: "Smoke Source Updated",
-    slug: "smoke-source-99",
-    kind: "book",
-    country: null,
+    parentId: null,
+    logoStorageKey: null,
   });
   const sourcesList = await listSourcesWithCounts();
   const sFound = sourcesList.find((s) => s.id === sourceId);
-  assert(sFound?.kind === "book", `source kind=${sFound?.kind}`);
-  assert(sFound?.country === null, `source country=${sFound?.country}`);
-  console.log(`[4] sources CRUD ok (created with kind=olympiad, updated to book)`);
+  assert(sFound?.name === "Smoke Source Updated", `source name=${sFound?.name}`);
+  assert(sFound?.parentId === null, `source parentId=${sFound?.parentId}`);
+  console.log(`[4] sources CRUD ok (create + update via mutations)`);
 
   // --- FK restrict on source delete -------------------------------------
   // Create a problem referencing the source, then try to delete it.
   const problemId = await createProblemTx(
     {
       bodyMd: "FK restrict test",
-      solutionMd: null,
-      answer: null,
       sourceId,
-      year: null,
-      problemNumber: null,
       topicIds: [topicId],
-      classes: [9],
+      ageCategoryIds: [
+        (await db.select().from(ageCategories)).find(
+          (c) => c.name === "9-sinf"
+        )!.id,
+      ],
     },
     admin.id
   );

@@ -16,15 +16,10 @@ import dynamic from "next/dynamic";
 import { Eye, ImagePlus, Loader2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImageAction } from "@/app/admin/_actions/upload-image";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { MetadataForm } from "@/components/metadata-form";
-import type { Topic, Source } from "@/db/schema";
+import type { Topic, AgeCategory } from "@/db/schema";
+import type { SourcePickerNode } from "@/components/problem-form-pickers/source-picker";
 import {
   createProblemAction,
   updateProblemAction,
@@ -53,13 +48,11 @@ const imageSchema = z.object({
 
 const formSchema = z.object({
   bodyMd: z.string().min(1, "Masala matni bo'sh bo'lmasligi kerak"),
-  solutionMd: z.string().nullable(),
-  answer: z.string().nullable(),
   sourceId: z.string().uuid("Manbani tanlang"),
-  year: z.number().int().min(1900).max(2100).nullable(),
-  problemNumber: z.string().max(50).nullable(),
   topicIds: z.array(z.string()).min(1, "Kamida bitta mavzu tanlang"),
-  classes: z.array(z.number()).min(1, "Sinfni tanlang"),
+  ageCategoryIds: z
+    .array(z.string())
+    .min(1, "Kamida bitta yosh toifasini tanlang"),
   image: imageSchema.nullable(),
 });
 
@@ -70,13 +63,9 @@ export interface ProblemFormProps {
   problemId?: string;
   defaultValues: ProblemFormValues;
   topicsAvailable: Topic[];
-  sourcesAvailable: Source[];
+  sourcesAvailable: SourcePickerNode[];
+  ageCategoriesAvailable: AgeCategory[];
   uploadPrefix: string;
-  /** Compact mode — used by the create page. Hides the "Yechim" tab plus
-   *  the "Yil", "Masala raqami", "Javob" metadata fields so the create
-   *  flow stays focused on body + topics. Edit mode passes `false` to
-   *  expose every field. */
-  compact?: boolean;
 }
 
 export function ProblemForm({
@@ -85,8 +74,8 @@ export function ProblemForm({
   defaultValues,
   topicsAvailable,
   sourcesAvailable,
+  ageCategoriesAvailable,
   uploadPrefix,
-  compact = false,
 }: ProblemFormProps) {
   const router = useRouter();
   const methods = useForm<ProblemFormValues>({
@@ -137,7 +126,7 @@ export function ProblemForm({
           <MetadataForm
             topicsAvailable={topicsAvailable}
             sourcesAvailable={sourcesAvailable}
-            compact={compact}
+            ageCategoriesAvailable={ageCategoriesAvailable}
           />
         </section>
 
@@ -156,36 +145,11 @@ export function ProblemForm({
               )}
             />
           </div>
-          {compact ? (
-            <BodyEditor
-              fieldName="bodyMd"
-              uploadPrefix={uploadPrefix}
-              showError
-            />
-          ) : (
-            <Tabs defaultValue="problem" className="w-full">
-              <TabsList>
-                <TabsTrigger value="problem">Shart</TabsTrigger>
-                <TabsTrigger value="solution">Yechim</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="problem">
-                <BodyEditor
-                  fieldName="bodyMd"
-                  uploadPrefix={uploadPrefix}
-                  showError
-                />
-              </TabsContent>
-
-              <TabsContent value="solution">
-                <BodyEditor
-                  fieldName="solutionMd"
-                  uploadPrefix={uploadPrefix}
-                  nullable
-                />
-              </TabsContent>
-            </Tabs>
-          )}
+          <BodyEditor
+            fieldName="bodyMd"
+            uploadPrefix={uploadPrefix}
+            showError
+          />
         </section>
 
         {/* Inline footer — actions sit at the bottom of the form. */}
@@ -281,7 +245,7 @@ function ImageUploadField({
       <input
         ref={inputRef}
         type="file"
-        accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+        accept="image/png,image/jpeg,image/gif,image/webp"
         className="sr-only"
         onChange={(e) => {
           const f = e.target.files?.[0];
@@ -297,7 +261,6 @@ function ImageUploadField({
               fill
               sizes="24px"
               className="object-cover"
-              unoptimized
             />
           </div>
           <span className="text-xs max-w-[140px] truncate">
@@ -342,12 +305,10 @@ function BodyEditor({
   fieldName,
   uploadPrefix,
   showError,
-  nullable,
 }: {
-  fieldName: "bodyMd" | "solutionMd";
+  fieldName: "bodyMd";
   uploadPrefix: string;
   showError?: boolean;
-  nullable?: boolean;
 }) {
   const { control, setValue, formState } = useFormContext<ProblemFormValues>();
   const value = useWatch({ control, name: fieldName }) ?? "";
@@ -357,11 +318,7 @@ function BodyEditor({
       <SplitView
         source={value}
         onChange={(v) =>
-          setValue(
-            fieldName,
-            nullable && v.length === 0 ? null : v,
-            { shouldDirty: true }
-          )
+          setValue(fieldName, v, { shouldDirty: true })
         }
         uploadPrefix={uploadPrefix}
       />

@@ -10,12 +10,6 @@ function csv(value: string | null | undefined): string[] {
   return value.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-function intCsv(value: string | null | undefined): number[] {
-  return csv(value)
-    .map((n) => Number.parseInt(n, 10))
-    .filter((n) => Number.isFinite(n));
-}
-
 function parseInt1(value: string | null | undefined): number | undefined {
   if (!value) return undefined;
   const n = Number.parseInt(value, 10);
@@ -26,9 +20,8 @@ function parseInt1(value: string | null | undefined): number | undefined {
  * Parse the admin problems list URL state.
  *
  * Convention:
- * - Filters: `q`, `source`, `topic`, `class` are comma-separated lists;
- *   `yearFrom`/`yearTo` are scalars.
- * - Sort: `sortField` ∈ {createdAt, year}; `sortDir` ∈ {asc, desc}.
+ * - Filters: `q`, `source`, `topic`, `ageCategory` are comma-separated lists.
+ * - Sort: `sortField` ∈ {createdAt, code}; `sortDir` ∈ {asc, desc}.
  * - Pagination: `page` is 1-based.
  *
  * Anything malformed gets dropped silently rather than throwing — a
@@ -43,16 +36,14 @@ export function parseSearchParams(sp: URLSearchParams): {
   const filters: ProblemListFilters = {
     search: sp.get("q") ?? undefined,
     sourceIds: csv(sp.get("source")),
-    yearFrom: parseInt1(sp.get("yearFrom")),
-    yearTo: parseInt1(sp.get("yearTo")),
-    classes: intCsv(sp.get("class")),
+    ageCategoryIds: csv(sp.get("ageCategory")),
     topicIds: csv(sp.get("topic")),
   };
 
   const sortField = sp.get("sortField");
   const sortDir = sp.get("sortDir");
   const sort: ProblemListSort = {
-    field: sortField === "year" ? "year" : "createdAt",
+    field: sortField === "code" ? "code" : "createdAt",
     direction: sortDir === "asc" ? "asc" : "desc",
   };
 

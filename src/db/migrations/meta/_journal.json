@@ -57,6 +57,62 @@
       "when": 1779321600000,
       "tag": "0007_drop-topics-name-unique",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779408000000,
+      "tag": "0008_age-categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779494400000,
+      "tag": "0009_drop-age-category-sort-order",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779580800000,
+      "tag": "0010_sources-code-drop-slug",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779667200000,
+      "tag": "0011_sources-nested-drop-kind-country",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1779753600000,
+      "tag": "0012_sources-logo",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1779840000000,
+      "tag": "0013_problems-code-drop-year-answer-solution",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1779926400000,
+      "tag": "0014_problems-code-text-padded",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1780012800000,
+      "tag": "0015_problems-drop-number",
+      "breakpoints": true
     }
   ]
 }

@@ -6,15 +6,16 @@
 
 import "../src/db/load-env";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../src/db";
 import {
   users,
   topics,
   sources,
+  ageCategories,
   problems,
   problemTopics,
-  problemClasses,
+  problemAgeCategories,
 } from "../src/db/schema";
 import {
   createProblemTx,
@@ -42,20 +43,31 @@ async function main() {
     where: eq(topics.name, "Tengsizliklar"),
   });
   const imoSource = await db.query.sources.findFirst({
-    where: eq(sources.slug, "imo"),
+    where: eq(sources.name, "IMO"),
   });
   assert(algebraTopic && inequalitiesTopic && imoSource, "seed data missing");
+
+  // Age categories — we pick 9-sinf, 10-sinf, 11-sinf so the test
+  // mirrors the old shape that exercised three categories.
+  const seededCategories = await db
+    .select()
+    .from(ageCategories)
+    .where(inArray(ageCategories.name, ["9-sinf", "10-sinf", "11-sinf"]));
+  assert(
+    seededCategories.length === 3,
+    `seed age categories missing (got ${seededCategories.length})`
+  );
+  const byName = new Map(seededCategories.map((c) => [c.name, c.id]));
+  const cat9 = byName.get("9-sinf")!;
+  const cat10 = byName.get("10-sinf")!;
+  const cat11 = byName.get("11-sinf")!;
 
   // --- Create -----------------------------------------------------------
   const input: ProblemInput = {
     bodyMd: "Test problem: prove $a + b \\geq 2\\sqrt{ab}$.",
-    solutionMd: "By AM-GM, $\\frac{a+b}{2} \\geq \\sqrt{ab}$.",
-    answer: null,
     sourceId: imoSource.id,
-    year: 2024,
-    problemNumber: "P-SMOKE",
     topicIds: [algebraTopic.id, inequalitiesTopic.id],
-    classes: [9, 10, 11],
+    ageCategoryIds: [cat9, cat10, cat11],
   };
 
   const newId = await createProblemTx(input, admin.id);
@@ -65,26 +77,44 @@ async function main() {
   const fetched = await getProblemById(newId);
   assert(fetched, "getProblemById returned null");
   assert(fetched.bodyMd === input.bodyMd, "bodyMd mismatch");
-  assert(fetched.year === 2024, `year mismatch: ${fetched.year}`);
-  assert(fetched.problemNumber === "P-SMOKE", "problemNumber mismatch");
+  assert(
+    /^P\d{7,}$/.test(fetched.code),
+    `code should match P####### shape, got ${fetched.code}`
+  );
   assert(fetched.topics.length === 2, `topics count: ${fetched.topics.length}`);
-  assert(fetched.classes.length === 3, `classes count: ${fetched.classes.length}`);
-  assert(fetched.classes.sort().join(",") === "9,10,11" || fetched.classes.sort((a, b) => a - b).join(",") === "9,10,11", "classes mismatch");
+  assert(
+    fetched.ageCategories.length === 3,
+    `ageCategories count: ${fetched.ageCategories.length}`
+  );
+  assert(
+    fetched.ageCategories
+      .map((c) => c.name)
+      .sort()
+      .join(",") === "10-sinf,11-sinf,9-sinf",
+    "ageCategories names mismatch"
+  );
   assert(fetched.source?.id === imoSource.id, "source mismatch");
-  console.log(`[2] getProblemById ok: ${fetched.topics.length} topics, ${fetched.classes.length} classes`);
+  console.log(
+    `[2] getProblemById ok: ${fetched.topics.length} topics, ${fetched.ageCategories.length} age categories`
+  );
 
   // --- Update -----------------------------------------------------------
   await updateProblemTx(newId, {
     ...input,
     bodyMd: "Updated body: prove $a^2 + b^2 \\geq 2ab$.",
-    classes: [10, 11], // remove class 9
+    ageCategoryIds: [cat10, cat11], // remove 9-sinf
   });
 
   const afterUpdate = await getProblemById(newId);
   assert(afterUpdate, "post-update fetch failed");
   assert(afterUpdate.bodyMd.startsWith("Updated body"), "bodyMd not updated");
-  assert(afterUpdate.classes.length === 2, `classes after update: ${afterUpdate.classes.length}`);
-  console.log(`[3] updateProblemTx ok: ${afterUpdate.classes.length} classes`);
+  assert(
+    afterUpdate.ageCategories.length === 2,
+    `ageCategories after update: ${afterUpdate.ageCategories.length}`
+  );
+  console.log(
+    `[3] updateProblemTx ok: ${afterUpdate.ageCategories.length} age categories`
+  );
 
   // --- Verify junctions are clean ---------------------------------------
   // updateProblemTx should have wiped + reinserted junctions cleanly.
@@ -92,12 +122,18 @@ async function main() {
     .select()
     .from(problemTopics)
     .where(eq(problemTopics.problemId, newId));
-  const lingeringClassLinks = await db
+  const lingeringCategoryLinks = await db
     .select()
-    .from(problemClasses)
-    .where(eq(problemClasses.problemId, newId));
-  assert(lingeringTopicLinks.length === 2, `lingering topic links: ${lingeringTopicLinks.length}`);
-  assert(lingeringClassLinks.length === 2, `lingering class links: ${lingeringClassLinks.length}`);
+    .from(problemAgeCategories)
+    .where(eq(problemAgeCategories.problemId, newId));
+  assert(
+    lingeringTopicLinks.length === 2,
+    `lingering topic links: ${lingeringTopicLinks.length}`
+  );
+  assert(
+    lingeringCategoryLinks.length === 2,
+    `lingering age-category links: ${lingeringCategoryLinks.length}`
+  );
   console.log(`[4] junction tables clean after update`);
 
   // --- Delete -----------------------------------------------------------
@@ -111,12 +147,18 @@ async function main() {
     .select()
     .from(problemTopics)
     .where(eq(problemTopics.problemId, newId));
-  const orphanClasses = await db
+  const orphanCategories = await db
     .select()
-    .from(problemClasses)
-    .where(eq(problemClasses.problemId, newId));
-  assert(orphanTopics.length === 0, `orphan problem_topics: ${orphanTopics.length}`);
-  assert(orphanClasses.length === 0, `orphan problem_classes: ${orphanClasses.length}`);
+    .from(problemAgeCategories)
+    .where(eq(problemAgeCategories.problemId, newId));
+  assert(
+    orphanTopics.length === 0,
+    `orphan problem_topics: ${orphanTopics.length}`
+  );
+  assert(
+    orphanCategories.length === 0,
+    `orphan problem_age_categories: ${orphanCategories.length}`
+  );
   console.log(`[6] FK cascade purged junction rows`);
 
   // --- Final sanity: problems table count is the same as before ---------

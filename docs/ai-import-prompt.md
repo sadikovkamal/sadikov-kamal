@@ -2,21 +2,26 @@
 
 Use this prompt with Claude or ChatGPT to convert PDFs, web pages, or
 plain text problem collections into a `problems.md` file that conforms
-to `docs/format-spec.md` (v1).
+to `docs/format-spec.md` (v2).
 
 ## How to use
 
-1. Copy the entire **The prompt** section below (everything between the
-   two `---` separators, **inclusive**).
-2. Paste it as your message in Claude or ChatGPT.
-3. Attach the source material (PDF) or paste the source text under the
-   prompt where indicated.
-4. After the AI produces `problems.md`, review the output for accuracy:
-   - Frontmatter fields match the source (year, problem number)
-   - LaTeX renders correctly (paste a sample into `/admin/test/preview`)
-   - Image references match what you actually have in `images/`
+1. Look up the stable codes you'll need from the admin panel:
+   - `/admin/sources` — find the source's `S######` code.
+   - `/admin/age-categories` — find the right `A######` codes.
+   - `/admin/topics` — find the relevant `T######` codes.
+2. Copy the prompt below and paste in your AI assistant. Substitute the
+   placeholder code lists in the **Available codes** section with the
+   actual codes from your DB.
+3. Attach the source material (PDF) or paste the source text where
+   indicated.
+4. After the AI produces `problems.md`, review the output:
+   - Every frontmatter value is a real code (no invented codes).
+   - LaTeX renders correctly.
+   - Image references match what you actually have in `images/`.
+   - Each problem has at most one image.
 5. Place the file in a folder with an `images/` subfolder, zip it, and
-   upload via `/admin/import` (Phase 8).
+   upload via `/admin/problems/new`.
 
 ## Iteration tips
 
@@ -39,59 +44,78 @@ with no commentary before or after.
 
 A single `problems.md` file. Each problem is a markdown block with YAML
 frontmatter, separated from the next problem by a line containing
-exactly `---` (with blank lines around it).
+exactly `---`.
 
-The first `---` of the file opens the first frontmatter; subsequent
-`---` lines that are not closing a frontmatter are problem separators.
+The first `---` of the file opens the first frontmatter; each
+subsequent `---` line that is not closing a frontmatter opens the next
+problem's frontmatter.
+
+**Available codes** (substitute these with real values from your DB
+before running the prompt)
+
+- Sources (`S######`):
+  - `S000001` — IMO
+  - `S000002` — Uzbekistan National Olympiad
+  - ... (paste your full list)
+- Age categories (`A######`):
+  - `A000001` — 1-sinf
+  - `A000010` — 10-sinf
+  - `A000011` — 11-sinf
+  - `A000099` — Talaba
+  - ... (paste your full list)
+- Topics (`T######`):
+  - `T000001` — Algebra
+  - `T000002` — Geometry
+  - `T000003` — Number Theory
+  - `T000004` — Combinatorics
+  - ... (paste your full list)
 
 **Frontmatter fields**
 
-| Field | Required | Notes |
+| Field | Type | Notes |
 |---|---|---|
-| `source` | yes | Slug of the olympiad: lowercase, hyphens. Examples: `imo`, `imo-shortlist`, `uzbekistan-national`, `tournament-of-towns`, `putnam`, `usamo`. If unsure, use a reasonable slug derived from the source name. |
-| `year` | recommended | 4-digit integer, or omit if unknown. |
-| `problem_number` | yes | String. Examples: `"1"`, `"P3"`, `"Day 2 / 5"`, `"A1"`. |
-| `classes` | yes (exactly 1) | Single-element array, integer in [5..11]. Pick the most representative grade for the problem's level. If unsure, default to `[11]` for IMO-level, `[10]` for national-level, `[7]` for early-grade. |
-| `topics` | yes (>= 1) | Array of slugs from this list: `algebra`, `geometry`, `number-theory`, `combinatorics`, `inequalities`, `functional-equations`. Pick 1–3 most relevant. |
-| `answer` | optional | Short text answer for non-proof problems. Omit for proof-based problems. |
+| `source` | `S######` | Pick the single best match from the sources list above. |
+| `age_categories` | `A######[]` | One or more codes. Pick whichever grade(s) the problem targets. |
+| `topics` | `T######[]` | One or more codes from the topics list. 1–3 most relevant. |
+
+Never invent a code. If no listed code fits, write `[NEEDS REVIEW:
+no matching code for "X"]` in place of the field so the user can fix
+it manually.
 
 **Body format**
 
 - Begin with a `# Shart` heading (Uzbek for "problem statement").
-- Translate problem text to Uzbek if it is in another language; preserve
-  meaning faithfully. If the source is already in Uzbek, keep as-is.
+- Translate problem text to Uzbek if it is in another language;
+  preserve meaning faithfully. If the source is already in Uzbek,
+  keep as-is.
 - Math expressions use LaTeX: inline `$...$`, display `$$...$$`.
-- Use only KaTeX-supported commands. No `\begin{tikzpicture}`, no custom
-  macros, no Asymptote.
-- For figures, write `![Description](images/PROBLEM_FILENAME.ext)`. Use
-  a consistent naming pattern, e.g.
-  `{source-slug}-{year}-p{problem_number}.png`. The user will provide
-  actual image files separately; you only write the reference.
-- **Do not include the solution.** Even if the source provides one,
-  omit it. The importer drops any `# Yechim` (or `# Solution`) section
-  on import — solutions are added by admins in the admin UI later.
+- Use only KaTeX-supported commands. No TikZ, no custom macros, no
+  Asymptote.
+- For a figure, write `![Description](images/PROBLEM_FILENAME.ext)`.
+  **At most one image per problem.** Use a consistent naming pattern,
+  e.g. `{source-name}-{year}-p{n}.png`.
+- Do NOT include solutions, hints, or answers. Only the problem
+  statement.
 
 **Strict rules**
 
-- Never invent problems or solutions. If the source is unclear, mark
-  unclear sections with `[NEEDS REVIEW: ...]` so the user can fix them.
-- Do not include problem numbering as part of the body — that goes in
-  `problem_number`.
-- Do not include the source attribution as part of the body — that goes
-  in `source` and `year`.
-- Output ONLY the `problems.md` content. No commentary before or after,
-  no code fences around the whole file (use code fences only for code
-  blocks within problem solutions).
+- Never invent problems. If the source is unclear, mark unclear
+  sections with `[NEEDS REVIEW: ...]`.
+- Do not include problem numbering as body text — there is no
+  `problem_number` field anymore; the database assigns a code
+  automatically.
+- Do not include the source attribution as body text — the `source`
+  frontmatter field carries that.
+- Output ONLY the `problems.md` content. No commentary before or
+  after, no outer code fences.
 
 **Example output for two problems**
 
 ```
 ---
-source: imo
-year: 2024
-problem_number: "1"
-classes: [11]
-topics: [number-theory]
+source: S000001
+age_categories: [A000011]
+topics: [T000003]
 ---
 
 # Shart
@@ -101,11 +125,9 @@ $n^2 + 1$ ga qoldiqsiz bo'linsin.
 
 ---
 
-source: imo
-year: 2024
-problem_number: "2"
-classes: [11]
-topics: [algebra, inequalities]
+source: S000001
+age_categories: [A000011]
+topics: [T000001, T000002]
 ---
 
 # Shart

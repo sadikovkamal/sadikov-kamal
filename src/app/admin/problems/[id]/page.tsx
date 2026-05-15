@@ -20,13 +20,7 @@ export default async function ProblemDetailPage({
   const p = await getProblemById(id);
   if (!p) notFound();
 
-  const title = [
-    p.source?.name,
-    p.year ? String(p.year) : null,
-    p.problemNumber ? `#${p.problemNumber}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const title = [p.code, p.source?.name].filter(Boolean).join(" · ");
 
   return (
     <div className="space-y-5">
@@ -41,24 +35,14 @@ export default async function ProblemDetailPage({
         >
           Masalalar
         </Link>
+        <ChevronRight className="size-3" aria-hidden />
+        <span className="font-mono tabular-nums text-foreground/80">
+          {p.code}
+        </span>
         {p.source?.name && (
           <>
             <ChevronRight className="size-3" aria-hidden />
             <span>{p.source.name}</span>
-          </>
-        )}
-        {p.year && (
-          <>
-            <ChevronRight className="size-3" aria-hidden />
-            <span className="tabular-nums">{p.year}</span>
-          </>
-        )}
-        {p.problemNumber && (
-          <>
-            <ChevronRight className="size-3" aria-hidden />
-            <span className="font-mono text-foreground/80">
-              #{p.problemNumber}
-            </span>
           </>
         )}
       </nav>
@@ -103,7 +87,6 @@ export default async function ProblemDetailPage({
                       height={800}
                       sizes="(max-width: 1024px) 100vw, 800px"
                       className="h-auto w-full object-contain"
-                      unoptimized
                     />
                   </div>
                 ))}
@@ -111,19 +94,6 @@ export default async function ProblemDetailPage({
             )}
           </Section>
 
-          {p.solutionMd && (
-            <Section title="Yechim">
-              <MarkdownPreview source={p.solutionMd} />
-            </Section>
-          )}
-
-          {p.answer && (
-            <Section title="Javob">
-              <code className="inline-block bg-muted px-2.5 py-1 rounded-md font-mono text-xs">
-                {p.answer}
-              </code>
-            </Section>
-          )}
         </article>
 
         {/* Sticky metadata sidebar */}
@@ -135,6 +105,9 @@ export default async function ProblemDetailPage({
               </span>
             </div>
             <div className="px-5 py-4 space-y-4">
+              <MetaRow label="Kod">
+                <span className="font-mono tabular-nums">{p.code}</span>
+              </MetaRow>
               {p.source && (
                 <MetaRow label="Manba">
                   <Link
@@ -145,30 +118,32 @@ export default async function ProblemDetailPage({
                   </Link>
                 </MetaRow>
               )}
-              {p.year && (
-                <MetaRow label="Yil">
-                  <span className="tabular-nums">{p.year}</span>
-                </MetaRow>
-              )}
-              {p.problemNumber && (
-                <MetaRow label="Raqami">
-                  <span className="font-mono text-xs">{p.problemNumber}</span>
-                </MetaRow>
-              )}
-              {p.classes.length > 0 && (
-                <MetaRow label={p.classes.length > 1 ? "Sinflar" : "Sinf"}>
+              <MetaRow label="Qo&apos;shilgan">
+                <time
+                  dateTime={p.createdAt.toISOString()}
+                  className="tabular-nums text-xs"
+                >
+                  {p.createdAt.toLocaleDateString("uz-UZ", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </time>
+              </MetaRow>
+              {p.ageCategories.length > 0 && (
+                <MetaRow label="Yosh toifasi">
                   <div className="flex flex-wrap gap-1">
-                    {p.classes.map((c) => (
+                    {p.ageCategories.map((c) => (
                       <Link
-                        key={c}
-                        href={`/admin/problems?class=${c}`}
+                        key={c.id}
+                        href={`/admin/problems?ageCategory=${c.id}`}
                         className="inline-flex items-center"
                       >
                         <Badge
                           variant="secondary"
-                          className="text-[10px] font-normal py-0 px-1.5 tabular-nums hover:bg-muted-foreground/15 transition-colors"
+                          className="text-[10px] font-normal py-0 px-1.5 hover:bg-muted-foreground/15 transition-colors"
                         >
-                          {c}-sinf
+                          {c.name}
                         </Badge>
                       </Link>
                     ))}

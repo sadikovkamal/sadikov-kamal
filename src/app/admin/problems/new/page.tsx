@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { ChevronRight, Download, Sparkles } from "lucide-react";
 import { db } from "@/db";
-import { topics, sources } from "@/db/schema";
+import { topics, ageCategories } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
+import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
 import { ProblemForm } from "@/components/problem-form";
 import { ImportUploader } from "./import-uploader";
 
 export default async function NewProblemPage() {
   await requireAdmin();
-  const [topicsAvailable, sourcesAvailable] = await Promise.all([
-    db.select().from(topics).orderBy(topics.name),
-    db.select().from(sources).orderBy(sources.name),
-  ]);
+  const [topicsAvailable, sourcesAvailable, ageCategoriesAvailable] =
+    await Promise.all([
+      db.select().from(topics).orderBy(topics.name),
+      // Sources go through the same query the /admin/sources page uses
+      // so the picker shows logo URLs already resolved against R2.
+      listSourcesWithCounts(),
+      db.select().from(ageCategories).orderBy(ageCategories.code),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -22,19 +27,15 @@ export default async function NewProblemPage() {
           mode="create"
           defaultValues={{
             bodyMd: "",
-            solutionMd: null,
-            answer: null,
-            sourceId: sourcesAvailable[0]?.id ?? "",
-            year: null,
-            problemNumber: null,
+            sourceId: "",
             topicIds: [],
-            classes: [],
+            ageCategoryIds: [],
             image: null,
           }}
           topicsAvailable={topicsAvailable}
           sourcesAvailable={sourcesAvailable}
+          ageCategoriesAvailable={ageCategoriesAvailable}
           uploadPrefix="problems/draft"
-          compact
         />
 
         <ImportSidebar />
@@ -61,9 +62,6 @@ function Header() {
       </nav>
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <h1 className="text-2xl font-semibold tracking-tight">Yangi masala</h1>
-        <p className="text-xs text-muted-foreground">
-          {"Markdown · LaTeX · rasm yuklash"}
-        </p>
       </div>
     </header>
   );
@@ -125,7 +123,6 @@ function ImportSidebar() {
 
           <pre className="rounded-md bg-card ring-1 ring-foreground/10 px-3 py-2.5 text-[11px] leading-relaxed font-mono text-muted-foreground overflow-x-auto">
 {`my-batch.zip
-├── manifest.yaml   (ixtiyoriy)
 ├── problems.md     (yoki problems/*.md)
 └── images/
     └── rasm.png`}
@@ -133,11 +130,14 @@ function ImportSidebar() {
 
           <dl className="text-[11px] space-y-2">
             <SpecRow label="Frontmatter">
-              source, year, problem_number, classes, topics
+              source (S######), age_categories (A######), topics (T######)
             </SpecRow>
             <SpecRow label="Sarlavha">
               <code className="font-mono">{`# Shart`}</code>
-              {" majburiy · yechim import qilinmaydi"}
+              {" majburiy"}
+            </SpecRow>
+            <SpecRow label="Rasm">
+              har bir masalada eng ko&apos;pi bilan 1 ta
             </SpecRow>
             <SpecRow label="Cheklovlar">
               50 MB ZIP · 200 ta masala · 5 MB rasm

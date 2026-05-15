@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { db } from "@/db";
-import { topics, sources } from "@/db/schema";
+import { topics, ageCategories } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemById } from "@/lib/problems/queries";
+import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
 import { getPublicUrl } from "@/lib/storage/r2";
 import { ProblemForm } from "@/components/problem-form";
 
@@ -16,20 +17,16 @@ export default async function EditProblemPage({
   await requireAdmin();
   const { id } = await params;
 
-  const [p, topicsAvailable, sourcesAvailable] = await Promise.all([
-    getProblemById(id),
-    db.select().from(topics).orderBy(topics.name),
-    db.select().from(sources).orderBy(sources.name),
-  ]);
+  const [p, topicsAvailable, sourcesAvailable, ageCategoriesAvailable] =
+    await Promise.all([
+      getProblemById(id),
+      db.select().from(topics).orderBy(topics.name),
+      listSourcesWithCounts(),
+      db.select().from(ageCategories).orderBy(ageCategories.code),
+    ]);
   if (!p) notFound();
 
-  const title = [
-    p.source?.name,
-    p.year ? String(p.year) : null,
-    p.problemNumber ? `#${p.problemNumber}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const title = [p.code, p.source?.name].filter(Boolean).join(" · ");
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -61,9 +58,6 @@ export default async function EditProblemPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             Masalani tahrirlash
           </h1>
-          <p className="text-xs text-muted-foreground">
-            {"Markdown · LaTeX · rasm yuklash"}
-          </p>
         </div>
       </header>
 
@@ -72,13 +66,9 @@ export default async function EditProblemPage({
         problemId={id}
         defaultValues={{
           bodyMd: p.bodyMd,
-          solutionMd: p.solutionMd,
-          answer: p.answer,
           sourceId: p.sourceId,
-          year: p.year,
-          problemNumber: p.problemNumber,
           topicIds: p.topics.map((t) => t.id),
-          classes: p.classes,
+          ageCategoryIds: p.ageCategories.map((c) => c.id),
           image: p.images[0]
             ? {
                 storageKey: p.images[0].storageKey,
@@ -91,6 +81,7 @@ export default async function EditProblemPage({
         }}
         topicsAvailable={topicsAvailable}
         sourcesAvailable={sourcesAvailable}
+        ageCategoriesAvailable={ageCategoriesAvailable}
         uploadPrefix={`problems/${id}`}
       />
     </div>

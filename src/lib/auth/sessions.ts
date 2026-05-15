@@ -74,12 +74,6 @@ export async function invalidateSession(token: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.id, hashedToken));
 }
 
-export async function invalidateAllUserSessions(
-  userId: string
-): Promise<void> {
-  await db.delete(sessions).where(eq(sessions.userId, userId));
-}
-
 /** Periodic cleanup — call from a cron later. Safe to skip for MVP. */
 export async function purgeExpiredSessions(): Promise<void> {
   await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));

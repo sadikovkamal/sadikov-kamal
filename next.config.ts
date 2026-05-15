@@ -28,17 +28,13 @@ const nextConfig: NextConfig = {
       : [],
   },
   experimental: {
-    // Default cap is 1 MB, which is below our R2 MAX_SIZE_BYTES (5 MB).
-    // Without this, image uploads fail at the Server Action boundary
-    // before our handler ever runs. Keep these two limits in sync.
+    // Vercel caps server-action bodies at ~4.5 MB on Hobby/Pro tiers — going
+    // above that is meaningless in production (the platform rejects with 413
+    // before our handler runs). Keep the framework limit honest so dev
+    // matches prod: bundles larger than this need to be split or uploaded
+    // through a presigned-PUT path instead of a server action.
     serverActions: {
-      // Image uploads cap at 5 MB (Phase 4) but bulk-import bundles cap at
-      // 50 MB (Phase 7 spec). Pick the larger so neither flow is clipped at
-      // the framework boundary; per-file/per-bundle validation enforces the
-      // real limits with useful error messages.
-      // Note: Vercel itself caps server-action payloads around 4.5 MB on
-      // Hobby/Pro tiers, so big bundles need to be split for production.
-      bodySizeLimit: "50mb",
+      bodySizeLimit: "4mb",
     },
   },
 };

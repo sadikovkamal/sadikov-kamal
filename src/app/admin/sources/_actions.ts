@@ -11,15 +11,10 @@ import {
 
 const sourceSchema = z.object({
   name: z.string().min(1).max(100),
-  slug: z
+  parentId: z.string().uuid().nullable(),
+  logoStorageKey: z
     .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9-]+$/, "Slug faqat a-z, 0-9 va `-` belgilarini qabul qiladi"),
-  kind: z.enum(["olympiad", "book", "course", "other"]),
-  country: z
-    .string()
-    .max(50)
+    .max(500)
     .nullable()
     .transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
 });
@@ -51,6 +46,9 @@ export async function updateSourceAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+  if (parsed.data.parentId === id) {
+    return { error: "Manba o'ziga parent bo'la olmaydi" };
+  }
   try {
     await updateSource(id, parsed.data);
   } catch (e) {
@@ -78,9 +76,9 @@ export async function deleteSourceAction(id: string): Promise<ActionResult> {
   return { success: true };
 }
 
-function friendly(e: unknown, fallback: string): string {
-  const msg = e instanceof Error ? e.message : String(e);
-  if (/unique/i.test(msg) || /23505/.test(msg)) return "Slug allaqachon ishlatilgan";
-  if (/foreign key|23503/i.test(msg)) return fallback;
+function friendly(_e: unknown, fallback: string): string {
+  // Every DB error funnels to the UX-facing fallback today; the helper
+  // exists so adding error-class-specific translations later (e.g.
+  // unique hits when we add per-org source uniqueness) is a single edit.
   return fallback;
 }

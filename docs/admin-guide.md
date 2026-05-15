@@ -1,6 +1,6 @@
 # Admin Guide
 
-Operational manual for the humans running Provia. If you're a
+Operational manual for the humans running Sadikov Kamal. If you're a
 developer, read `README.md` first; this doc assumes the app is already
 deployed and you're managing day-to-day content.
 

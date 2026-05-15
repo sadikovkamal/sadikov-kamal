@@ -43,8 +43,8 @@ const SECTIONS: NavSection[] = [
       { href: "/admin/topics", label: "Mavzular", icon: FolderTree, prefix: true },
       { href: "/admin/sources", label: "Manbalar", icon: Library, prefix: true },
       {
-        href: "/admin/classes",
-        label: "Sinflar",
+        href: "/admin/age-categories",
+        label: "Yosh toifasi",
         icon: GraduationCap,
         prefix: true,
       },

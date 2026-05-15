@@ -28,12 +28,16 @@ export function TopicsTree({ topics }: { topics: TopicWithCount[] }) {
   // set so collapse/expand stays cheap.
   const tree = useMemo(() => buildTopicTree(topics), [topics]);
 
-  // Track which node IDs are collapsed. Default = everything expanded.
-  // Using a "collapsed" Set instead of "expanded" so the empty state
-  // ("nothing collapsed") matches the default UX.
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-
   const allParentIds = useMemo(() => collectParentIds(tree), [tree]);
+
+  // Default: everything collapsed. With ~175 seeded topics the fully
+  // expanded view is a wall of text; admins overwhelmingly want to start
+  // at the root level and drill down to what they need. The "Hammasini
+  // ochish" button is one click away if they want the old behavior.
+  const [collapsed, setCollapsed] = useState<Set<string>>(
+    () => new Set(allParentIds)
+  );
+
   const allCollapsed = collapsed.size === allParentIds.length;
 
   function toggle(id: string) {

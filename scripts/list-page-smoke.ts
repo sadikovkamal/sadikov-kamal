@@ -10,7 +10,7 @@ import "../src/db/load-env";
 
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../src/db";
-import { users, problems } from "../src/db/schema";
+import { users, problems, ageCategories } from "../src/db/schema";
 import {
   createSession,
   invalidateSession,
@@ -27,7 +27,11 @@ async function main() {
   );
   if (!admin) throw new Error("admin missing");
   const algebra = (await db.query.topics.findMany()).find((t) => t.name === "Algebra")!;
-  const imo = (await db.query.sources.findMany()).find((s) => s.slug === "imo")!;
+  const imo = (await db.query.sources.findMany()).find((s) => s.name === "IMO")!;
+  const grade10 = (await db.select().from(ageCategories)).find(
+    (c) => c.name === "10-sinf"
+  );
+  if (!grade10) throw new Error("seed age category '10-sinf' missing");
 
   const MARKER = "PAGE_SMOKE_MARKER";
   const created: string[] = [];
@@ -35,13 +39,9 @@ async function main() {
     const id = await createProblemTx(
       {
         bodyMd: `${MARKER} fixture #${i + 1}`,
-        solutionMd: null,
-        answer: null,
         sourceId: imo.id,
-        year: 2024,
-        problemNumber: null,
         topicIds: [algebra.id],
-        classes: [10],
+        ageCategoryIds: [grade10.id],
       },
       admin.id
     );
@@ -80,7 +80,7 @@ async function main() {
         throw new Error(`fixtures not in body`);
       }
       // Sidebar present
-      if (!/Sinflar/.test(body)) {
+      if (!/Yosh toifasi/.test(body)) {
         throw new Error(`sidebar filters missing`);
       }
       console.log(`[2] /admin/problems?q=${MARKER} -> 200, table + sidebar`);

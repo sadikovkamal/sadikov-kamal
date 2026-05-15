@@ -10,6 +10,7 @@ import { inArray, sql } from "drizzle-orm";
 import { db } from "../src/db";
 import {
   problems,
+  ageCategories,
 } from "../src/db/schema";
 import {
   createProblemTx,
@@ -33,22 +34,38 @@ async function main() {
   const algebra = (await db.query.topics.findMany()).find((t) => t.name === "Algebra")!;
   const inequalities = (await db.query.topics.findMany()).find((t) => t.name === "Tengsizliklar")!;
   const geometry = (await db.query.topics.findMany()).find((t) => t.name === "Geometriya")!;
-  const imo = (await db.query.sources.findMany()).find((s) => s.slug === "imo")!;
-  const national = (await db.query.sources.findMany()).find((s) => s.slug === "uzbekistan-national")!;
+  const imo = (await db.query.sources.findMany()).find((s) => s.name === "IMO")!;
+  const national = (await db.query.sources.findMany()).find(
+    (s) => s.name === "Respublika olimpiadasi"
+  )!;
+
+  // Age-category lookup: tests build fixtures with grade numbers, we
+  // translate to UUIDs via the seeded "N-sinf" labels.
+  const allCategories = await db.select().from(ageCategories);
+  const catByGrade = new Map<number, string>();
+  for (const c of allCategories) {
+    const m = c.name.match(/^(\d+)-sinf$/);
+    if (m) catByGrade.set(Number(m[1]), c.id);
+  }
+  const cat = (n: number): string => {
+    const id = catByGrade.get(n);
+    if (!id) throw new Error(`age category for grade ${n} not seeded`);
+    return id;
+  };
 
   // --- Seed test fixtures ---------------------------------------------------
   // Generate a deterministic body using a unique marker so we can clean up
   // afterwards by exact match.
   const MARKER = "PHASE6_SMOKE_MARKER";
   const fixtures = [
-    { topic: algebra, source: imo, year: 2020, diff: 1, classes: [9], body: `${MARKER} cauchy-schwarz problem` },
-    { topic: algebra, source: imo, year: 2021, diff: 2, classes: [9, 10], body: `${MARKER} algebra basic` },
-    { topic: algebra, source: imo, year: 2022, diff: 3, classes: [10], body: `${MARKER} prove inequality cauchy` },
-    { topic: inequalities, source: imo, year: 2023, diff: 4, classes: [10, 11], body: `${MARKER} hard inequality` },
-    { topic: inequalities, source: national, year: 2024, diff: 5, classes: [11], body: `${MARKER} extremely hard cauchy schwarz` },
-    { topic: geometry, source: national, year: 2020, diff: 2, classes: [7, 8], body: `${MARKER} triangle area` },
-    { topic: geometry, source: national, year: null, diff: 3, classes: [9], body: `${MARKER} circle inscribed` },
-    { topic: algebra, source: imo, year: 2024, diff: 5, classes: [11], body: `${MARKER} polynomial roots` },
+    { topic: algebra, source: imo, grades: [9], body: `${MARKER} cauchy-schwarz problem` },
+    { topic: algebra, source: imo, grades: [9, 10], body: `${MARKER} algebra basic` },
+    { topic: algebra, source: imo, grades: [10], body: `${MARKER} prove inequality cauchy` },
+    { topic: inequalities, source: imo, grades: [10, 11], body: `${MARKER} hard inequality` },
+    { topic: inequalities, source: national, grades: [11], body: `${MARKER} extremely hard cauchy schwarz` },
+    { topic: geometry, source: national, grades: [7, 8], body: `${MARKER} triangle area` },
+    { topic: geometry, source: national, grades: [9], body: `${MARKER} circle inscribed` },
+    { topic: algebra, source: imo, grades: [11], body: `${MARKER} polynomial roots` },
   ];
 
   const created: string[] = [];
@@ -56,13 +73,9 @@ async function main() {
     const id = await createProblemTx(
       {
         bodyMd: f.body,
-        solutionMd: null,
-        answer: null,
         sourceId: f.source.id,
-        year: f.year,
-        problemNumber: null,
         topicIds: [f.topic.id],
-        classes: f.classes,
+        ageCategoryIds: f.grades.map(cat),
       },
       admin.id
     );
@@ -103,20 +116,22 @@ async function main() {
       console.log(`[2] FTS "cauchy" -> ${r.total} rows`);
     }
 
-    // --- Year range ---------------------------------------------------------
+    // --- Sort by code (asc) -------------------------------------------------
     {
       const r = await listProblems(
-        withMarker({ yearFrom: 2021, yearTo: 2023 }),
-        { field: "year", direction: "asc" },
+        withMarker({}),
+        { field: "code", direction: "asc" },
         1,
         25
       );
-      assert(r.total === 3, `year 2021-2023 total=${r.total}, want 3`);
-      assert(
-        r.rows.every((row) => row.year !== null && row.year >= 2021 && row.year <= 2023),
-        "year range leaked"
-      );
-      console.log(`[3] year 2021..2023 asc -> ${r.total} rows`);
+      assert(r.total === fixtures.length, `code-sort total=${r.total}`);
+      for (let i = 1; i < r.rows.length; i++) {
+        assert(
+          r.rows[i].code > r.rows[i - 1].code,
+          `code-sort asc broken at idx ${i}`
+        );
+      }
+      console.log(`[3] sort by code asc -> ${r.rows.length} rows`);
     }
 
     // --- Source filter ------------------------------------------------------
@@ -147,17 +162,21 @@ async function main() {
       console.log(`[5] topic=algebra -> ${r.total} rows, no dupes`);
     }
 
-    // --- Class filter -------------------------------------------------------
+    // --- Age category filter ----------------------------------------------
     {
+      const cat11 = cat(11);
       const r = await listProblems(
-        withMarker({ classes: [11] }),
+        withMarker({ ageCategoryIds: [cat11] }),
         { field: "createdAt", direction: "desc" },
         1,
         25
       );
-      assert(r.total === 3, `class 11 total=${r.total}, want 3`);
-      assert(r.rows.every((row) => row.classes.includes(11)), "class filter leaked");
-      console.log(`[6] class=11 -> ${r.total} rows`);
+      assert(r.total === 3, `11-sinf total=${r.total}, want 3`);
+      assert(
+        r.rows.every((row) => row.ageCategories.some((c) => c.id === cat11)),
+        "age category filter leaked"
+      );
+      console.log(`[6] ageCategory=11-sinf -> ${r.total} rows`);
     }
 
     // --- Combined filters ---------------------------------------------------
@@ -165,17 +184,19 @@ async function main() {
       const r = await listProblems(
         withMarker({
           topicIds: [algebra.id],
-          yearFrom: 2022,
+          sourceIds: [imo.id],
         }),
-        { field: "year", direction: "desc" },
+        { field: "createdAt", direction: "desc" },
         1,
         25
       );
-      // Algebra problems with year >= 2022:
-      // 2022, 2024 → 2 rows
-      assert(r.total === 2, `combined total=${r.total}, want 2`);
-      assert(r.rows[0].year === 2024, `first year=${r.rows[0].year}, want 2024`);
-      console.log(`[7] combined filters -> ${r.total} rows, first year=${r.rows[0].year}`);
+      // Algebra problems from IMO: 4 fixtures.
+      assert(r.total === 4, `combined total=${r.total}, want 4`);
+      assert(
+        r.rows.every((row) => row.sourceName === imo.name),
+        "combined source leaked"
+      );
+      console.log(`[7] combined filters (algebra + imo) -> ${r.total} rows`);
     }
 
     // --- Pagination ---------------------------------------------------------
@@ -204,14 +225,19 @@ async function main() {
 
     // --- URL state parser ---------------------------------------------------
     {
+      const cat10 = cat(10);
+      const cat11 = cat(11);
       const sp = new URLSearchParams(
-        "q=cauchy&class=10,11&yearFrom=2020&yearTo=2024&sortField=year&sortDir=asc&page=2"
+        `q=cauchy&ageCategory=${cat10},${cat11}&sortField=code&sortDir=asc&page=2`
       );
       const parsed = parseSearchParams(sp);
       assert(parsed.filters.search === "cauchy", "search not parsed");
-      assert(JSON.stringify(parsed.filters.classes) === "[10,11]", "class csv parse");
-      assert(parsed.filters.yearFrom === 2020 && parsed.filters.yearTo === 2024, "year range parse");
-      assert(parsed.sort.field === "year", "sortField parse");
+      assert(
+        JSON.stringify(parsed.filters.ageCategoryIds) ===
+          JSON.stringify([cat10, cat11]),
+        "ageCategory csv parse"
+      );
+      assert(parsed.sort.field === "code", "sortField parse");
       assert(parsed.sort.direction === "asc", "sortDir parse");
       assert(parsed.page === 2, "page parse");
       console.log(`[9] parseSearchParams ok`);

@@ -18,10 +18,10 @@ export default async function AdminLayout({
       <aside className="w-[220px] shrink-0 border-r flex flex-col bg-sidebar">
         {/* Brand */}
         <div className="px-4 h-14 flex items-center border-b">
-          <Link href="/admin" aria-label="Provia" className="inline-flex">
+          <Link href="/admin" aria-label="Sadikov Kamal" className="inline-flex">
             <Image
               src="/brand/logo-wordmark.svg"
-              alt="Provia"
+              alt="Sadikov Kamal"
               width={104}
               height={26}
               priority

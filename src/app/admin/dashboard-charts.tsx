@@ -1,141 +1,93 @@
 "use client";
 
 import {
-  Bar,
-  BarChart,
-  Cell,
-  Pie,
-  PieChart,
+  Area,
+  AreaChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 
-// Neutral chart ramp + indigo accent for highest bar. Keeps analytical
-// surfaces calm; the indigo carries the brand.
-const NEUTRAL_RAMP = [
-  "oklch(0.87 0 0)",
-  "oklch(0.78 0 0)",
-  "oklch(0.68 0 0)",
-  "oklch(0.58 0 0)",
-  "oklch(0.48 0 0)",
-  "oklch(0.4 0 0)",
-  "oklch(0.32 0 0)",
-  "oklch(0.24 0 0)",
-];
 const ACCENT = "oklch(0.52 0.18 264)";
 
-export interface DashboardChartsProps {
-  byTopic: Array<{ topicName: string; count: number }>;
-  bySource: Array<{ sourceName: string; count: number }>;
+export interface ActivitySeries {
+  day: string; // YYYY-MM-DD
+  count: number;
 }
 
-export function DashboardCharts({ byTopic, bySource }: DashboardChartsProps) {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-      <ChartCard title="Mavzular bo'yicha">
-        {byTopic.length === 0 ? (
-          <Empty />
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie
-                data={byTopic}
-                dataKey="count"
-                nameKey="topicName"
-                outerRadius={70}
-                innerRadius={36}
-                strokeWidth={0}
-              >
-                {byTopic.map((_, i) => (
-                  <Cell
-                    key={i}
-                    fill={
-                      i === 0 ? ACCENT : NEUTRAL_RAMP[i % NEUTRAL_RAMP.length]
-                    }
-                  />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  fontSize: "12px",
-                  borderRadius: "8px",
-                  border: "1px solid oklch(0.92 0 0)",
-                  padding: "6px 10px",
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        )}
-      </ChartCard>
-
-      <ChartCard title="Manbalar bo'yicha">
-        {bySource.length === 0 ? (
-          <Empty />
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={bySource}
-              layout="vertical"
-              margin={{ left: 0, right: 12, top: 4, bottom: 4 }}
-            >
-              <XAxis
-                type="number"
-                allowDecimals={false}
-                tick={{ fontSize: 11, fill: "oklch(0.556 0 0)" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="sourceName"
-                width={110}
-                tick={{ fontSize: 11, fill: "oklch(0.4 0 0)" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                cursor={{ fill: "oklch(0.97 0 0)" }}
-                contentStyle={{
-                  fontSize: "12px",
-                  borderRadius: "8px",
-                  border: "1px solid oklch(0.92 0 0)",
-                  padding: "6px 10px",
-                }}
-              />
-              <Bar dataKey="count" fill={ACCENT} radius={[0, 3, 3, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </ChartCard>
-    </div>
-  );
-}
-
-function ChartCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm overflow-hidden">
-      <div className="px-4 pt-3 pb-1">
-        <h3 className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
-          {title}
-        </h3>
+/**
+ * Daily activity over a fixed window (typically 30 days). The X axis
+ * shows abbreviated month-day labels at sparse intervals so the chart
+ * stays readable on narrow widths.
+ */
+export function ActivityChart({ series }: { series: ActivitySeries[] }) {
+  if (series.length === 0 || series.every((d) => d.count === 0)) {
+    return (
+      <div className="flex items-center justify-center h-[140px] text-xs text-muted-foreground">
+        Bu davrda masala qo&apos;shilmagan
       </div>
-      <div className="px-2 pb-2">{children}</div>
-    </div>
-  );
-}
-
-function Empty() {
+    );
+  }
+  const tickEvery = Math.ceil(series.length / 6);
   return (
-    <div className="flex items-center justify-center h-[220px] text-xs text-muted-foreground">
-      Ma&apos;lumot yo&apos;q
-    </div>
+    <ResponsiveContainer width="100%" height={140}>
+      <AreaChart
+        data={series}
+        margin={{ left: 0, right: 4, top: 4, bottom: 0 }}
+      >
+        <defs>
+          <linearGradient id="activityFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={ACCENT} stopOpacity={0.28} />
+            <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <XAxis
+          dataKey="day"
+          tick={{ fontSize: 10, fill: "oklch(0.556 0 0)" }}
+          axisLine={false}
+          tickLine={false}
+          interval={tickEvery - 1}
+          tickFormatter={(d: string) => {
+            const [, m, day] = d.split("-");
+            return `${Number(day)}/${Number(m)}`;
+          }}
+        />
+        <YAxis
+          allowDecimals={false}
+          tick={{ fontSize: 10, fill: "oklch(0.556 0 0)" }}
+          axisLine={false}
+          tickLine={false}
+          width={24}
+        />
+        <Tooltip
+          cursor={{ stroke: "oklch(0.85 0 0)", strokeDasharray: "3 3" }}
+          contentStyle={{
+            fontSize: "11px",
+            borderRadius: "8px",
+            border: "1px solid oklch(0.92 0 0)",
+            padding: "4px 8px",
+          }}
+          labelFormatter={(label) => {
+            const d = typeof label === "string" ? label : String(label ?? "");
+            const date = new Date(d);
+            return Number.isNaN(date.getTime())
+              ? d
+              : date.toLocaleDateString("uz-UZ", {
+                  day: "numeric",
+                  month: "long",
+                });
+          }}
+          formatter={(value) => [`${Number(value)} ta`, "Qo'shildi"]}
+        />
+        <Area
+          type="monotone"
+          dataKey="count"
+          stroke={ACCENT}
+          strokeWidth={1.75}
+          fill="url(#activityFill)"
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }

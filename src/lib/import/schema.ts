@@ -1,59 +1,52 @@
 import { z } from "zod";
 
 /**
- * Mirrors `docs/format-spec.md` v1. If you change a rule there, update it
- * here in the same patch.
+ * Frontmatter schema for the v2 bulk-import format.
  *
- * The schema accepts merged input where manifest defaults have already
- * been overlaid by the parser, so optional fields like `year` aren't
- * required at the type level — but the validator can additionally
- * require them for "ok" status.
+ * v2 ditches the legacy slug-based identifiers (and the optional
+ * `manifest.yaml`) in favour of the stable codes the admin section
+ * already shows: `S######` for sources, `A######` for age categories,
+ * `T######` for topics. The importer never auto-creates taxonomy rows
+ * anymore — if a code doesn't exist, the bundle is rejected and the
+ * admin fixes it in the taxonomy CRUD pages first.
  *
- * Display names for auto-created sources/topics are derived from the
- * slug at execute time (`"imo-shortlist"` → `"Imo Shortlist"`); admins
- * rename them via the taxonomy CRUD pages after import.
+ *   ---
+ *   source: S000001
+ *   age_categories: [A000010, A000011]
+ *   topics: [T000042, T000043]
+ *   ---
+ *
+ *   # Shart
+ *   ...
+ *
+ * Year, problem_number, answer, solution and manifest defaults are all
+ * gone — the `problems` table no longer carries year/answer/solution,
+ * and codes are auto-assigned (P#######).
  */
+
+export const SOURCE_CODE_REGEX = /^S\d{6,}$/;
+export const AGE_CATEGORY_CODE_REGEX = /^A\d{6,}$/;
+export const TOPIC_CODE_REGEX = /^T\d{6,}$/;
+
 export const problemFrontmatterSchema = z.object({
-  source: z.string().min(1).max(100),
-  year: z.number().int().min(1900).max(2100).optional(),
-  problem_number: z
-    .union([z.string(), z.number()])
-    .transform((v) => String(v))
-    .pipe(z.string().min(1).max(50))
-    .optional(),
-  // Single-select in the UI; import enforces exactly one to stay aligned.
-  // The DB junction (problem_classes) keeps the many-to-many shape so the
-  // UI can broaden later without a migration or import-format break.
-  classes: z
-    .array(z.number().int().min(5).max(11))
-    .length(1, "Exactly one class required"),
-  topics: z.array(z.string().min(1)).min(1),
-  answer: z.string().optional(),
+  source: z
+    .string()
+    .regex(SOURCE_CODE_REGEX, "source must be a code like S000001"),
+  age_categories: z
+    .array(z.string().regex(AGE_CATEGORY_CODE_REGEX, "expected A######"))
+    .min(1, "at least one age category required"),
+  topics: z
+    .array(z.string().regex(TOPIC_CODE_REGEX, "expected T######"))
+    .min(1, "at least one topic required"),
 });
 
 export type ProblemFrontmatter = z.infer<typeof problemFrontmatterSchema>;
 
-export const manifestSchema = z.object({
-  format_version: z.literal(1).optional(),
-  batch_name: z.string().optional(),
-  defaults: z
-    .object({
-      source: z.string().optional(),
-      year: z.number().int().optional(),
-      // Same single-class rule as per-problem frontmatter — manifest
-      // defaults must also be a one-element array.
-      classes: z.array(z.number().int()).length(1).optional(),
-      topics: z.array(z.string()).optional(),
-    })
-    .optional(),
-});
-
-export type Manifest = z.infer<typeof manifestSchema>;
-
-/** Bundle-wide caps from the spec. Pulled here so parse.ts and the UI
- *  share the same numbers. */
+/** Bundle-wide caps. Pulled here so parse.ts and the UI share the numbers. */
 export const BUNDLE_LIMITS = {
   maxBytes: 50 * 1024 * 1024,
   maxProblems: 200,
   maxImageBytes: 5 * 1024 * 1024,
+  /** Each problem carries at most one image (mirrors the single-problem form). */
+  maxImagesPerProblem: 1,
 } as const;

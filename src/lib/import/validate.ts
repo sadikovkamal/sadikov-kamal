@@ -1,178 +1,155 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { sources, topics, problems } from "@/db/schema";
-import {
-  problemFrontmatterSchema,
-  type Manifest,
-  type ProblemFrontmatter,
-} from "./schema";
+import { sources, topics, ageCategories } from "@/db/schema";
+import { BUNDLE_LIMITS, problemFrontmatterSchema, type ProblemFrontmatter } from "./schema";
 import type { ParsedBundle, ParsedProblem } from "./parse";
 
 export interface ProblemValidation {
   index: number;
   sourcePath: string;
-  status: "ok" | "warning" | "error";
+  status: "ok" | "error";
+  /** Resolved frontmatter when status === "ok". */
   frontmatter: ProblemFrontmatter | null;
+  /** Resolved DB UUIDs for the codes — populated only when status === "ok". */
+  resolved: {
+    sourceId: string;
+    ageCategoryIds: string[];
+    topicIds: string[];
+  } | null;
   errors: string[];
-  warnings: string[];
-  /** True if a duplicate already exists in the DB. */
-  isDuplicate: boolean;
-  /** Slugs that don't exist yet (will be auto-created on execute). */
-  newSources: string[];
-  newTopics: string[];
 }
 
 export interface ValidationReport {
   bundleErrors: string[];
   problems: ProblemValidation[];
   okCount: number;
-  warningCount: number;
   errorCount: number;
 }
 
 /**
- * Validate every problem in a parsed bundle. Pure-ish: reads from the DB
- * (sources, topics, duplicate check) but writes nothing.
+ * Validate every problem in a parsed bundle. Reads taxonomy tables to
+ * resolve `S######` / `A######` / `T######` codes to UUIDs; writes nothing.
+ *
+ * Any missing code, malformed frontmatter, empty `# Shart` body or
+ * mismatched image is reported as an error against the specific problem.
+ * The caller (UI / executeImportAction) decides whether any errors mean
+ * the entire bundle is rejected — per the v2 product decision, it does.
  */
 export async function validateBundle(
   bundle: ParsedBundle
 ): Promise<ValidationReport> {
   const imageNames = new Set(bundle.images.keys());
 
-  // Pre-fetch lookup sets in one round trip each. Sources still match by
-  // slug (admin-managed handle). Topics match by name (case-insensitive)
-  // since the slug column was dropped in migration 0006.
-  const [allSources, allTopics] = await Promise.all([
-    db.select({ slug: sources.slug }).from(sources),
-    db.select({ name: topics.name }).from(topics),
+  const [allSources, allTopics, allAgeCategories] = await Promise.all([
+    db.select({ id: sources.id, code: sources.code }).from(sources),
+    db.select({ id: topics.id, code: topics.code }).from(topics),
+    db
+      .select({ id: ageCategories.id, code: ageCategories.code })
+      .from(ageCategories),
   ]);
-  const sourceSlugs = new Set(allSources.map((r) => r.slug));
-  const topicNames = new Set(allTopics.map((r) => r.name.toLowerCase()));
+  const sourceIdByCode = new Map(allSources.map((r) => [r.code, r.id]));
+  const topicIdByCode = new Map(allTopics.map((r) => [r.code, r.id]));
+  const ageCategoryIdByCode = new Map(
+    allAgeCategories.map((r) => [r.code, r.id])
+  );
 
-  const result: ProblemValidation[] = [];
-  for (const p of bundle.problems) {
-    const v = await validateProblem(
-      p,
-      bundle.manifest,
-      sourceSlugs,
-      topicNames,
-      imageNames
-    );
-    result.push(v);
-  }
+  const result: ProblemValidation[] = bundle.problems.map((p) =>
+    validateProblem(p, sourceIdByCode, ageCategoryIdByCode, topicIdByCode, imageNames)
+  );
 
   return {
     bundleErrors: bundle.bundleErrors,
     problems: result,
     okCount: result.filter((p) => p.status === "ok").length,
-    warningCount: result.filter((p) => p.status === "warning").length,
     errorCount: result.filter((p) => p.status === "error").length,
   };
 }
 
-async function validateProblem(
+function validateProblem(
   parsed: ParsedProblem,
-  manifest: Manifest | null,
-  existingSourceSlugs: Set<string>,
-  /** Lowercased names for case-insensitive lookup. */
-  existingTopicNames: Set<string>,
+  sourceIdByCode: Map<string, string>,
+  ageCategoryIdByCode: Map<string, string>,
+  topicIdByCode: Map<string, string>,
   imageNames: Set<string>
-): Promise<ProblemValidation> {
+): ProblemValidation {
   const errors: string[] = [];
-  const warnings: string[] = [];
 
-  // 1. Merge manifest defaults under the problem's frontmatter.
-  const defaults = manifest?.defaults ?? {};
-  const rawFm = parsed.rawFrontmatter ?? {};
-  const merged: Record<string, unknown> = {
-    ...defaults,
-    ...rawFm,
-  };
-
-  // 2. Validate against the schema.
-  const parsedFm = problemFrontmatterSchema.safeParse(merged);
+  // 1. Frontmatter shape.
+  const parsedFm = problemFrontmatterSchema.safeParse(parsed.rawFrontmatter ?? {});
   if (!parsedFm.success) {
     return {
       index: parsed.index,
       sourcePath: parsed.sourcePath,
       status: "error",
       frontmatter: null,
+      resolved: null,
       errors: parsedFm.error.issues.map((i) => {
-        const path = i.path.length > 0 ? i.path.join(".") : "(root)";
+        const path = i.path.length > 0 ? i.path.join(".") : "(frontmatter)";
         return `${path}: ${i.message}`;
       }),
-      warnings: [],
-      isDuplicate: false,
-      newSources: [],
-      newTopics: [],
     };
   }
-
   const fm = parsedFm.data;
 
-  // 3. Body must not be empty (or # Shart was missing).
+  // 2. Body.
   if (!parsed.bodyMd.trim()) {
-    errors.push("Problem body is empty (missing # Shart section?)");
+    errors.push("Masala matni bo'sh (# Shart sarlavhasi yo'q?)");
   }
 
-  // 4. Every image ref must exist in the bundle.
+  // 3. Image count and existence.
+  if (parsed.imageRefs.length > BUNDLE_LIMITS.maxImagesPerProblem) {
+    errors.push(
+      `Har bir masalada eng ko'pi bilan ${BUNDLE_LIMITS.maxImagesPerProblem} ta rasm bo'lishi mumkin (topildi: ${parsed.imageRefs.length})`
+    );
+  }
   for (const ref of parsed.imageRefs) {
     if (!imageNames.has(ref)) {
-      errors.push(`Image not in bundle: images/${ref}`);
+      errors.push(`Rasm arxivda yo'q: images/${ref}`);
     }
   }
 
-  // 5. Track auto-creations (warnings, not errors — execute will create them).
-  const newSources: string[] = [];
-  const newTopics: string[] = [];
-  if (!existingSourceSlugs.has(fm.source)) {
-    newSources.push(fm.source);
-    warnings.push(`Source "${fm.source}" will be auto-created`);
-  }
-  for (const t of fm.topics) {
-    if (!existingTopicNames.has(t.toLowerCase())) {
-      newTopics.push(t);
-      warnings.push(`Topic "${t}" will be auto-created`);
-    }
+  // 4. Resolve codes to UUIDs.
+  const sourceId = sourceIdByCode.get(fm.source);
+  if (!sourceId) {
+    errors.push(`Manba topilmadi: ${fm.source}`);
   }
 
-  // 6. Duplicate check (warning, not error — execute will skip).
-  let isDuplicate = false;
-  if (fm.year != null && fm.problem_number != null) {
-    const srcRow = await db.query.sources.findFirst({
-      where: eq(sources.slug, fm.source),
-    });
-    if (srcRow) {
-      const dup = await db.query.problems.findFirst({
-        where: and(
-          eq(problems.sourceId, srcRow.id),
-          eq(problems.year, fm.year),
-          eq(problems.problemNumber, fm.problem_number)
-        ),
-      });
-      if (dup) {
-        isDuplicate = true;
-        warnings.push(
-          `Duplicate of an existing problem (same source/year/number) — will be skipped`
-        );
-      }
-    }
+  const ageCategoryIds: string[] = [];
+  for (const code of fm.age_categories) {
+    const id = ageCategoryIdByCode.get(code);
+    if (id) ageCategoryIds.push(id);
+    else errors.push(`Yosh toifasi topilmadi: ${code}`);
   }
 
-  const status: ProblemValidation["status"] =
-    errors.length > 0 ? "error" : warnings.length > 0 ? "warning" : "ok";
+  const topicIds: string[] = [];
+  for (const code of fm.topics) {
+    const id = topicIdByCode.get(code);
+    if (id) topicIds.push(id);
+    else errors.push(`Mavzu topilmadi: ${code}`);
+  }
+
+  if (errors.length > 0) {
+    return {
+      index: parsed.index,
+      sourcePath: parsed.sourcePath,
+      status: "error",
+      frontmatter: fm,
+      resolved: null,
+      errors,
+    };
+  }
 
   return {
     index: parsed.index,
     sourcePath: parsed.sourcePath,
-    status,
+    status: "ok",
     frontmatter: fm,
-    errors,
-    warnings,
-    isDuplicate,
-    newSources,
-    newTopics,
+    resolved: {
+      sourceId: sourceId!,
+      ageCategoryIds,
+      topicIds,
+    },
+    errors: [],
   };
 }

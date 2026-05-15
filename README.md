@@ -1,9 +1,7 @@
-# Provia
+# Sadikov Kamal
 
 Math olympiad problem database for Uzbekistan. Admin-only CMS for now,
-public read access in the future.
-
-The name comes from "prove" + "via" (path) — *the path to proof*.
+public read access in the future. Lives at `sadikov-kamal.uz`.
 
 ## Stack
 
@@ -30,8 +28,8 @@ The name comes from "prove" + "via" (path) — *the path to proof*.
 ### First-time setup
 
 ```bash
-git clone https://github.com/sadikovkamal/provia
-cd provia
+git clone https://github.com/sadikovkamal/sadikov-kamal
+cd sadikov-kamal
 npm install
 cp .env.example .env.local        # then fill in DATABASE_URL + R2 creds
 docker compose up -d              # local Postgres on port 5434
@@ -57,7 +55,7 @@ typically taken on the dev machine).
 ### Smoke tests
 
 Each phase ships one or more `scripts/<area>-smoke.ts` that exercise
-the new surface end-to-end. Run the whole suite (17 scripts) with:
+the new surface end-to-end. Run the whole suite (14 scripts) with:
 
 ```bash
 npm run smoke
@@ -75,15 +73,12 @@ mutually exclusive).
 | `auth-smoke.ts` | 2 | sessions, bcrypt |
 | `auth-http-smoke.ts` | 2 | proxy guard + SSR |
 | `markdown-smoke.ts` | 3 | KaTeX + GFM + sanitize |
-| `preview-smoke.ts` | 3 | sandbox page |
 | `r2-smoke.ts` | 4 | upload roundtrip (no-env mode also covered) |
-| `upload-page-smoke.ts` | 4 | upload page shell |
 | `problems-smoke.ts` | 5 | problem CRUD + tag dedup |
 | `problems-page-smoke.ts` | 5 | pages + 404 |
 | `list-smoke.ts` | 6 | list query, filters, EXPLAIN-checked FTS |
 | `list-page-smoke.ts` | 6 | list page URL state |
 | `import-smoke.ts` | 8 | bulk import happy path |
-| `import-page-smoke.ts` | 8 | import pages |
 | `import-failure-smoke.ts` | 8 | broken bundle |
 | `taxonomy-smoke.ts` | 9 | taxonomy CRUD + tag merge |
 | `taxonomy-pages-smoke.ts` | 9 | pages |
@@ -133,8 +128,8 @@ for the GitHub secrets required.
 
 ## Plan / phase docs
 
-Provia was built in 10 phases, each with its own design doc in the
-repo root (`phase-00-project-skeleton.md` through
+Sadikov Kamal was built in 10 phases, each with its own design doc under
+`docs/archive/phases/` (`phase-00-project-skeleton.md` through
 `phase-10-polish-and-production.md`). They describe the intent and
 acceptance criteria for each layer; the actual implementation diverges
 in places (notes in each phase's commit message).

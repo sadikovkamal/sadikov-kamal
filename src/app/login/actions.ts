@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
@@ -20,6 +21,36 @@ const loginSchema = z.object({
   next: z.string().optional(),
 });
 
+/**
+ * Lazily-built valid bcrypt hash used when the supplied email doesn't
+ * exist. Comparing against a malformed string (the previous behaviour)
+ * returned `false` instantly and leaked email existence via timing.
+ * Hashed at the same cost factor as real user passwords (12).
+ */
+let dummyHashCache: string | null = null;
+function getDummyHash(): string {
+  if (!dummyHashCache) {
+    const filler =
+      "never-matches-any-password-" + crypto.randomBytes(16).toString("hex");
+    dummyHashCache = bcrypt.hashSync(filler, 12);
+  }
+  return dummyHashCache;
+}
+
+/**
+ * Sanitize the `next` redirect param. Must be a same-origin path:
+ * - starts with "/"
+ * - is NOT protocol-relative ("//evil.com")
+ * - is NOT backslash-prefixed ("/\\evil.com" — some browsers normalize)
+ */
+function safeNext(next: string | undefined): string {
+  if (!next) return "/admin";
+  if (!next.startsWith("/")) return "/admin";
+  if (next.startsWith("//")) return "/admin";
+  if (next.startsWith("/\\")) return "/admin";
+  return next;
+}
+
 export async function loginAction(
   formData: FormData
 ): Promise<{ error: string } | void> {
@@ -30,7 +61,7 @@ export async function loginAction(
   });
 
   if (!parsed.success) {
-    return { error: "Invalid email or password format" };
+    return { error: "Email yoki parol formati noto'g'ri" };
   }
 
   const { email, password, next } = parsed.data;
@@ -45,7 +76,15 @@ export async function loginAction(
   const ipKey = `ip:${ip}`;
   const emailKey = `email:${email.toLowerCase()}`;
 
-  if (!(await isLoginAllowed(ipKey)) || !(await isLoginAllowed(emailKey))) {
+  // Both gate checks run in parallel: each is a small SELECT, no need to
+  // serialize. There is a benign TOCTOU race (two near-simultaneous logins
+  // could both pass the check just before the counter increments) but the
+  // window is single-digit milliseconds and rate-limit isn't a hard wall.
+  const [ipAllowed, emailAllowed] = await Promise.all([
+    isLoginAllowed(ipKey),
+    isLoginAllowed(emailKey),
+  ]);
+  if (!ipAllowed || !emailAllowed) {
     return {
       error:
         "Juda ko'p urinish. 15 daqiqadan keyin yana urinib ko'ring.",
@@ -62,18 +101,18 @@ export async function loginAction(
   });
 
   // Constant-time-ish: always run bcrypt even if user is missing, to avoid
-  // revealing valid emails by response time.
+  // revealing valid emails by response time. Both branches hash at cost 12.
   const passwordOk = user
     ? await bcrypt.compare(password, user.passwordHash)
-    : await bcrypt.compare(password, "$2a$12$dummyhashdummyhashdummyhashdu");
+    : await bcrypt.compare(password, getDummyHash());
 
   if (!user || !passwordOk) {
-    return { error: "Invalid email or password" };
+    return { error: "Email yoki parol noto'g'ri" };
   }
 
   const { token, expiresAt } = await createSession(user.id);
   await setSessionCookie(token, expiresAt);
 
   // redirect() throws an internal Next.js signal — must run outside try/catch.
-  redirect(next && next.startsWith("/") ? next : "/admin");
+  redirect(safeNext(next));
 }

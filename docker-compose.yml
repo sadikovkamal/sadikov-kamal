@@ -1,12 +1,12 @@
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: provia-db
+    image: postgres:17-alpine
+    container_name: sadikov-kamal-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: provia_admin
+      POSTGRES_USER: sadikov_kamal_admin
       POSTGRES_PASSWORD: dev_password_change_me
-      POSTGRES_DB: provia
+      POSTGRES_DB: sadikov_kamal
     ports:
       - "5434:5432"
     volumes:

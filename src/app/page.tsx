@@ -7,10 +7,10 @@ export default function Home() {
     <div className="flex min-h-screen flex-col">
       <header className="border-b">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center" aria-label="Provia">
+          <Link href="/" className="flex items-center" aria-label="Sadikov Kamal">
             <Image
               src="/brand/logo-wordmark.svg"
-              alt="Provia"
+              alt="Sadikov Kamal"
               width={120}
               height={30}
               priority
@@ -54,7 +54,7 @@ export default function Home() {
       <footer className="border-t">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between text-xs text-muted-foreground">
           <span>Tez orada ochiq foydalanish</span>
-          <span className="font-mono">&copy; 2026 Provia</span>
+          <span className="font-mono">&copy; 2026 Sadikov Kamal</span>
         </div>
       </footer>
     </div>

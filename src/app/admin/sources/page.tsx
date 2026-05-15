@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
-import { SourcesList } from "./sources-list";
+import { SourcesExplorer } from "./sources-explorer";
 import { PageHeader } from "../_components/page-header";
 
 export default async function SourcesPage() {
@@ -13,7 +13,7 @@ export default async function SourcesPage() {
         title="Manbalar"
         subtitle="Olimpiadalar, kitoblar va kurslar."
       />
-      <SourcesList sources={sources} />
+      <SourcesExplorer sources={sources} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 {
-  "name": "provia",
+  "name": "sadikov-kamal",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,7 +13,9 @@
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/db/seed.ts",
-    "smoke": "bash scripts/run-all-smokes.sh"
+    "db:seed:prod": "tsx scripts/seed-prod.ts",
+    "smoke": "bash scripts/run-all-smokes.sh",
+    "vercel-build": "tsx scripts/run-migrate.ts && next build"
   },
   "engines": {
     "node": ">=20.0.0"

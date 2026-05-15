@@ -45,7 +45,7 @@ function loadConfig(): R2Config {
   if (missing.length > 0) {
     throw new Error(
       `R2 storage is not configured. Missing env vars: ${missing.join(", ")}. ` +
-        `See phase-04-r2-storage-setup.md for the setup steps.`
+        `See docs/r2-setup.md for the setup steps.`
     );
   }
 
@@ -77,17 +77,29 @@ function getClient(): { s3: S3Client; cfg: R2Config } {
   return { s3: cachedClient, cfg };
 }
 
-/** Whitelist of accepted upload MIME types. */
+/**
+ * Whitelist of accepted upload MIME types.
+ *
+ * SVG is intentionally NOT allowed: browsers render SVG inline from the
+ * public R2 URL, and an attacker-supplied SVG can carry <script> /
+ * <foreignObject>/event-handler XSS payloads that would run on
+ * pub-*.r2.dev (and on any custom domain we later attach). The cost of
+ * sanitizing SVGs server-side outweighs the benefit for an admin-only
+ * uploader — admins can rasterize diagrams to PNG.
+ */
 export const ALLOWED_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
   "image/gif",
   "image/webp",
-  "image/svg+xml",
 ]);
 
-/** Hard cap. Anything above gets rejected before bytes leave the server. */
-export const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+/**
+ * Hard cap. Anything above gets rejected before bytes leave the server.
+ * Kept slightly below Vercel's ~4.5 MB server-action body cap so the
+ * framework boundary doesn't reject before our handler runs.
+ */
+export const MAX_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
 
 export interface UploadResult {
   storageKey: string;
@@ -154,10 +166,17 @@ export async function deleteFile(storageKey: string): Promise<void> {
   );
 }
 
+/**
+ * HEAD probe — used by smoke tests and diagnostics. Returns false on any
+ * S3 error (404, network, permission); callers care only "is the object
+ * there right now from our perspective".
+ */
 export async function fileExists(storageKey: string): Promise<boolean> {
   const { s3, cfg } = getClient();
   try {
-    await s3.send(new HeadObjectCommand({ Bucket: cfg.bucket, Key: storageKey }));
+    await s3.send(
+      new HeadObjectCommand({ Bucket: cfg.bucket, Key: storageKey })
+    );
     return true;
   } catch {
     return false;
@@ -198,7 +217,6 @@ function extractExtension(filename: string, mimeType: string): string {
     "image/jpeg": ".jpg",
     "image/gif": ".gif",
     "image/webp": ".webp",
-    "image/svg+xml": ".svg",
   };
   return map[mimeType] ?? "";
 }

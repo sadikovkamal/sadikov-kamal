@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { db } from "@/db";
+import { ageCategories, sources, topics } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { listProblems } from "@/lib/problems/queries";
 import { Button } from "@/components/ui/button";
 import { parseSearchParams } from "./_url-state";
-import { ProblemsTable } from "./problems-table";
-import { ProblemSearchInput } from "./search-input";
+import { ProblemsList } from "./problems-list";
+import { ProblemsFilterBar } from "./filters";
 import { PageHeader } from "../_components/page-header";
 
 export default async function ProblemsListPage({
@@ -30,7 +32,44 @@ export default async function ProblemsListPage({
   }
   const { filters, sort, page, pageSize } = parseSearchParams(usp);
 
-  const { rows, total } = await listProblems(filters, sort, page, pageSize);
+  // Fetch the filter dictionaries alongside the page rows. All three
+  // taxonomies are small (low hundreds of rows), so it's cheaper to
+  // ship the full list to the client and filter in-memory than to
+  // round-trip per popover open.
+  const [
+    { rows, total },
+    sourcesAvailable,
+    ageCategoriesAvailable,
+    topicsAvailable,
+  ] = await Promise.all([
+    listProblems(filters, sort, page, pageSize),
+    db
+      .select({
+        id: sources.id,
+        code: sources.code,
+        name: sources.name,
+        parentId: sources.parentId,
+      })
+      .from(sources)
+      .orderBy(sources.code),
+    db
+      .select({
+        id: ageCategories.id,
+        code: ageCategories.code,
+        name: ageCategories.name,
+      })
+      .from(ageCategories)
+      .orderBy(ageCategories.code),
+    db
+      .select({
+        id: topics.id,
+        code: topics.code,
+        name: topics.name,
+        parentId: topics.parentId,
+      })
+      .from(topics)
+      .orderBy(topics.name),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -51,16 +90,18 @@ export default async function ProblemsListPage({
         }
       />
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <ProblemSearchInput />
-      </div>
+      <ProblemsFilterBar
+        sourcesAvailable={sourcesAvailable}
+        ageCategoriesAvailable={ageCategoriesAvailable}
+        topicsAvailable={topicsAvailable}
+        sort={sort}
+      />
 
-      <ProblemsTable
+      <ProblemsList
         rows={rows}
         total={total}
         page={page}
         pageSize={pageSize}
-        sort={sort}
       />
     </div>
   );

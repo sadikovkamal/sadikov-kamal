@@ -7,7 +7,7 @@ read access, and an API token scoped to that bucket only.
 
 1. Sign in at https://dash.cloudflare.com.
 2. Sidebar → **R2 Object Storage** → **Create bucket**.
-3. Name: `provia-uploads` (or anything unique within your account).
+3. Name: `sadikov-kamal-uploads` (or anything unique within your account).
 4. Location: Automatic.
 5. Default storage class: Standard.
 6. **Create bucket**.
@@ -38,7 +38,7 @@ The bucket Settings page also shows the **S3 API** endpoint. It looks
 like:
 
 ```
-https://<account-id>.r2.cloudflarestorage.com/provia-uploads
+https://<account-id>.r2.cloudflarestorage.com/sadikov-kamal-uploads
 ```
 
 The subdomain is your `R2_ACCOUNT_ID` (32 hex characters).
@@ -49,9 +49,9 @@ R2 dashboard → **Manage R2 API Tokens** → **Create API token**.
 
 | Field | Value |
 |---|---|
-| Token name | `provia-app` |
+| Token name | `sadikov-kamal-app` |
 | Permissions | **Object Read & Write** (the second of three options) |
-| Specify bucket(s) | **Apply to specific buckets only** → select `provia-uploads` |
+| Specify bucket(s) | **Apply to specific buckets only** → select `sadikov-kamal-uploads` |
 | TTL | Forever |
 | Client IP filtering | (leave empty) |
 
@@ -70,7 +70,7 @@ token.
 R2_ACCOUNT_ID=<32 hex chars from step 3>
 R2_ACCESS_KEY_ID=<from step 4>
 R2_SECRET_ACCESS_KEY=<from step 4>
-R2_BUCKET_NAME=provia-uploads
+R2_BUCKET_NAME=sadikov-kamal-uploads
 R2_PUBLIC_URL=https://pub-XXXXXXXXXXXXXXXX.r2.dev
 ```
 

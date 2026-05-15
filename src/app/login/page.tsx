@@ -18,7 +18,7 @@ export default async function LoginPage({
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-3">
-          <Link href="/" className="inline-block" aria-label="Provia">
+          <Link href="/" className="inline-block" aria-label="Sadikov Kamal">
             <Image
               src="/brand/logo-mark.svg"
               alt=""
@@ -33,7 +33,7 @@ export default async function LoginPage({
               Tizimga kirish
             </h1>
             <p className="text-muted-foreground text-sm">
-              Provia administratsiya paneli
+              Sadikov Kamal administratsiya paneli
             </p>
           </div>
         </div>

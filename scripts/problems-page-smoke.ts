@@ -6,7 +6,7 @@ import "../src/db/load-env";
 
 import { eq } from "drizzle-orm";
 import { db } from "../src/db";
-import { users } from "../src/db/schema";
+import { users, ageCategories } from "../src/db/schema";
 import {
   createSession,
   invalidateSession,
@@ -27,8 +27,11 @@ async function main() {
   if (!admin) throw new Error("seeded admin missing");
 
   const topic = (await db.query.topics.findMany()).find((t) => t.name === "Algebra");
-  const source = (await db.query.sources.findMany()).find((s) => s.slug === "imo");
-  if (!topic || !source) throw new Error("seed data missing");
+  const source = (await db.query.sources.findMany()).find((s) => s.name === "IMO");
+  const grade9 = (await db.select().from(ageCategories)).find(
+    (c) => c.name === "9-sinf"
+  );
+  if (!topic || !source || !grade9) throw new Error("seed data missing");
 
   const { token } = await createSession(admin.id);
   const cookie = `${SESSION_COOKIE_NAME}=${token}`;
@@ -41,13 +44,9 @@ async function main() {
     createdId = await createProblemTx(
       {
         bodyMd: "Page smoke: $a + b > 0$ when $a, b > 0$.",
-        solutionMd: null,
-        answer: "always",
         sourceId: source.id,
-        year: 2023,
-        problemNumber: "PG-1",
         topicIds: [topic.id],
-        classes: [9],
+        ageCategoryIds: [grade9.id],
       },
       admin.id
     );

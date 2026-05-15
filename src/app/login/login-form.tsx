@@ -35,7 +35,7 @@ export function LoginForm({ next }: { next?: string }) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">Parol</Label>
         <Input
           id="password"
           name="password"
@@ -46,7 +46,7 @@ export function LoginForm({ next }: { next?: string }) {
       </div>
       {error && <p className="text-destructive text-sm">{error}</p>}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Signing in..." : "Sign in"}
+        {isPending ? "Kirilmoqda…" : "Kirish"}
       </Button>
     </form>
   );

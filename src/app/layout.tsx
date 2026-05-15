@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
-import "katex/dist/katex.min.css";
-import "highlight.js/styles/github.css";
 import "./globals.css";
+
+// KaTeX + highlight.js CSS used to live here. They are render-blocking
+// (~30KB combined) and only matter on pages that render problem markdown,
+// so they're now imported in the route segments that need them
+// (src/app/admin/problems/layout.tsx). Login / landing don't pay the cost.
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,9 +27,9 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Provia — Isbotga yo'l",
+  title: "Sadikov Kamal — Isbotga yo'l",
   description:
-    "Provia — O'zbekiston matematika olimpiadasi masalalari ma'lumotlar bazasi.",
+    "Sadikov Kamal — O'zbekiston matematika olimpiadasi masalalari ma'lumotlar bazasi.",
 };
 
 export default function RootLayout({

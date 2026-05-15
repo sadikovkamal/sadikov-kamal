@@ -3,17 +3,9 @@ import {
   pgTable,
   uuid,
   text,
-  pgEnum,
   index,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-
-export const sourceKindEnum = pgEnum("source_kind", [
-  "olympiad",
-  "book",
-  "course",
-  "other",
-]);
 
 export const topics = pgTable(
   "topics",
@@ -47,19 +39,70 @@ export const topics = pgTable(
   ]
 );
 
+/**
+ * Sources — olympiads, books, courses, etc. Same nested taxonomy shape
+ * as `topics`: stable `S######` code + display `name` + self-referencing
+ * `parent_id` so admins can group like
+ *
+ *   Olimpiadalar / IMO / IMO 2025
+ *   Kitoblar     / Skanavi
+ *
+ * `kind` and `country` were dropped — those are now expressed by which
+ * parent a source sits under. ON DELETE SET NULL on the FK matches
+ * topics so deleting a parent orphans children rather than cascading.
+ */
 export const sources = pgTable(
   "sources",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").notNull().unique(),
     name: text("name").notNull(),
-    slug: text("slug").notNull().unique(),
-    kind: sourceKindEnum("kind").notNull().default("olympiad"),
-    country: text("country"),
+    parentId: uuid("parent_id").references((): AnyPgColumn => sources.id, {
+      onDelete: "set null",
+    }),
+    /**
+     * Optional R2 object key (e.g. `sources/<uuid>/logo.png`). When set,
+     * the explorer renders this image; when null, it falls back to a
+     * deterministic abbreviation card.
+     */
+    logoStorageKey: text("logo_storage_key"),
   },
-  (t) => [index("sources_slug_idx").on(t.slug)]
+  (t) => [
+    index("sources_code_idx").on(t.code),
+    index("sources_parent_id_idx").on(t.parentId),
+    index("sources_name_lower_idx").on(sql`lower(${t.name})`),
+  ]
+);
+
+/**
+ * Age categories — flat taxonomy that replaces the old integer
+ * `class_number` (5..11). The set is admin-editable: seed ships with
+ * 1-sinf … 11-sinf + "Talaba", but admins can add new buckets
+ * ("Professional", "Havaskor", …) without a migration.
+ *
+ * - `code` is the stable A###### handle (mirrors topics.code). Display
+ *   order across the app sorts by `code`, so the seeded ladder appears
+ *   in natural reading order and new entries land at the end. We don't
+ *   carry an explicit sort_order column — admins reorder by renaming
+ *   if they care; the auto-incrementing code keeps things stable.
+ * - `name` is the display label ("9-sinf", "Talaba"). NOT unique because
+ *   we want the same convenience as topics (e.g. multiple "Boshqa"
+ *   variants in the future).
+ */
+export const ageCategories = pgTable(
+  "age_categories",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    description: text("description"),
+  },
+  (t) => [index("age_categories_code_idx").on(t.code)]
 );
 
 export type Topic = typeof topics.$inferSelect;
 export type NewTopic = typeof topics.$inferInsert;
 export type Source = typeof sources.$inferSelect;
 export type NewSource = typeof sources.$inferInsert;
+export type AgeCategory = typeof ageCategories.$inferSelect;
+export type NewAgeCategory = typeof ageCategories.$inferInsert;

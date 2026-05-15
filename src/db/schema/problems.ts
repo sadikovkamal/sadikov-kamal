@@ -7,25 +7,29 @@ import {
   jsonb,
   primaryKey,
   index,
-  uniqueIndex,
-  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./users";
-import { sources, topics } from "./taxonomy";
+import { sources, topics, ageCategories } from "./taxonomy";
 
 export const problems = pgTable(
   "problems",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    /**
+     * Human-facing stable code in `P#######` format (P + 7 zero-padded
+     * digits — P0000001, P0000042, P0001234, …). Auto-assigned at
+     * create time by reading max(code) and incrementing; UNIQUE on the
+     * column turns concurrent inserts that race for the same code into
+     * a clean retryable error. Mirrors the topics/sources/age-categories
+     * pattern, just with a 7-digit tail to leave room for millions of
+     * problems.
+     */
+    code: text("code").notNull().unique(),
     bodyMd: text("body_md").notNull(),
-    solutionMd: text("solution_md"),
-    answer: text("answer"),
     sourceId: uuid("source_id")
       .notNull()
       .references(() => sources.id, { onDelete: "restrict" }),
-    year: integer("year"),
-    problemNumber: text("problem_number"), // text because "Day 2 / 3" is valid
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -38,19 +42,12 @@ export const problems = pgTable(
       .defaultNow(),
   },
   (t) => [
-    index("problems_source_year_idx").on(t.sourceId, t.year),
+    index("problems_source_idx").on(t.sourceId),
+    index("problems_code_idx").on(t.code),
     // Full-text search index on body_md (Uzbek content -> 'simple' config)
     index("problems_body_fts_idx").using(
       "gin",
       sql`to_tsvector('simple', ${t.bodyMd})`
-    ),
-    // Prevent duplicate problems from the same source/year/number combo
-    uniqueIndex("problems_source_year_number_unique")
-      .on(t.sourceId, t.year, t.problemNumber)
-      .where(sql`${t.problemNumber} IS NOT NULL`),
-    check(
-      "problems_year_check",
-      sql`${t.year} IS NULL OR (${t.year} >= 1900 AND ${t.year} <= 2100)`
     ),
   ]
 );
@@ -90,20 +87,29 @@ export const problemTopics = pgTable(
   ]
 );
 
-export const problemClasses = pgTable(
-  "problem_classes",
+/**
+ * Junction table linking problems to age categories. Replaces the older
+ * `problem_classes` integer-range table — age buckets are now an
+ * admin-editable taxonomy ({@link ageCategories}) instead of a hard
+ * 5..11 CHECK constraint, so the FK does all the validation work.
+ *
+ * `onDelete: "restrict"` on the age-category side mirrors topics: an
+ * admin can't delete a bucket while problems still reference it. The
+ * action layer surfaces that as a friendly error.
+ */
+export const problemAgeCategories = pgTable(
+  "problem_age_categories",
   {
     problemId: uuid("problem_id")
       .notNull()
       .references(() => problems.id, { onDelete: "cascade" }),
-    classNumber: integer("class_number").notNull(), // 5..11
+    ageCategoryId: uuid("age_category_id")
+      .notNull()
+      .references(() => ageCategories.id, { onDelete: "restrict" }),
   },
   (t) => [
-    primaryKey({ columns: [t.problemId, t.classNumber] }),
-    check(
-      "problem_classes_class_check",
-      sql`${t.classNumber} >= 5 AND ${t.classNumber} <= 11`
-    ),
+    primaryKey({ columns: [t.problemId, t.ageCategoryId] }),
+    index("problem_age_categories_age_category_id_idx").on(t.ageCategoryId),
   ]
 );
 
@@ -112,4 +118,4 @@ export type NewProblem = typeof problems.$inferInsert;
 export type Image = typeof images.$inferSelect;
 export type NewImage = typeof images.$inferInsert;
 export type ProblemTopic = typeof problemTopics.$inferSelect;
-export type ProblemClass = typeof problemClasses.$inferSelect;
+export type ProblemAgeCategory = typeof problemAgeCategories.$inferSelect;

@@ -1,8 +1,14 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { problems, problemTopics, problemClasses, images } from "@/db/schema";
+import {
+  problems,
+  problemTopics,
+  problemAgeCategories,
+  images,
+} from "@/db/schema";
+import { formatProblemCode, parseProblemCodeSeq } from "./codes";
 
 export interface ProblemImageInput {
   storageKey: string;
@@ -13,13 +19,9 @@ export interface ProblemImageInput {
 
 export interface ProblemInput {
   bodyMd: string;
-  solutionMd: string | null;
-  answer: string | null;
   sourceId: string;
-  year: number | null;
-  problemNumber: string | null;
   topicIds: string[];
-  classes: number[];
+  ageCategoryIds: string[];
   image?: ProblemImageInput | null;
   metadata?: Record<string, unknown>;
 }
@@ -27,18 +29,29 @@ export interface ProblemInput {
 /**
  * Insert a problem and all its junction rows in a single transaction.
  * If any insert fails, the whole thing rolls back — no orphaned junctions.
+ *
+ * The `code` is auto-assigned: we read max(code) inside the transaction
+ * and format the next P####### value. The UNIQUE on the column makes
+ * a parallel-creator race surface as a clean constraint error, which
+ * the action layer can retry. For a low-volume admin app the race is
+ * extremely rare in practice.
  */
 export async function createProblemTx(input: ProblemInput, createdBy: string) {
   return db.transaction(async (tx) => {
+    // Compute next code from the current max. Pulling just max() keeps
+    // this O(1) instead of fetching every code.
+    const [{ maxCode }] = await tx
+      .select({ maxCode: sql<string | null>`max(${problems.code})` })
+      .from(problems);
+    const seq = maxCode ? parseProblemCodeSeq(maxCode) : 0;
+    const code = formatProblemCode(Number.isFinite(seq) ? seq + 1 : 1);
+
     const [created] = await tx
       .insert(problems)
       .values({
+        code,
         bodyMd: input.bodyMd,
-        solutionMd: input.solutionMd,
-        answer: input.answer,
         sourceId: input.sourceId,
-        year: input.year,
-        problemNumber: input.problemNumber,
         createdBy,
         metadata: input.metadata ?? {},
       })
@@ -52,11 +65,11 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
         }))
       );
     }
-    if (input.classes.length) {
-      await tx.insert(problemClasses).values(
-        input.classes.map((classNumber) => ({
+    if (input.ageCategoryIds.length) {
+      await tx.insert(problemAgeCategories).values(
+        input.ageCategoryIds.map((ageCategoryId) => ({
           problemId: created.id,
-          classNumber,
+          ageCategoryId,
         }))
       );
     }
@@ -79,25 +92,38 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
  * Update a problem and replace its junction rows wholesale.
  * Diffing for MVP isn't worth the complexity — deletes + inserts inside a
  * transaction is cheap enough.
+ *
+ * Returns the storage keys of any images that were replaced so the
+ * caller can delete them from R2 after the commit. The R2 delete is
+ * deliberately kept out of the transaction: if R2 is unavailable we
+ * still want the DB row to settle (it's the source of truth), and the
+ * worst case is one orphan key — much better than a half-finished
+ * update where the DB and R2 disagree.
  */
-export async function updateProblemTx(id: string, input: ProblemInput) {
+export async function updateProblemTx(
+  id: string,
+  input: ProblemInput
+): Promise<{ orphanStorageKeys: string[] }> {
   return db.transaction(async (tx) => {
+    const oldImages = await tx
+      .select({ storageKey: images.storageKey })
+      .from(images)
+      .where(eq(images.problemId, id));
+
     await tx
       .update(problems)
       .set({
         bodyMd: input.bodyMd,
-        solutionMd: input.solutionMd,
-        answer: input.answer,
         sourceId: input.sourceId,
-        year: input.year,
-        problemNumber: input.problemNumber,
         metadata: input.metadata ?? {},
         updatedAt: new Date(),
       })
       .where(eq(problems.id, id));
 
     await tx.delete(problemTopics).where(eq(problemTopics.problemId, id));
-    await tx.delete(problemClasses).where(eq(problemClasses.problemId, id));
+    await tx
+      .delete(problemAgeCategories)
+      .where(eq(problemAgeCategories.problemId, id));
     // Image is single-slot in the UI; replace wholesale.
     await tx.delete(images).where(eq(images.problemId, id));
 
@@ -106,9 +132,12 @@ export async function updateProblemTx(id: string, input: ProblemInput) {
         input.topicIds.map((topicId) => ({ problemId: id, topicId }))
       );
     }
-    if (input.classes.length) {
-      await tx.insert(problemClasses).values(
-        input.classes.map((classNumber) => ({ problemId: id, classNumber }))
+    if (input.ageCategoryIds.length) {
+      await tx.insert(problemAgeCategories).values(
+        input.ageCategoryIds.map((ageCategoryId) => ({
+          problemId: id,
+          ageCategoryId,
+        }))
       );
     }
 
@@ -121,10 +150,48 @@ export async function updateProblemTx(id: string, input: ProblemInput) {
         mimeType: input.image.mimeType,
       });
     }
+
+    // The new image (if any) keeps its storage key; everything else is orphan.
+    const keptKey = input.image?.storageKey ?? null;
+    return {
+      orphanStorageKeys: oldImages
+        .map((r) => r.storageKey)
+        .filter((k) => k !== keptKey),
+    };
   });
 }
 
-export async function deleteProblemTx(id: string) {
-  // Junction rows + images cascade via FK constraints (Phase 1 schema).
-  await db.delete(problems).where(eq(problems.id, id));
+/**
+ * Delete a problem. Junction rows + image DB rows cascade via FK
+ * constraints, but the R2 objects themselves don't — return their
+ * storage keys so the caller can clean them up post-commit.
+ */
+export async function deleteProblemTx(
+  id: string
+): Promise<{ orphanStorageKeys: string[] }> {
+  return db.transaction(async (tx) => {
+    const oldImages = await tx
+      .select({ storageKey: images.storageKey })
+      .from(images)
+      .where(eq(images.problemId, id));
+    await tx.delete(problems).where(eq(problems.id, id));
+    return { orphanStorageKeys: oldImages.map((r) => r.storageKey) };
+  });
+}
+
+/**
+ * Bulk-delete N problems. Same orphan-key contract as deleteProblemTx.
+ */
+export async function bulkDeleteProblemsTx(
+  ids: string[]
+): Promise<{ orphanStorageKeys: string[] }> {
+  if (ids.length === 0) return { orphanStorageKeys: [] };
+  return db.transaction(async (tx) => {
+    const oldImages = await tx
+      .select({ storageKey: images.storageKey })
+      .from(images)
+      .where(inArray(images.problemId, ids));
+    await tx.delete(problems).where(inArray(problems.id, ids));
+    return { orphanStorageKeys: oldImages.map((r) => r.storageKey) };
+  });
 }

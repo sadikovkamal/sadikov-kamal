@@ -11,7 +11,7 @@ export default async function TopicsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Mavzular"
-        subtitle="Ierarxik tasnif. Bola mavzular ko'rish qulayligi uchun guruhlangan."
+        subtitle="Ierarxik tasnif."
       />
       <TopicsTree topics={topics} />
     </div>

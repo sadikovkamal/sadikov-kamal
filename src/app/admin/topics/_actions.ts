@@ -76,13 +76,11 @@ export async function deleteTopicAction(id: string): Promise<ActionResult> {
 
 function friendlyError(e: unknown, fallback: string): string {
   const msg = e instanceof Error ? e.message : String(e);
-  // Postgres unique constraint
+  // Postgres unique constraint — only error class we still translate.
+  // Foreign-key violations (RESTRICT on delete) reuse `fallback`, so we
+  // don't pattern-match them.
   if (/unique/i.test(msg) || /23505/.test(msg)) {
     return "Bu nomli mavzu allaqachon mavjud";
-  }
-  // Foreign key violation (RESTRICT)
-  if (/foreign key|23503/i.test(msg)) {
-    return fallback;
   }
   return fallback;
 }

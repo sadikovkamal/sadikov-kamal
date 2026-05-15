@@ -45,8 +45,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# claude code (local settings only)
-.claude/settings.local.json
+# claude code (local settings + worktree metadata)
+.claude/
 
 # agent skills (installed locally via `npx skills add`)
 /.agents

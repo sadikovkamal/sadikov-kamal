@@ -6,9 +6,7 @@ import {
   desc,
   eq,
   exists,
-  gte,
   inArray,
-  lte,
   sql,
   type SQL,
 } from "drizzle-orm";
@@ -16,9 +14,10 @@ import { db } from "@/db";
 import {
   problems,
   problemTopics,
-  problemClasses,
+  problemAgeCategories,
   images,
   topics,
+  ageCategories,
   sources,
 } from "@/db/schema";
 
@@ -32,16 +31,25 @@ export async function getProblemById(id: string) {
   });
   if (!problem) return null;
 
-  const [topicRows, classRows, source, imageRows] = await Promise.all([
+  const [topicRows, ageCategoryRows, source, imageRows] = await Promise.all([
     db
       .select({ id: topics.id, code: topics.code, name: topics.name })
       .from(problemTopics)
       .innerJoin(topics, eq(topics.id, problemTopics.topicId))
       .where(eq(problemTopics.problemId, id)),
     db
-      .select({ classNumber: problemClasses.classNumber })
-      .from(problemClasses)
-      .where(eq(problemClasses.problemId, id)),
+      .select({
+        id: ageCategories.id,
+        code: ageCategories.code,
+        name: ageCategories.name,
+      })
+      .from(problemAgeCategories)
+      .innerJoin(
+        ageCategories,
+        eq(ageCategories.id, problemAgeCategories.ageCategoryId)
+      )
+      .where(eq(problemAgeCategories.problemId, id))
+      .orderBy(ageCategories.code),
     db.query.sources.findFirst({ where: eq(sources.id, problem.sourceId) }),
     db.query.images.findMany({ where: eq(images.problemId, id) }),
   ]);
@@ -49,7 +57,7 @@ export async function getProblemById(id: string) {
   return {
     ...problem,
     topics: topicRows,
-    classes: classRows.map((r) => r.classNumber),
+    ageCategories: ageCategoryRows,
     source,
     images: imageRows,
   };
@@ -64,26 +72,29 @@ export type ProblemWithRelations = NonNullable<
 export interface ProblemListFilters {
   search?: string;
   sourceIds?: string[];
-  yearFrom?: number;
-  yearTo?: number;
-  classes?: number[];
+  ageCategoryIds?: string[];
   topicIds?: string[];
 }
 
 export interface ProblemListSort {
-  field: "createdAt" | "year";
+  field: "createdAt" | "code";
   direction: "asc" | "desc";
+}
+
+export interface ProblemListAgeCategory {
+  id: string;
+  code: string;
+  name: string;
 }
 
 export interface ProblemListRow {
   id: string;
+  code: string;
   bodyPreview: string;
   sourceName: string;
-  year: number | null;
-  problemNumber: string | null;
   createdAt: Date;
   topicNames: string[];
-  classes: number[];
+  ageCategories: ProblemListAgeCategory[];
 }
 
 export interface ProblemListResult {
@@ -118,22 +129,19 @@ export async function listProblems(
   if (filters.sourceIds?.length) {
     conds.push(inArray(problems.sourceId, filters.sourceIds));
   }
-  if (filters.yearFrom !== undefined) {
-    conds.push(gte(problems.year, filters.yearFrom));
-  }
-  if (filters.yearTo !== undefined) {
-    conds.push(lte(problems.year, filters.yearTo));
-  }
-  if (filters.classes?.length) {
+  if (filters.ageCategoryIds?.length) {
     conds.push(
       exists(
         db
           .select({ one: sql<number>`1` })
-          .from(problemClasses)
+          .from(problemAgeCategories)
           .where(
             and(
-              eq(problemClasses.problemId, problems.id),
-              inArray(problemClasses.classNumber, filters.classes)
+              eq(problemAgeCategories.problemId, problems.id),
+              inArray(
+                problemAgeCategories.ageCategoryId,
+                filters.ageCategoryIds
+              )
             )
           )
       )
@@ -157,23 +165,22 @@ export async function listProblems(
   const whereClause = conds.length ? and(...conds) : undefined;
 
   const orderColumn =
-    sort.field === "year" ? problems.year : problems.createdAt;
+    sort.field === "code" ? problems.code : problems.createdAt;
   const orderBy = sort.direction === "asc" ? asc(orderColumn) : desc(orderColumn);
 
-  // Count
-  const countResult = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(problems)
-    .where(whereClause);
-  const total = countResult[0]?.count ?? 0;
-
-  // Page
-  const rows = await db
+  // Count + page run in parallel — Postgres handles both on the same
+  // pool, and the page query is what gates render latency, so trimming
+  // the count round-trip from the critical path halves p50.
+  const [countResult, rows] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(problems)
+      .where(whereClause),
+    db
     .select({
       id: problems.id,
+      code: problems.code,
       bodyMd: problems.bodyMd,
-      year: problems.year,
-      problemNumber: problems.problemNumber,
       createdAt: problems.createdAt,
       sourceName: sources.name,
     })
@@ -182,13 +189,15 @@ export async function listProblems(
     .where(whereClause)
     .orderBy(orderBy)
     .limit(pageSize)
-    .offset(Math.max(0, (page - 1) * pageSize));
+    .offset(Math.max(0, (page - 1) * pageSize)),
+  ]);
+  const total = countResult[0]?.count ?? 0;
 
   if (rows.length === 0) return { rows: [], total };
 
-  // Hydrate topic names + classes in two batched queries.
+  // Hydrate topic names + age categories in two batched queries.
   const ids = rows.map((r) => r.id);
-  const [topicRows, classRows] = await Promise.all([
+  const [topicRows, ageCategoryRows] = await Promise.all([
     db
       .select({ problemId: problemTopics.problemId, topicName: topics.name })
       .from(problemTopics)
@@ -196,11 +205,17 @@ export async function listProblems(
       .where(inArray(problemTopics.problemId, ids)),
     db
       .select({
-        problemId: problemClasses.problemId,
-        classNumber: problemClasses.classNumber,
+        problemId: problemAgeCategories.problemId,
+        id: ageCategories.id,
+        code: ageCategories.code,
+        name: ageCategories.name,
       })
-      .from(problemClasses)
-      .where(inArray(problemClasses.problemId, ids)),
+      .from(problemAgeCategories)
+      .innerJoin(
+        ageCategories,
+        eq(ageCategories.id, problemAgeCategories.ageCategoryId)
+      )
+      .where(inArray(problemAgeCategories.problemId, ids)),
   ]);
 
   const topicsByProblem = new Map<string, string[]>();
@@ -209,23 +224,24 @@ export async function listProblems(
     arr.push(r.topicName);
     topicsByProblem.set(r.problemId, arr);
   }
-  const classesByProblem = new Map<string, number[]>();
-  for (const r of classRows) {
-    const arr = classesByProblem.get(r.problemId) ?? [];
-    arr.push(r.classNumber);
-    classesByProblem.set(r.problemId, arr);
+  const ageCategoriesByProblem = new Map<string, ProblemListAgeCategory[]>();
+  for (const r of ageCategoryRows) {
+    const arr = ageCategoriesByProblem.get(r.problemId) ?? [];
+    arr.push({ id: r.id, code: r.code, name: r.name });
+    ageCategoriesByProblem.set(r.problemId, arr);
   }
 
   return {
     rows: rows.map((r) => ({
       id: r.id,
+      code: r.code,
       bodyPreview: stripMarkdownToPreview(r.bodyMd, 140),
       sourceName: r.sourceName ?? "—",
-      year: r.year,
-      problemNumber: r.problemNumber,
       createdAt: r.createdAt,
       topicNames: topicsByProblem.get(r.id) ?? [],
-      classes: (classesByProblem.get(r.id) ?? []).sort((a, b) => a - b),
+      ageCategories: (ageCategoriesByProblem.get(r.id) ?? []).sort((a, b) =>
+        a.code.localeCompare(b.code)
+      ),
     })),
     total,
   };
