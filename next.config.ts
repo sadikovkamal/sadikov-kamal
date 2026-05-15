@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 // Allow next/image to load from the configured R2 public URL. We resolve
@@ -14,6 +15,9 @@ if (r2PublicUrl) {
 }
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: path.join(__dirname),
+  },
   images: {
     remotePatterns: r2Hostname
       ? [{ protocol: "https", hostname: r2Hostname }]
