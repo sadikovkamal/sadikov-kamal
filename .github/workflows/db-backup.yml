@@ -12,10 +12,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Install Postgres client + AWS CLI
+      - name: Install Postgres 17 client
         run: |
+          set -euo pipefail
+          # Pull pg_dump 17 from the PostgreSQL apt repo. Neon runs Postgres
+          # 17, so we need a matching client — Ubuntu 24.04's default ships
+          # client 16, which pg_dump refuses to use against a 17 server.
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsS https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update
-          sudo apt-get install -y postgresql-client awscli
+          sudo apt-get install -y postgresql-client-17
+          # Ubuntu's pg_wrapper at /usr/bin/pg_dump picks the lowest-versioned
+          # installed client by default (16 here), so prepend the 17 bin dir
+          # to PATH and persist it for later steps.
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Install AWS CLI v2
+        run: |
+          set -euo pipefail
+          # Ubuntu 24.04 dropped the `awscli` apt package. Use Amazon's
+          # official v2 installer — it's the supported path on noble.
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          sudo /tmp/aws/install --update
+          aws --version
 
       - name: Dump database
         env:
