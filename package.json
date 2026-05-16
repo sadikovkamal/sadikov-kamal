@@ -33,6 +33,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "drizzle-orm": "^0.45.2",
+    "exceljs": "^4.4.0",
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
     "js-yaml": "^4.1.1",
