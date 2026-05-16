@@ -34,6 +34,7 @@ SERVER_ONLY=(
   "import-failure-smoke.ts"
   "taxonomy-smoke.ts"
   "rate-limit-smoke.ts"
+  "topics-xlsx-smoke.ts"
 )
 
 PASS=0

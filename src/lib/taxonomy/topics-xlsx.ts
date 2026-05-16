@@ -247,17 +247,21 @@ export async function validateTopicsBundle(
     const hits = new Set<Key>();
 
     if (withParent.length > 0) {
-      const names = withParent.map((p) => p.nameLower);
-      const parents = withParent.map((p) => p.parentId as string);
-      // Postgres-side: unnest the two parallel arrays into a (text, uuid)
-      // table, then join. Single round-trip regardless of input size.
+      // Build a VALUES clause using individual scalar params — avoids the
+      // postgres-js limitation where passing a JS array through drizzle's
+      // sql template results in a malformed array literal on the wire.
+      // Each pair becomes a properly-parameterized row.
+      const valueChunks = withParent.map(
+        (p) => sql`(${p.nameLower}::text, ${p.parentId as string}::uuid)`
+      );
+      const valuesClause = sql.join(valueChunks, sql`, `);
       const rows = (await db.execute(
         sql`
           SELECT lower(${topics.name}) AS name_lower,
                  ${topics.parentId}::text AS parent_id
           FROM ${topics}
           WHERE (lower(${topics.name}), ${topics.parentId}) IN (
-            SELECT * FROM unnest(${names}::text[], ${parents}::uuid[])
+            VALUES ${valuesClause}
           )
         `
       )) as unknown as Array<{ name_lower: string; parent_id: string }>;
@@ -267,13 +271,16 @@ export async function validateTopicsBundle(
     }
 
     if (rootOnes.length > 0) {
-      const names = rootOnes.map((p) => p.nameLower);
+      // Use individual scalar params joined into an IN list — avoids JS
+      // array serialization issues with postgres-js.
+      const nameChunks = rootOnes.map((p) => sql`${p.nameLower}`);
+      const inList = sql.join(nameChunks, sql`, `);
       const rows = (await db.execute(
         sql`
           SELECT lower(${topics.name}) AS name_lower
           FROM ${topics}
           WHERE ${topics.parentId} IS NULL
-            AND lower(${topics.name}) = ANY(${names}::text[])
+            AND lower(${topics.name}) IN (${inList})
         `
       )) as unknown as Array<{ name_lower: string }>;
       for (const row of rows) {
