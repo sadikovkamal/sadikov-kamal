@@ -48,6 +48,47 @@ export async function deleteTopic(id: string): Promise<void> {
   await db.delete(topics).where(eq(topics.id, id));
 }
 
+export interface BulkTopicInput {
+  name: string;
+  parentId: string | null;
+  description: string | null;
+}
+
+/**
+ * Insert many topics in one transaction. All-or-nothing: any DB error
+ * (including the UNIQUE collision two parallel admins could race into)
+ * rolls back the batch — the action layer surfaces a friendly error
+ * and the admin retries.
+ *
+ * Codes are minted sequentially in memory after one max(code) read,
+ * then inserted in one VALUES (...), (...) statement.
+ */
+export async function bulkCreateTopics(
+  inputs: BulkTopicInput[]
+): Promise<{ createdCodes: string[] }> {
+  if (inputs.length === 0) return { createdCodes: [] };
+
+  return db.transaction(async (tx) => {
+    const [maxRow] = await tx
+      .select({ maxCode: sql<string | null>`max(${topics.code})` })
+      .from(topics);
+
+    let runningMax = maxRow.maxCode ?? "";
+    const withCodes = inputs.map((input) => {
+      const code = nextTopicCode(runningMax ? [runningMax] : []);
+      runningMax = code;
+      return { ...input, code };
+    });
+
+    const inserted = await tx
+      .insert(topics)
+      .values(withCodes)
+      .returning({ code: topics.code });
+
+    return { createdCodes: inserted.map((r) => r.code) };
+  });
+}
+
 // --- Sources ----------------------------------------------------------------
 
 export interface SourceInput {
