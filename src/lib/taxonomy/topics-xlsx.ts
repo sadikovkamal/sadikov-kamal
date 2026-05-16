@@ -121,9 +121,189 @@ export async function parseTopicsXlsx(
 }
 
 export async function validateTopicsBundle(
-  _parsed: ParsedBundle
+  parsed: ParsedBundle
 ): Promise<ValidationReport> {
-  throw new Error("not implemented");
+  // Bundle errors fail the whole file before we touch the DB.
+  if (parsed.bundleErrors.length > 0 || parsed.rows.length === 0) {
+    return {
+      bundleErrors: parsed.bundleErrors,
+      rows: [],
+      okCount: 0,
+      errorCount: 0,
+    };
+  }
+
+  // Resolve all referenced parent codes in one DB round-trip.
+  const referencedCodes = Array.from(
+    new Set(
+      parsed.rows
+        .map((r) => r.parentCode)
+        .filter((c): c is string => c != null && TOPIC_CODE_REGEX.test(c))
+    )
+  );
+
+  const existingParents = referencedCodes.length
+    ? await db
+        .select({ id: topics.id, code: topics.code })
+        .from(topics)
+        .where(inArray(topics.code, referencedCodes))
+    : [];
+  const parentIdByCode = new Map<string, string>(
+    existingParents.map((p) => [p.code, p.id])
+  );
+
+  // Build the set of (lower(name), parent_id) pairs we'd be inserting.
+  // We need the resolved parent UUID (or null for root) to compare against DB.
+  type Key = string; // `lower(name)|<uuid-or-NULL>`
+  const keyFor = (lowerName: string, parentId: string | null): Key =>
+    `${lowerName}|${parentId ?? "NULL"}`;
+
+  // Track in-file dupes by key.
+  const inFileSeen = new Map<Key, number[]>();
+
+  // First pass: catch format / length / missing-parent / in-file dup keys.
+  const interim: ValidatedRow[] = parsed.rows.map((row) => {
+    const errors: string[] = [];
+
+    if (row.name === "") {
+      errors.push("Nomi bo'sh");
+    } else if (row.name.length > MAX_NAME_LEN) {
+      errors.push(`Nomi ${MAX_NAME_LEN} belgidan oshmasligi kerak`);
+    }
+
+    let parentId: string | null = null;
+    if (row.parentCode == null) {
+      parentId = null;
+    } else if (!TOPIC_CODE_REGEX.test(row.parentCode)) {
+      errors.push("parent_id formati noto'g'ri (0 yoki T###### kutilgan)");
+    } else {
+      const resolved = parentIdByCode.get(row.parentCode);
+      if (!resolved) {
+        errors.push(`Bunday parent topilmadi: ${row.parentCode}`);
+      } else {
+        parentId = resolved;
+      }
+    }
+
+    if (
+      row.description != null &&
+      row.description.length > MAX_DESCRIPTION_LEN
+    ) {
+      errors.push(
+        `Ta'rif ${MAX_DESCRIPTION_LEN} belgidan oshmasligi kerak`
+      );
+    }
+
+    return {
+      excelRow: row.excelRow,
+      name: row.name,
+      parentCode: row.parentCode,
+      parentId,
+      description: row.description,
+      status: errors.length === 0 ? "ok" : "error",
+      errors,
+    };
+  });
+
+  // Second pass: mark in-file duplicates. Only consider rows that have a
+  // name and a resolved parent (or null root); other rows are already
+  // errored out and skipping them avoids spurious "dublikat" noise.
+  for (const r of interim) {
+    if (r.name === "") continue;
+    if (r.parentCode != null && r.parentId == null) continue;
+    const key = keyFor(r.name.toLowerCase(), r.parentId);
+    const list = inFileSeen.get(key) ?? [];
+    list.push(r.excelRow);
+    inFileSeen.set(key, list);
+  }
+  for (const [, list] of inFileSeen) {
+    if (list.length > 1) {
+      for (const excelRow of list) {
+        const r = interim.find((x) => x.excelRow === excelRow)!;
+        r.errors.push("Fayl ichida dublikat");
+        r.status = "error";
+      }
+    }
+  }
+
+  // Third pass: cross-check against DB. Build the candidate (lower-name,
+  // parent_id) pairs from rows that are still ok.
+  const candidatePairs: Array<{ nameLower: string; parentId: string | null }> =
+    [];
+  for (const r of interim) {
+    if (r.status !== "ok") continue;
+    candidatePairs.push({
+      nameLower: r.name.toLowerCase(),
+      parentId: r.parentId,
+    });
+  }
+
+  if (candidatePairs.length > 0) {
+    // Postgres can't compare (text, uuid) tuples mixed with NULLs via IN.
+    // Split into two queries: rows with a parent, and root rows.
+    const withParent = candidatePairs.filter((p) => p.parentId != null);
+    const rootOnes = candidatePairs.filter((p) => p.parentId == null);
+
+    const hits = new Set<Key>();
+
+    if (withParent.length > 0) {
+      const names = withParent.map((p) => p.nameLower);
+      const parents = withParent.map((p) => p.parentId as string);
+      // Postgres-side: unnest the two parallel arrays into a (text, uuid)
+      // table, then join. Single round-trip regardless of input size.
+      const rows = (await db.execute(
+        sql`
+          SELECT lower(${topics.name}) AS name_lower,
+                 ${topics.parentId}::text AS parent_id
+          FROM ${topics}
+          WHERE (lower(${topics.name}), ${topics.parentId}) IN (
+            SELECT * FROM unnest(${names}::text[], ${parents}::uuid[])
+          )
+        `
+      )) as unknown as Array<{ name_lower: string; parent_id: string }>;
+      for (const row of rows) {
+        hits.add(keyFor(row.name_lower, row.parent_id));
+      }
+    }
+
+    if (rootOnes.length > 0) {
+      const names = rootOnes.map((p) => p.nameLower);
+      const rows = (await db.execute(
+        sql`
+          SELECT lower(${topics.name}) AS name_lower
+          FROM ${topics}
+          WHERE ${topics.parentId} IS NULL
+            AND lower(${topics.name}) = ANY(${names}::text[])
+        `
+      )) as unknown as Array<{ name_lower: string }>;
+      for (const row of rows) {
+        hits.add(keyFor(row.name_lower, null));
+      }
+    }
+
+    for (const r of interim) {
+      if (r.status !== "ok") continue;
+      const key = keyFor(r.name.toLowerCase(), r.parentId);
+      if (hits.has(key)) {
+        r.errors.push("Bazada allaqachon bor");
+        r.status = "error";
+      }
+    }
+  }
+
+  let okCount = 0;
+  let errorCount = 0;
+  for (const r of interim) {
+    if (r.status === "ok") okCount += 1;
+    else errorCount += 1;
+  }
+
+  return {
+    bundleErrors: [],
+    rows: interim,
+    okCount,
+    errorCount,
+  };
 }
 
 function cellToString(value: ExcelJS.CellValue): string {
