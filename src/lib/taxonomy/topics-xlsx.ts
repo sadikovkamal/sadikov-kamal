@@ -49,11 +49,9 @@ export async function parseTopicsXlsx(
   const bundleErrors: string[] = [];
   const workbook = new ExcelJS.Workbook();
   try {
-    // exceljs .load() expects a Node.js Buffer; double-cast to satisfy stale typings.
-    await workbook.xlsx.load(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength) as any
-    );
+    // exceljs declares its own Buffer as "extends ArrayBuffer", so pass a plain ArrayBuffer.
+    // Buffer.from(bytes) copies the Uint8Array and its .buffer is typed as ArrayBuffer.
+    await workbook.xlsx.load(Buffer.from(bytes).buffer);
   } catch {
     return { rows: [], bundleErrors: ["XLSX fayl o'qib bo'lmadi"] };
   }
