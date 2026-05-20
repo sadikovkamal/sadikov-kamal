@@ -72,7 +72,10 @@ export default async function ProblemsListPage({
   ]);
 
   return (
-    <div className="space-y-5">
+    // Pin the whole page to the viewport so internal scroll lives inside
+    // the cards list, not the document. The height calc subtracts the
+    // admin layout's vertical padding (py-6 = 3rem, lg:py-8 = 4rem).
+    <div className="flex flex-col gap-5 h-[calc(100dvh-3rem)] lg:h-[calc(100dvh-4rem)] min-h-0">
       <PageHeader
         title="Masalalar"
         subtitle={`Jami ${total.toLocaleString("en-US").replace(/,/g, " ")} ta`}

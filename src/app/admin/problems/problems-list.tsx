@@ -125,9 +125,12 @@ export function ProblemsList({
   }
 
   return (
-    <div className="space-y-3">
+    // flex-col fills the height handed down by the page. Toolbar and
+    // pagination are shrink-0; the <ul> is the only flex-1/overflow-y-auto
+    // element, so wheel-scroll lives inside the list, not the document.
+    <div className="flex flex-col gap-3 flex-1 min-h-0">
       {/* Top toolbar: select-all + selection bar */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 shrink-0">
         <label className="inline-flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
           <Checkbox
             checked={allSelectedOnPage}
@@ -163,8 +166,9 @@ export function ProblemsList({
         )}
       </div>
 
-      {/* Block cards */}
-      <ul className="space-y-2">
+      {/* Block cards — the scroll viewport. pr-1 keeps a hair of space
+          between the rightmost card edge and the scrollbar. */}
+      <ul className="space-y-2 flex-1 min-h-0 overflow-y-auto pr-1">
         {rows.map((r) => (
           <ProblemCard
             key={r.id}
@@ -176,7 +180,7 @@ export function ProblemsList({
       </ul>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 shrink-0">
         <span className="tabular-nums">
           {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} /{" "}
           <span className="text-foreground font-medium">{total}</span> ta
