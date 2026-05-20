@@ -136,26 +136,61 @@ export function ProblemsFilterBar({
   const [, startTransition] = useTransition();
 
   const search = params.get("q") ?? "";
-  const sourceIds = csv(params.get("source"));
-  const ageCategoryIds = csv(params.get("ageCategory"));
-  const topicIds = csv(params.get("topic"));
+  // The filter pipeline carries codes from URL → state → popover →
+  // back to URL. No UUID lives anywhere here.
+  const sourceCodes = csv(params.get("source"));
+  const ageCategoryCodes = csv(params.get("ageCategory"));
+  const topicCodes = csv(params.get("topic"));
 
   const activeFilterCount =
     (search ? 1 : 0) +
-    sourceIds.length +
-    ageCategoryIds.length +
-    topicIds.length;
+    sourceCodes.length +
+    ageCategoryCodes.length +
+    topicCodes.length;
 
-  const sourceById = useMemo(
-    () => new Map(sourcesAvailable.map((s) => [s.id, s])),
-    [sourcesAvailable]
-  );
-  const ageById = useMemo(
-    () => new Map(ageCategoriesAvailable.map((c) => [c.id, c])),
+  // Code-keyed views of the dictionaries. The FilterPopover keys
+  // everything by `option.id`; in this view, that id IS the code,
+  // and `parentId` is the parent's code. This is the *only* place
+  // we materialise codes — the rest of the bar just passes them.
+  const sourceOptionsByCode = useMemo<FilterOption[]>(() => {
+    const idToCode = new Map(sourcesAvailable.map((s) => [s.id, s.code]));
+    return sourcesAvailable.map((s) => ({
+      id: s.code,
+      code: s.code,
+      name: s.name,
+      parentId: s.parentId ? (idToCode.get(s.parentId) ?? null) : null,
+    }));
+  }, [sourcesAvailable]);
+  const ageOptionsByCode = useMemo<FilterOption[]>(
+    () =>
+      ageCategoriesAvailable.map((c) => ({
+        id: c.code,
+        code: c.code,
+        name: c.name,
+        parentId: null,
+      })),
     [ageCategoriesAvailable]
   );
-  const topicById = useMemo(
-    () => new Map(topicsAvailable.map((t) => [t.id, t])),
+  const topicOptionsByCode = useMemo<FilterOption[]>(() => {
+    const idToCode = new Map(topicsAvailable.map((t) => [t.id, t.code]));
+    return topicsAvailable.map((t) => ({
+      id: t.code,
+      code: t.code,
+      name: t.name,
+      parentId: t.parentId ? (idToCode.get(t.parentId) ?? null) : null,
+    }));
+  }, [topicsAvailable]);
+
+  const sourceByCode = useMemo(
+    () => new Map(sourcesAvailable.map((s) => [s.code, s])),
+    [sourcesAvailable]
+  );
+  const ageByCode = useMemo(
+    () => new Map(ageCategoriesAvailable.map((c) => [c.code, c])),
+    [ageCategoriesAvailable]
+  );
+  const topicByCode = useMemo(
+    () => new Map(topicsAvailable.map((t) => [t.code, t])),
     [topicsAvailable]
   );
 
@@ -207,26 +242,26 @@ export function ProblemsFilterBar({
         <FilterPopover
           label="Manba"
           icon={<Library className="size-3.5" aria-hidden />}
-          count={sourceIds.length}
-          options={sourcesAvailable}
-          selected={sourceIds}
-          onChange={(ids) => setCsv("source", ids)}
+          count={sourceCodes.length}
+          options={sourceOptionsByCode}
+          selected={sourceCodes}
+          onChange={(codes) => setCsv("source", codes)}
         />
         <FilterPopover
           label="Yosh toifasi"
           icon={<Hash className="size-3.5" aria-hidden />}
-          count={ageCategoryIds.length}
-          options={ageCategoriesAvailable}
-          selected={ageCategoryIds}
-          onChange={(ids) => setCsv("ageCategory", ids)}
+          count={ageCategoryCodes.length}
+          options={ageOptionsByCode}
+          selected={ageCategoryCodes}
+          onChange={(codes) => setCsv("ageCategory", codes)}
         />
         <FilterPopover
           label="Mavzular"
           icon={<Tags className="size-3.5" aria-hidden />}
-          count={topicIds.length}
-          options={topicsAvailable}
-          selected={topicIds}
-          onChange={(ids) => setCsv("topic", ids)}
+          count={topicCodes.length}
+          options={topicOptionsByCode}
+          selected={topicCodes}
+          onChange={(codes) => setCsv("topic", codes)}
         />
 
         <div className="ml-auto">
@@ -251,47 +286,50 @@ export function ProblemsFilterBar({
               }}
             />
           )}
-          {sourceIds.map((id) => {
-            const s = sourceById.get(id);
+          {sourceCodes.map((code) => {
+            const s = sourceByCode.get(code);
             if (!s) return null;
             return (
               <ActiveChip
-                key={`s-${id}`}
+                key={`s-${code}`}
                 label={s.name}
                 kind="Manba"
                 onRemove={() =>
-                  setCsv("source", sourceIds.filter((x) => x !== id))
-                }
-              />
-            );
-          })}
-          {ageCategoryIds.map((id) => {
-            const c = ageById.get(id);
-            if (!c) return null;
-            return (
-              <ActiveChip
-                key={`a-${id}`}
-                label={c.name}
-                kind="Yosh"
-                onRemove={() =>
                   setCsv(
-                    "ageCategory",
-                    ageCategoryIds.filter((x) => x !== id)
+                    "source",
+                    sourceCodes.filter((x) => x !== code)
                   )
                 }
               />
             );
           })}
-          {topicIds.map((id) => {
-            const t = topicById.get(id);
+          {ageCategoryCodes.map((code) => {
+            const c = ageByCode.get(code);
+            if (!c) return null;
+            return (
+              <ActiveChip
+                key={`a-${code}`}
+                label={c.name}
+                kind="Yosh"
+                onRemove={() =>
+                  setCsv(
+                    "ageCategory",
+                    ageCategoryCodes.filter((x) => x !== code)
+                  )
+                }
+              />
+            );
+          })}
+          {topicCodes.map((code) => {
+            const t = topicByCode.get(code);
             if (!t) return null;
             return (
               <ActiveChip
-                key={`t-${id}`}
+                key={`t-${code}`}
                 label={t.name}
                 kind="Mavzu"
                 onRemove={() =>
-                  setCsv("topic", topicIds.filter((x) => x !== id))
+                  setCsv("topic", topicCodes.filter((x) => x !== code))
                 }
               />
             );
@@ -371,6 +409,7 @@ export function FilterPopover({
   options,
   selected,
   onChange,
+  mode = "filter",
 }: {
   label: string;
   icon: React.ReactNode;
@@ -378,6 +417,13 @@ export function FilterPopover({
   options: FilterOption[];
   selected: string[];
   onChange: (ids: string[]) => void;
+  /**
+   * `"filter"` (default) lets parents be picked — the listing query
+   * expands them to descendants on the server. `"leaf-only"` is used
+   * by the bulk-edit dialog: parent rows render as disabled and click
+   * is a no-op, so admins can't bulk-assign problems to a parent.
+   */
+  mode?: "filter" | "leaf-only";
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -541,11 +587,27 @@ export function FilterPopover({
                     <span className="shrink-0 size-5" aria-hidden />
                   )}
 
-                  {/* Row body — toggles selection */}
+                  {/* Row body — toggles selection. In leaf-only mode
+                      parents (rows with hasChildren) are disabled and
+                      the click is a no-op. */}
                   <button
                     type="button"
-                    onClick={() => toggleSelect(o.id)}
-                    className="flex-1 min-w-0 flex items-center gap-2 py-1.5 text-left"
+                    onClick={() => {
+                      if (mode === "leaf-only" && o.hasChildren) return;
+                      toggleSelect(o.id);
+                    }}
+                    disabled={mode === "leaf-only" && o.hasChildren}
+                    title={
+                      mode === "leaf-only" && o.hasChildren
+                        ? "Faqat ichki turkum tanlanadi — bu guruh"
+                        : undefined
+                    }
+                    className={cn(
+                      "flex-1 min-w-0 flex items-center gap-2 py-1.5 text-left",
+                      mode === "leaf-only" &&
+                        o.hasChildren &&
+                        "cursor-default text-muted-foreground"
+                    )}
                   >
                     <span
                       className={cn(
