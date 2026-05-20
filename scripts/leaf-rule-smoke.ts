@@ -11,9 +11,9 @@ import {
   isLeaf,
   withDescendants,
 } from "../src/lib/taxonomy/hierarchy";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../src/db";
-import { ageCategories, problems } from "../src/db/schema";
+import { ageCategories, problems, topics } from "../src/db/schema";
 import {
   createProblemTx,
   updateProblemTx,
@@ -25,6 +25,7 @@ import {
   createSource,
   deleteSource,
 } from "../src/lib/taxonomy/mutations";
+import { listProblems } from "../src/lib/problems/queries";
 
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(`assertion failed: ${msg}`);
@@ -206,9 +207,117 @@ async function mutationGuards() {
   console.log("[2] mutation guards reject parents ok");
 }
 
+async function listingExpansion() {
+  // Build a tiny taxonomy: parent topic with two leaf children, one
+  // leaf source, one age category. Create a problem under each leaf
+  // topic. Filter by the parent topic code; expect both problems.
+  const parentTopicId = await createTopic({
+    name: `Parent-list ${SUFFIX}`,
+    parentId: null,
+    description: null,
+  });
+  const leafATopicId = await createTopic({
+    name: `Leaf-A ${SUFFIX}`,
+    parentId: parentTopicId,
+    description: null,
+  });
+  const leafBTopicId = await createTopic({
+    name: `Leaf-B ${SUFFIX}`,
+    parentId: parentTopicId,
+    description: null,
+  });
+  const leafSourceId = await createSource({
+    name: `Leaf-src ${SUFFIX}`,
+    parentId: null,
+    logoStorageKey: null,
+  });
+
+  const admin = (await db.query.users.findMany()).find(
+    (u) => u.email === "admin@example.com"
+  );
+  assert(admin, "admin user missing");
+  const [age] = await db
+    .select({ id: ageCategories.id })
+    .from(ageCategories)
+    .limit(1);
+  assert(age, "age category missing");
+
+  const probAId = await createProblemTx(
+    {
+      bodyMd: `body-A ${SUFFIX}`,
+      sourceId: leafSourceId,
+      topicIds: [leafATopicId],
+      ageCategoryIds: [age.id],
+      image: null,
+    },
+    admin!.id
+  );
+  const probBId = await createProblemTx(
+    {
+      bodyMd: `body-B ${SUFFIX}`,
+      sourceId: leafSourceId,
+      topicIds: [leafBTopicId],
+      ageCategoryIds: [age.id],
+      image: null,
+    },
+    admin!.id
+  );
+
+  // Look up the parent topic's code so we filter by code (codes are the
+  // public surface; we minted the ids above).
+  const [parentRow] = await db
+    .select({ code: topics.code })
+    .from(topics)
+    .where(eq(topics.id, parentTopicId));
+  assert(parentRow, "parent topic row missing");
+
+  const filtered = await listProblems(
+    { topicCodes: [parentRow.code] },
+    { field: "createdAt", direction: "desc" },
+    1,
+    100
+  );
+  const matchedIds = new Set(filtered.rows.map((r) => r.id));
+  assert(
+    matchedIds.has(probAId) && matchedIds.has(probBId),
+    `listProblems(parent code) should match both leaves (got ids=${Array.from(
+      matchedIds
+    ).join(",")})`
+  );
+
+  // Filtering by a single leaf code matches only that leaf.
+  const [leafARow] = await db
+    .select({ code: topics.code })
+    .from(topics)
+    .where(eq(topics.id, leafATopicId));
+  const filteredLeaf = await listProblems(
+    { topicCodes: [leafARow.code] },
+    { field: "createdAt", direction: "desc" },
+    1,
+    100
+  );
+  const leafMatchedIds = new Set(filteredLeaf.rows.map((r) => r.id));
+  assert(
+    leafMatchedIds.has(probAId) && !leafMatchedIds.has(probBId),
+    `listProblems(leafA code) should match only A (got ids=${Array.from(
+      leafMatchedIds
+    ).join(",")})`
+  );
+
+  // Cleanup.
+  await db.delete(problems).where(inArray(problems.id, [probAId, probBId]));
+  await deleteTopic(leafATopicId);
+  await deleteTopic(leafBTopicId);
+  await deleteTopic(parentTopicId);
+  await deleteSource(leafSourceId);
+
+  console.log("[3] listProblems expands parent → descendants ok");
+}
+
 async function main() {
   await helperSanity();
   await mutationGuards();
+  await listingExpansion();
   console.log("Smoke: PASSED");
 }
 
