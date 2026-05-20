@@ -105,6 +105,9 @@ export default async function ProblemsListPage({
         total={total}
         page={page}
         pageSize={pageSize}
+        sourcesAvailable={sourcesAvailable}
+        ageCategoriesAvailable={ageCategoriesAvailable}
+        topicsAvailable={topicsAvailable}
       />
     </div>
   );

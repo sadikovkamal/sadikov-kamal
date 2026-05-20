@@ -10,6 +10,7 @@ import {
   updateProblemTx,
   deleteProblemTx,
   bulkDeleteProblemsTx,
+  bulkUpdateProblemsTx,
   type ProblemInput,
 } from "@/lib/problems/mutations";
 
@@ -149,5 +150,54 @@ export async function bulkDeleteProblemsAction(ids: string[]) {
   }
 
   await cleanupOrphans(orphans);
+  revalidatePath("/admin/problems");
+}
+
+/**
+ * Bulk-update one or more shared fields on a set of problems. Each
+ * field is optional — only fields present in the payload are applied,
+ * and m2m fields (topics, age categories) replace the existing set on
+ * every selected problem.
+ *
+ * Constraints:
+ *   - 1..500 problem ids
+ *   - At least one field present (sourceId / ageCategoryIds / topicIds)
+ *   - m2m fields, when present, must contain ≥ 1 id (matches the schema's
+ *     "every problem must have at least one topic and one age category"
+ *     rule — see ProblemInput).
+ */
+const bulkUpdateSchema = z
+  .object({
+    ids: z.array(z.string().uuid()).min(1).max(500),
+    sourceId: z.string().uuid().optional(),
+    ageCategoryIds: z.array(z.string().uuid()).min(1).optional(),
+    topicIds: z.array(z.string().uuid()).min(1).optional(),
+  })
+  .refine(
+    (data) =>
+      data.sourceId !== undefined ||
+      data.ageCategoryIds !== undefined ||
+      data.topicIds !== undefined,
+    { message: "Kamida bitta maydonni o'zgartiring" }
+  );
+
+export async function bulkUpdateProblemsAction(input: unknown) {
+  await requireAdmin();
+  const parsed = bulkUpdateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+  }
+  try {
+    await bulkUpdateProblemsTx(parsed.data);
+  } catch (e) {
+    return {
+      error:
+        e instanceof Error
+          ? e.message
+          : "Masalalarni o'zgartirib bo'lmadi",
+    };
+  }
   revalidatePath("/admin/problems");
 }

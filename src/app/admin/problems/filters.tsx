@@ -358,7 +358,13 @@ function SearchBox({
 
 /* -------------------------- Filter popover ---------------------------- */
 
-function FilterPopover({
+/**
+ * Generic multi-select popover with case-insensitive search and (for
+ * nested taxonomies like sources / topics) a chevron-driven tree. Exported
+ * because the bulk-edit dialog reuses it with the same picker semantics
+ * the filter bar uses, so admins see one consistent UI.
+ */
+export function FilterPopover({
   label,
   icon,
   count,

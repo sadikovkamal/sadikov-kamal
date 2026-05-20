@@ -195,3 +195,79 @@ export async function bulkDeleteProblemsTx(
     return { orphanStorageKeys: oldImages.map((r) => r.storageKey) };
   });
 }
+
+/**
+ * Bulk-update fields shared by many problems.
+ *
+ * Each field is optional: `undefined` means "don't touch". Defined fields
+ * are applied across every problem in `ids`:
+ *
+ *   - sourceId       → straight UPDATE on problems.source_id.
+ *   - ageCategoryIds → REPLACE semantics: delete the existing junction
+ *                      rows for these problems, then insert the new set.
+ *   - topicIds       → REPLACE semantics (same as age categories).
+ *
+ * All in one transaction so a partial failure (e.g. broken FK) leaves
+ * nothing half-updated. updatedAt is bumped whenever any field changes,
+ * so a "what changed recently?" view picks these up.
+ */
+export interface BulkUpdateProblemsInput {
+  ids: string[];
+  sourceId?: string;
+  ageCategoryIds?: string[];
+  topicIds?: string[];
+}
+
+export async function bulkUpdateProblemsTx(
+  input: BulkUpdateProblemsInput
+): Promise<void> {
+  if (input.ids.length === 0) return;
+  const touchSource = input.sourceId !== undefined;
+  const touchAges = input.ageCategoryIds !== undefined;
+  const touchTopics = input.topicIds !== undefined;
+  if (!touchSource && !touchAges && !touchTopics) return;
+
+  await db.transaction(async (tx) => {
+    if (touchSource) {
+      await tx
+        .update(problems)
+        .set({ sourceId: input.sourceId!, updatedAt: new Date() })
+        .where(inArray(problems.id, input.ids));
+    } else if (touchAges || touchTopics) {
+      // Only m2m changed — bump updatedAt explicitly so the change is
+      // visible in "recently updated" views without us writing a no-op
+      // column change.
+      await tx
+        .update(problems)
+        .set({ updatedAt: new Date() })
+        .where(inArray(problems.id, input.ids));
+    }
+
+    if (touchAges) {
+      await tx
+        .delete(problemAgeCategories)
+        .where(inArray(problemAgeCategories.problemId, input.ids));
+      const rows = input.ids.flatMap((problemId) =>
+        input.ageCategoryIds!.map((ageCategoryId) => ({
+          problemId,
+          ageCategoryId,
+        }))
+      );
+      if (rows.length > 0) {
+        await tx.insert(problemAgeCategories).values(rows);
+      }
+    }
+
+    if (touchTopics) {
+      await tx
+        .delete(problemTopics)
+        .where(inArray(problemTopics.problemId, input.ids));
+      const rows = input.ids.flatMap((problemId) =>
+        input.topicIds!.map((topicId) => ({ problemId, topicId }))
+      );
+      if (rows.length > 0) {
+        await tx.insert(problemTopics).values(rows);
+      }
+    }
+  });
+}

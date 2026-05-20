@@ -10,6 +10,7 @@ import {
   Inbox,
   Library,
   Pencil,
+  Settings2,
   Trash2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
@@ -24,6 +25,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { bulkDeleteProblemsAction } from "./_actions";
+import { BulkEditDialog } from "./bulk-edit-dialog";
+import type { FilterOption } from "./filters";
 import type { ProblemListResult } from "@/lib/problems/queries";
 
 export interface ProblemsListProps {
@@ -31,6 +34,11 @@ export interface ProblemsListProps {
   total: number;
   page: number;
   pageSize: number;
+  /** Same dictionaries the filter bar gets — reused inside the bulk-edit
+   *  dialog so admins pick from the identical pickers. */
+  sourcesAvailable: FilterOption[];
+  ageCategoriesAvailable: FilterOption[];
+  topicsAvailable: FilterOption[];
 }
 
 /**
@@ -51,6 +59,9 @@ export function ProblemsList({
   total,
   page,
   pageSize,
+  sourcesAvailable,
+  ageCategoriesAvailable,
+  topicsAvailable,
 }: ProblemsListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -58,6 +69,7 @@ export function ProblemsList({
   const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -154,6 +166,15 @@ export function ProblemsList({
               Bekor qilish
             </Button>
             <Button
+              variant="outline"
+              size="xs"
+              onClick={() => setBulkEditOpen(true)}
+              disabled={isPending}
+            >
+              <Settings2 data-icon="inline-start" />
+              O&apos;zgartirish
+            </Button>
+            <Button
               variant="destructive"
               size="xs"
               onClick={() => setConfirmOpen(true)}
@@ -211,6 +232,21 @@ export function ProblemsList({
           </div>
         )}
       </div>
+
+      <BulkEditDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        problemIds={Array.from(selected)}
+        sourcesAvailable={sourcesAvailable}
+        ageCategoriesAvailable={ageCategoriesAvailable}
+        topicsAvailable={topicsAvailable}
+        onSuccess={() => {
+          // Clear the selection and refresh server data so the list
+          // reflects the bulk update without a full reload.
+          setSelected(new Set());
+          router.refresh();
+        }}
+      />
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
