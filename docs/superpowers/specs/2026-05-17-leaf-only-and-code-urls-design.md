@@ -104,7 +104,7 @@ When neither has parents, the expansion is a no-op (`withDescendants` returns th
 
 The UI doesn't change: chips, popover selection state, and the URL still record the user's literal pick. The "what matches" is decided server-side.
 
-## Part 3 — Code-based URLs
+## Part 3 — Code-based URLs (no UUID conversion on the filter path)
 
 ### URL format
 
@@ -113,20 +113,63 @@ Before:  ?source=<uuid1>,<uuid2>&topic=<uuid3>&ageCategory=<uuid4>
 After:   ?source=S000001,S000002&topic=T000003&ageCategory=A000001
 ```
 
-### Boundary conversion
+### Codes end-to-end on the filter path
 
-The conversion sits at exactly two seams:
+The whole filter pipeline carries codes. There is no JS-side code↔UUID
+translation step anywhere — the only boundary that touches UUIDs lives
+inside the listing SQL, and that's an implementation detail of
+`listProblems`.
 
-**Reading the URL → IDs.** `parseSearchParams` returns codes (the input is already CSV strings; we just rename the fields to `sourceCodes`, `ageCategoryCodes`, `topicCodes`). `page.tsx` already has `sourcesAvailable` / `topicsAvailable` / `ageCategoriesAvailable` fetched — it converts codes → UUIDs using a `code → id` Map, drops unknown codes silently, and hands the UUID arrays to `listProblems`.
+**`parseSearchParams`** returns codes — field names change to `sourceCodes`,
+`ageCategoryCodes`, `topicCodes`.
 
-**Writing URL ← user selection.** `ProblemsFilterBar` already builds `URLSearchParams` on every change. We add the same conversion in reverse: take the FilterPopover's new selection (UUIDs internally), look up codes, set the URL.
+**`page.tsx`** passes those code arrays straight to `listProblems`. No
+lookup, no conversion.
 
-`FilterPopover` itself keeps working in UUIDs — none of its checkbox toggling, search, or nested-tree logic changes. Only the page-level glue translates.
+**`listProblems`** is the single seam where codes become UUIDs, and it
+happens inside the SQL. Pattern:
+
+```ts
+if (filters.sourceCodes?.length) {
+  conds.push(
+    inArray(
+      problems.sourceId,
+      db.select({ id: sources.id })
+        .from(sources)
+        .where(inArray(sources.code, filters.sourceCodes))
+    )
+  );
+}
+```
+
+Same shape for topics and age categories via their respective junction
+tables. The descendants expansion (part 2) also stays in code-space: it
+reads the topics/sources tables once for `(id, code, parentId)`, builds
+a code-keyed parent map, expands the input codes into the full set of
+descendant codes, and feeds those into the subquery above. UUIDs never
+leave the SQL layer.
+
+**`ProblemsFilterBar`** keeps its filter state as code arrays. It builds
+a **code-keyed view** of the available options (a `useMemo` that maps
+each `FilterOption` so that `id` holds the code and `parentId` holds the
+parent's code) and hands those to `FilterPopover`. The popover's
+internal logic is unchanged — it still keys everything by the `id`
+field; we just pass it a different view of the same data.
+
+**Writing URL ← user selection.** `FilterPopover` returns the new code
+array on change. `ProblemsFilterBar` writes that array straight to the
+URL params. No conversion.
+
+**`BulkEditDialog` is unaffected.** It still works with UUIDs because
+the mutations it calls (`bulkUpdateProblemsAction`) need UUIDs to set
+foreign keys. The dialog never talks to the URL; it only reads
+selections from the modal itself.
 
 ### Edge cases
 
-- Unknown code in URL (taxonomy node deleted after a shared link): silently dropped. The page renders without that filter rather than error.
-- Conversion is O(N) lookups with N = number of selected items. Dictionaries are already in memory; cost is negligible.
+- Unknown code in URL (taxonomy node deleted after a shared link): the
+  `inArray(sources.code, ...)` subquery matches nothing for that code,
+  so the filter is effectively dropped without an error.
 - Bookmark / back-navigation still works — URL is the source of truth.
 
 ## Component touchpoints
@@ -134,15 +177,15 @@ The conversion sits at exactly two seams:
 | File | Change |
 |---|---|
 | `src/lib/taxonomy/hierarchy.ts` | **New.** Pure helpers: `parentIdSet`, `isLeaf`, `withDescendants`. |
-| `src/lib/problems/queries.ts` | `listProblems` expands topic/source filters via `withDescendants`. |
+| `src/lib/problems/queries.ts` | `listProblems` accepts `*Codes` arrays and resolves them inside SQL; same site expands topic/source filters via `withDescendants`. |
 | `src/lib/problems/mutations.ts` | `createProblemTx`, `updateProblemTx`, `bulkUpdateProblemsTx` guard against parent ids. |
 | `src/lib/import/validate.ts` | Per-problem error when a source/topic code is a parent. |
 | `src/components/problem-form-pickers/topic-tree-picker.tsx` | Parent rows disabled + tooltip; silent filter on stale `value`. |
 | `src/components/problem-form-pickers/source-picker.tsx` | Same. |
-| `src/app/admin/problems/filters.tsx` | `FilterPopover` gains `mode: "filter" \| "leaf-only"` prop; `ProblemsFilterBar` does code↔UUID conversion. |
+| `src/app/admin/problems/filters.tsx` | `FilterPopover` gains `mode: "filter" \| "leaf-only"` prop; `ProblemsFilterBar` switches its filter state to codes and feeds the popover a code-keyed view of the dictionaries — no UUID conversion. |
 | `src/app/admin/problems/bulk-edit-dialog.tsx` | Pass `mode="leaf-only"` to source + topic popovers. |
 | `src/app/admin/problems/_url-state.ts` | Field rename: `sourceCodes`, `ageCategoryCodes`, `topicCodes`. |
-| `src/app/admin/problems/page.tsx` | Code → UUID lookup before calling `listProblems`. |
+| `src/app/admin/problems/page.tsx` | Passes code arrays straight to `listProblems`. No lookup. |
 | `scripts/leaf-rule-smoke.ts` | **New.** Smoke test that exercises the mutation guards, the filter expansion, and the helper functions. |
 | `scripts/run-all-smokes.sh` | Register `leaf-rule-smoke.ts`. |
 
