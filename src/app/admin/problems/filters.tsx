@@ -451,7 +451,13 @@ function FilterPopover({
           </Button>
         }
       />
-      <PopoverContent align="start" className="w-72 p-0">
+      <PopoverContent
+        align="start"
+        // Wider than the default w-72 so nested topic/source names
+        // ("Ferma kichik teoremasi. Davomi…") don't truncate at depth ≥ 2.
+        // max-w cap keeps it within the viewport on narrow screens.
+        className="w-96 max-w-[calc(100vw-2rem)] p-0"
+      >
         {options.length > 8 && (
           <div className="relative border-b">
             <Search
