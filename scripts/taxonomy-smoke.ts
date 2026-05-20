@@ -91,11 +91,13 @@ async function main() {
 
   // --- FK restrict on source delete -------------------------------------
   // Create a problem referencing the source, then try to delete it.
+  // Use childId (a leaf) because the new leaf-only rule refuses to
+  // attach a problem to topicId (which is the parent of childId).
   const problemId = await createProblemTx(
     {
       bodyMd: "FK restrict test",
       sourceId,
-      topicIds: [topicId],
+      topicIds: [childId],
       ageCategoryIds: [
         (await db.select().from(ageCategories)).find(
           (c) => c.name === "9-sinf"
@@ -114,14 +116,15 @@ async function main() {
   assert(deleteFailed, "deleteSource should have failed (FK restrict)");
   console.log(`[5] FK restrict on source delete works (must reassign problems first)`);
 
-  // Also test for topic
+  // Also test for topic — the problem references childId (the leaf),
+  // so deleting childId should hit the FK restrict on problem_topics.
   let topicDeleteFailed = false;
   try {
-    await deleteTopic(topicId);
+    await deleteTopic(childId);
   } catch {
     topicDeleteFailed = true;
   }
-  assert(topicDeleteFailed, "deleteTopic should have failed (FK restrict)");
+  assert(topicDeleteFailed, "deleteTopic(childId) should have failed (FK restrict)");
   console.log(`[6] FK restrict on topic delete works`);
 
   // Clean up: delete problem first to release FK
