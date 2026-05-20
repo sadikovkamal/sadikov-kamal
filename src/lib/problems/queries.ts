@@ -1,5 +1,6 @@
 import "server-only";
 
+import katex from "katex";
 import {
   and,
   asc,
@@ -248,23 +249,81 @@ export async function listProblems(
 }
 
 /**
- * Cheap markdown stripper for list previews. Replaces math with `[math]`,
- * collapses links to their text, drops headings/emphasis, normalizes
- * whitespace. Cheap because we don't need real markdown rendering for a
- * one-line cell — readability beats fidelity here.
+ * Build an HTML preview for a markdown problem body.
+ *
+ * Strips images / headings / emphasis / link URLs (keeping link text),
+ * collapses whitespace, truncates the visible-text source to `maxLen`,
+ * then KaTeX-renders inline math (`$...$`) and block math (`$$...$$`,
+ * displayed inline here since it's a one-line preview). All non-math
+ * text is HTML-escaped, so the result is safe to drop into the DOM via
+ * `dangerouslySetInnerHTML`. KaTeX's own output is curated HTML+MathML
+ * and is trusted as-is.
+ *
+ * Why server-side: katex.renderToString runs anywhere; doing it here
+ * keeps the list page client bundle free of react-markdown + plugins.
+ * The `katex.min.css` is loaded by the problems segment layout, so the
+ * rendered output styles correctly on every problem-related route.
  */
 function stripMarkdownToPreview(md: string, maxLen: number): string {
-  const stripped = md
-    // Unwrap math: keep the LaTeX source visible, drop the $ markers.
-    .replace(/\$\$([\s\S]*?)\$\$/g, "$1")
-    .replace(/\$([^$\n]+)\$/g, "$1")
+  // 1. Strip non-math markdown. We keep math delimiters intact for the
+  //    next phase; the regexes below avoid the $...$ runs.
+  const cleaned = md
     .replace(/!\[[^\]]*\]\([^)]+\)/g, "[rasm]")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/[*_`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  return stripped.length > maxLen
-    ? stripped.slice(0, maxLen).trimEnd() + "…"
-    : stripped;
+
+  // 2. Truncate while math tokens are still visible-as-source. We do
+  //    a rough char count that treats each $expr$ as the length of its
+  //    rendered text equivalent ≈ source length — close enough for a
+  //    one-line preview budget.
+  const truncated =
+    cleaned.length > maxLen
+      ? cleaned.slice(0, maxLen).replace(/\$+[^$]*$/, "").trimEnd() + "…"
+      : cleaned;
+
+  // 3. Tokenize on math delimiters and KaTeX-render each math token.
+  //    Block math ($$...$$) renders inline here — the preview is a
+  //    single line, display mode would blow it out vertically.
+  //    Token regex eats either $$...$$ or $...$; "g" flag so we can
+  //    interleave text + math chunks.
+  const TOKEN = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g;
+  const parts: string[] = [];
+  let cursor = 0;
+  let m: RegExpExecArray | null;
+  while ((m = TOKEN.exec(truncated)) !== null) {
+    if (m.index > cursor) {
+      parts.push(escapeHtml(truncated.slice(cursor, m.index)));
+    }
+    const expr = m[1] ?? m[2] ?? "";
+    parts.push(renderMathInline(expr));
+    cursor = m.index + m[0].length;
+  }
+  if (cursor < truncated.length) {
+    parts.push(escapeHtml(truncated.slice(cursor)));
+  }
+  return parts.join("");
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderMathInline(expr: string): string {
+  try {
+    return katex.renderToString(expr, {
+      throwOnError: false,
+      displayMode: false,
+      output: "html",
+    });
+  } catch {
+    return escapeHtml(expr);
+  }
 }

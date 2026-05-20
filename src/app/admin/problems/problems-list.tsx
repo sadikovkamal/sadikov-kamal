@@ -315,16 +315,23 @@ function ProblemCard({
           </div>
         </div>
 
-        {/* Body preview — clickable to open detail */}
+        {/* Body preview — clickable to open detail. `bodyPreview` is
+            server-rendered HTML (KaTeX for math, escaped text otherwise),
+            so it's safe to drop in via dangerouslySetInnerHTML. */}
         <Link
           href={`/admin/problems/${row.id}`}
           className="block group/body"
         >
-          <p className="line-clamp-2 text-sm leading-relaxed text-foreground/90 group-hover/body:text-foreground transition-colors">
-            {row.bodyPreview || (
+          {row.bodyPreview ? (
+            <p
+              className="line-clamp-2 text-sm leading-relaxed text-foreground/90 group-hover/body:text-foreground transition-colors [&_.katex]:text-[0.95em]"
+              dangerouslySetInnerHTML={{ __html: row.bodyPreview }}
+            />
+          ) : (
+            <p className="line-clamp-2 text-sm leading-relaxed text-foreground/90 group-hover/body:text-foreground transition-colors">
               <em className="text-muted-foreground">(bo&apos;sh)</em>
-            )}
-          </p>
+            </p>
+          )}
         </Link>
 
         {/* Footer — topics + age categories */}
