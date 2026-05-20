@@ -7,8 +7,49 @@ import {
   problemTopics,
   problemAgeCategories,
   images,
+  topics,
+  sources,
 } from "@/db/schema";
 import { formatProblemCode, parseProblemCodeSeq } from "./codes";
+import { parentIdSet } from "@/lib/taxonomy/hierarchy";
+
+/**
+ * Throw if any of the given ids is a parent in its taxonomy. Run
+ * inside every problem-write mutation so a tampered or stale client
+ * can't sneak a problem onto a parent node.
+ *
+ * Reads only the columns we need from both taxonomies; one query each.
+ */
+async function assertLeavesOnly(
+  tx: Pick<typeof db, "select">,
+  sourceIds: string[],
+  topicIds: string[]
+): Promise<void> {
+  if (sourceIds.length > 0) {
+    const allSources = await tx
+      .select({ id: sources.id, parentId: sources.parentId })
+      .from(sources);
+    const sourceParents = parentIdSet(allSources);
+    const badSource = sourceIds.find((id) => sourceParents.has(id));
+    if (badSource) {
+      throw new Error(
+        `Parent guruh manbaga masala biriktirib bo'lmaydi (${badSource})`
+      );
+    }
+  }
+  if (topicIds.length > 0) {
+    const allTopics = await tx
+      .select({ id: topics.id, parentId: topics.parentId })
+      .from(topics);
+    const topicParents = parentIdSet(allTopics);
+    const badTopic = topicIds.find((id) => topicParents.has(id));
+    if (badTopic) {
+      throw new Error(
+        `Parent guruh mavzuga masala biriktirib bo'lmaydi (${badTopic})`
+      );
+    }
+  }
+}
 
 export interface ProblemImageInput {
   storageKey: string;
@@ -38,6 +79,7 @@ export interface ProblemInput {
  */
 export async function createProblemTx(input: ProblemInput, createdBy: string) {
   return db.transaction(async (tx) => {
+    await assertLeavesOnly(tx, [input.sourceId], input.topicIds);
     // Compute next code from the current max. Pulling just max() keeps
     // this O(1) instead of fetching every code.
     const [{ maxCode }] = await tx
@@ -105,6 +147,7 @@ export async function updateProblemTx(
   input: ProblemInput
 ): Promise<{ orphanStorageKeys: string[] }> {
   return db.transaction(async (tx) => {
+    await assertLeavesOnly(tx, [input.sourceId], input.topicIds);
     const oldImages = await tx
       .select({ storageKey: images.storageKey })
       .from(images)
@@ -228,6 +271,11 @@ export async function bulkUpdateProblemsTx(
   if (!touchSource && !touchAges && !touchTopics) return;
 
   await db.transaction(async (tx) => {
+    await assertLeavesOnly(
+      tx,
+      touchSource ? [input.sourceId!] : [],
+      touchTopics ? input.topicIds! : []
+    );
     if (touchSource) {
       await tx
         .update(problems)
