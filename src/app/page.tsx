@@ -7,14 +7,18 @@ export default function Home() {
     <div className="flex min-h-screen flex-col">
       <header className="border-b">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center" aria-label="Sadikov Kamal">
+          <Link href="/" className="flex items-center gap-2" aria-label="Sadikov Kamal">
             <Image
-              src="/brand/logo-wordmark.svg"
-              alt="Sadikov Kamal"
-              width={120}
-              height={30}
+              src="/brand/sk-logo.webp"
+              alt=""
+              width={36}
+              height={36}
               priority
+              aria-hidden
             />
+            <span className="font-display text-base tracking-tight">
+              Sadikov Kamal
+            </span>
           </Link>
           <Link
             href="/login"

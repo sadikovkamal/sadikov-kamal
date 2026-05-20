@@ -20,7 +20,7 @@ export default async function LoginPage({
         <div className="text-center space-y-3">
           <Link href="/" className="inline-block" aria-label="Sadikov Kamal">
             <Image
-              src="/brand/logo-mark.svg"
+              src="/brand/sk-logo.webp"
               alt=""
               width={48}
               height={48}

@@ -55,22 +55,30 @@ export function SidebarShell({
             className="inline-flex items-center justify-center"
           >
             <Image
-              src="/brand/logo-mark.svg"
+              src="/brand/sk-logo.webp"
               alt="Sadikov Kamal"
-              width={24}
-              height={24}
+              width={28}
+              height={28}
               priority
             />
           </Link>
         ) : (
-          <Link href="/admin" aria-label="Sadikov Kamal" className="inline-flex">
+          <Link
+            href="/admin"
+            aria-label="Sadikov Kamal"
+            className="inline-flex items-center gap-2"
+          >
             <Image
-              src="/brand/logo-wordmark.svg"
-              alt="Sadikov Kamal"
-              width={104}
-              height={26}
+              src="/brand/sk-logo.webp"
+              alt=""
+              width={28}
+              height={28}
               priority
+              aria-hidden
             />
+            <span className="font-display text-sm tracking-tight">
+              Sadikov Kamal
+            </span>
           </Link>
         )}
         {!collapsed && <SidebarToggle collapsed={false} onToggle={toggle} />}
