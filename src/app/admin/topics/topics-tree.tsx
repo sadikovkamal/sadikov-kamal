@@ -8,11 +8,13 @@ import {
   Plus,
   Pencil,
   Minus,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildTopicTree } from "@/lib/taxonomy/topic-codes";
 import type { TopicTreeNode } from "@/lib/taxonomy/topic-codes";
 import { TopicEditDialog, type TopicShape } from "./topic-edit-dialog";
+import { TopicImportDialog } from "./topic-import-dialog";
 import type { TopicWithCount } from "@/lib/taxonomy/queries";
 
 /**
@@ -23,6 +25,7 @@ import type { TopicWithCount } from "@/lib/taxonomy/queries";
  */
 export function TopicsTree({ topics }: { topics: TopicWithCount[] }) {
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Build the tree once; flatten happens at render based on the expanded
   // set so collapse/expand stays cheap.
@@ -88,6 +91,14 @@ export function TopicsTree({ topics }: { topics: TopicWithCount[] }) {
               )}
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportOpen(true)}
+          >
+            <Upload data-icon="inline-start" />
+            XLSX import
+          </Button>
           <Button size="sm" onClick={() => setEditingId("new")}>
             <Plus data-icon="inline-start" />
             Yangi mavzu
@@ -147,6 +158,8 @@ export function TopicsTree({ topics }: { topics: TopicWithCount[] }) {
           onClose={() => setEditingId(null)}
         />
       )}
+
+      <TopicImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }
