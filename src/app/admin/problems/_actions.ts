@@ -13,6 +13,7 @@ import {
   bulkUpdateProblemsTx,
   type ProblemInput,
 } from "@/lib/problems/mutations";
+import { BULK_OP_LIMIT } from "./_constants";
 
 const problemSchema = z.object({
   bodyMd: z.string().min(1, "Problem body is required"),
@@ -127,7 +128,10 @@ export async function deleteProblemAction(id: string): Promise<ProblemActionResu
 
 const bulkDeleteSchema = z
   .array(z.string().uuid())
-  .max(500, "Bir vaqtda 500 dan ortiq masala o'chirib bo'lmaydi");
+  .max(
+    BULK_OP_LIMIT,
+    `Bir vaqtda ${BULK_OP_LIMIT} dan ortiq masala o'chirib bo'lmaydi`
+  );
 
 export async function bulkDeleteProblemsAction(ids: string[]) {
   await requireAdmin();
@@ -168,7 +172,13 @@ export async function bulkDeleteProblemsAction(ids: string[]) {
  */
 const bulkUpdateSchema = z
   .object({
-    ids: z.array(z.string().uuid()).min(1).max(500),
+    ids: z
+      .array(z.string().uuid())
+      .min(1)
+      .max(
+        BULK_OP_LIMIT,
+        `Bir vaqtda ${BULK_OP_LIMIT} dan ortiq masalani o'zgartirib bo'lmaydi`
+      ),
     sourceId: z.string().uuid().optional(),
     ageCategoryIds: z.array(z.string().uuid()).min(1).optional(),
     topicIds: z.array(z.string().uuid()).min(1).optional(),

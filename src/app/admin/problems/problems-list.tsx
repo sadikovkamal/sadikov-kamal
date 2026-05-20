@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
+  AlertTriangle,
   ArrowUpRight,
   ChevronLeft,
   ChevronRight,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { bulkDeleteProblemsAction } from "./_actions";
 import { BulkEditDialog } from "./bulk-edit-dialog";
+import { BULK_OP_LIMIT } from "./_constants";
 import type { FilterOption } from "./filters";
 import type { ProblemListResult } from "@/lib/problems/queries";
 
@@ -117,6 +119,11 @@ export function ProblemsList({
 
   const allSelectedOnPage =
     rows.length > 0 && rows.every((r) => selected.has(r.id));
+  // Hard cap shared with the server schemas. The "Hammasini tanlash"
+  // checkbox only selects the current page (≤ pageSize), so reaching
+  // this limit takes deliberate cross-page clicking — but we still
+  // gate the bulk action buttons to keep the contract honest.
+  const overBulkLimit = selected.size > BULK_OP_LIMIT;
 
   if (rows.length === 0) {
     return (
@@ -143,18 +150,32 @@ export function ProblemsList({
     <div className="flex flex-col gap-3 flex-1 min-h-0">
       {/* Top toolbar: select-all + selection bar */}
       <div className="flex items-center justify-between gap-3 shrink-0">
-        <label className="inline-flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
-          <Checkbox
-            checked={allSelectedOnPage}
-            onCheckedChange={(v) => toggleAll(v === true)}
-            aria-label="Hammasini tanlash"
-          />
-          <span>
-            {selected.size > 0
-              ? `${selected.size} ta tanlangan`
-              : "Hammasini tanlash"}
-          </span>
-        </label>
+        <div className="flex items-center gap-3 min-w-0 flex-wrap">
+          <label className="inline-flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
+            <Checkbox
+              checked={allSelectedOnPage}
+              onCheckedChange={(v) => toggleAll(v === true)}
+              aria-label="Hammasini tanlash"
+            />
+            <span>
+              {selected.size > 0
+                ? `${selected.size} ta tanlangan`
+                : "Hammasini tanlash"}
+            </span>
+          </label>
+
+          {overBulkLimit && (
+            <span
+              role="alert"
+              className="inline-flex items-center gap-1.5 rounded-md ring-1 ring-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-500"
+            >
+              <AlertTriangle className="size-3" aria-hidden />
+              Maks {BULK_OP_LIMIT} ta. Avval kamida{" "}
+              {selected.size - BULK_OP_LIMIT} ta masalani tanlovdan
+              olib tashlang.
+            </span>
+          )}
+        </div>
 
         {selected.size > 0 && (
           <div className="flex gap-1.5">
@@ -169,7 +190,12 @@ export function ProblemsList({
               variant="outline"
               size="xs"
               onClick={() => setBulkEditOpen(true)}
-              disabled={isPending}
+              disabled={isPending || overBulkLimit}
+              title={
+                overBulkLimit
+                  ? `Bir vaqtda eng ko'pi bilan ${BULK_OP_LIMIT} ta masala`
+                  : undefined
+              }
             >
               <Settings2 data-icon="inline-start" />
               O&apos;zgartirish
@@ -178,7 +204,12 @@ export function ProblemsList({
               variant="destructive"
               size="xs"
               onClick={() => setConfirmOpen(true)}
-              disabled={isPending}
+              disabled={isPending || overBulkLimit}
+              title={
+                overBulkLimit
+                  ? `Bir vaqtda eng ko'pi bilan ${BULK_OP_LIMIT} ta masala`
+                  : undefined
+              }
             >
               <Trash2 data-icon="inline-start" />
               O&apos;chirish
