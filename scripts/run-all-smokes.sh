@@ -35,6 +35,7 @@ SERVER_ONLY=(
   "taxonomy-smoke.ts"
   "rate-limit-smoke.ts"
   "topics-xlsx-smoke.ts"
+  "leaf-rule-smoke.ts"
 )
 
 PASS=0
