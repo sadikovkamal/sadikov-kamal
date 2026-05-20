@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { parentIdSet } from "@/lib/taxonomy/hierarchy";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -104,7 +105,16 @@ export function SourcePicker({
     });
   }
 
+  const parentSet = useMemo(
+    () =>
+      parentIdSet(
+        available.map((s) => ({ id: s.id, parentId: s.parentId }))
+      ),
+    [available]
+  );
+
   function pick(id: string) {
+    if (parentSet.has(id)) return;
     onChange(id);
     setOpen(false);
     // Defer cleanup so the close animation doesn't flicker.
@@ -113,7 +123,10 @@ export function SourcePicker({
     }, 150);
   }
 
-  const selected = value ? (byId.get(value) ?? null) : null;
+  const selected =
+    value && byId.get(value) && !parentSet.has(value)
+      ? byId.get(value)!
+      : null;
   const hasNesting = available.some((s) => s.parentId);
 
   return (
@@ -246,7 +259,17 @@ export function SourcePicker({
                   <button
                     type="button"
                     onClick={() => pick(node.id)}
-                    className="flex-1 min-w-0 flex items-center gap-2 py-1.5 text-left"
+                    disabled={parentSet.has(node.id)}
+                    title={
+                      parentSet.has(node.id)
+                        ? "Faqat ichki manba tanlanadi — bu guruh"
+                        : undefined
+                    }
+                    className={cn(
+                      "flex-1 min-w-0 flex items-center gap-2 py-1.5 text-left",
+                      parentSet.has(node.id) &&
+                        "cursor-default text-muted-foreground"
+                    )}
                   >
                     <PickerLogo
                       name={node.name}

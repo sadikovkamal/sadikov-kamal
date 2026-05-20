@@ -18,6 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { buildTopicTree, type TopicTreeNode } from "@/lib/taxonomy/topic-codes";
+import { parentIdSet } from "@/lib/taxonomy/hierarchy";
 import type { Topic } from "@/db/schema";
 
 /**
@@ -43,6 +44,17 @@ export function TopicTreePicker({
   const [search, setSearch] = useState("");
 
   const tree = useMemo(() => buildTopicTree(available), [available]);
+
+  // Parents (have children) can't hold a problem — render them
+  // disabled and silently filter them out of `value` so stale drafts
+  // don't keep the user stuck on a forbidden id.
+  const parentSet = useMemo(
+    () =>
+      parentIdSet(
+        available.map((t) => ({ id: t.id, parentId: t.parentId }))
+      ),
+    [available]
+  );
 
   // Collapsed set — start with all parents collapsed.
   const allParentIds = useMemo(() => collectParentIds(tree), [tree]);
@@ -93,7 +105,9 @@ export function TopicTreePicker({
     }
   }
 
-  const selected = available.filter((t) => value.includes(t.id));
+  const selected = available.filter(
+    (t) => value.includes(t.id) && !parentSet.has(t.id)
+  );
 
   return (
     <div className="space-y-2">
@@ -147,6 +161,7 @@ export function TopicTreePicker({
                 expandedExtra={visible.expandedExtra}
                 allow={visible.allow}
                 selectedIds={value}
+                parentSet={parentSet}
                 onToggleCollapse={toggleCollapse}
                 onToggleSelect={toggleSelect}
               />
@@ -184,6 +199,7 @@ function TreeRows({
   expandedExtra,
   allow,
   selectedIds,
+  parentSet,
   onToggleCollapse,
   onToggleSelect,
 }: {
@@ -195,6 +211,8 @@ function TreeRows({
   /** When set, only nodes whose IDs are in this set may render. */
   allow: Set<string> | null;
   selectedIds: string[];
+  /** Parents — render disabled and ignore clicks on their row body. */
+  parentSet: Set<string>;
   onToggleCollapse: (id: string) => void;
   onToggleSelect: (id: string) => void;
 }): React.ReactNode {
@@ -212,12 +230,23 @@ function TreeRows({
           <div key={node.topic.id}>
             <div
               className={cn(
-                "group flex items-center gap-1.5 px-2 py-1.5 text-sm cursor-pointer rounded-sm",
-                "hover:bg-muted transition-colors",
+                "group flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-sm transition-colors",
+                parentSet.has(node.topic.id)
+                  ? "cursor-default text-muted-foreground"
+                  : "cursor-pointer hover:bg-muted",
                 isSelected && "bg-[var(--accent-brand)]/5"
               )}
               style={{ paddingLeft: `${depth * 16 + 8}px` }}
-              onClick={() => onToggleSelect(node.topic.id)}
+              aria-disabled={parentSet.has(node.topic.id) || undefined}
+              title={
+                parentSet.has(node.topic.id)
+                  ? "Faqat ichki mavzu tanlanadi — bu guruh"
+                  : undefined
+              }
+              onClick={() => {
+                if (parentSet.has(node.topic.id)) return;
+                onToggleSelect(node.topic.id);
+              }}
             >
               {hasChildren ? (
                 <button
@@ -270,6 +299,7 @@ function TreeRows({
                 expandedExtra={expandedExtra}
                 allow={allow}
                 selectedIds={selectedIds}
+                parentSet={parentSet}
                 onToggleCollapse={onToggleCollapse}
                 onToggleSelect={onToggleSelect}
               />
