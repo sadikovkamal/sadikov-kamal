@@ -32,22 +32,46 @@ export default function Home() {
 
       <main className="flex-1 flex items-center">
         <div className="max-w-5xl w-full mx-auto px-6 py-16 md:py-24">
-          {/* Editorial hero — large serif title with italic accent, mono dateline. */}
+          {/* Editorial hero — small mono eyebrow, large serif title with
+              italic accent, two paragraphs of biographical prose, school
+              chips, and a quiet "masalalar bazasi" tag at the bottom. */}
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono">
-            v0 · MVP
+            Matematika · Olimpiada tayyorgarligi
           </p>
           <h1 className="mt-4 font-display text-6xl md:text-7xl tracking-tight leading-[0.95]">
-            Isbotga{" "}
-            <span className="italic text-[var(--accent-brand)]">yo&apos;l</span>.
+            Sadikov{" "}
+            <span className="italic text-[var(--accent-brand)]">Kamal</span>.
           </h1>
-          <p className="mt-6 max-w-xl text-lg text-muted-foreground leading-relaxed">
-            O&apos;zbekiston matematika olimpiadasi masalalarining ma&apos;lumotlar
-            bazasi. Manbalar, mavzular va sinflar bo&apos;yicha tartiblangan,
-            izlash uchun ochiq.
-          </p>
+
+          <div className="mt-6 max-w-xl space-y-3 text-lg text-muted-foreground leading-relaxed">
+            <p>
+              Matematika o&apos;qituvchisi. Prezident maktabi, Al-Xorazmiy
+              nomidagi maktab va ixtisoslashtirilgan maktablarda dars
+              berib, o&apos;quvchilarni olimpiadalarga tayyorlaydi.
+            </p>
+            <p>
+              Shogirdlari viloyat bosqichida sovrinli o&apos;rinlarni
+              muntazam egallab kelmoqda.
+            </p>
+          </div>
+
+          <ul className="mt-8 flex flex-wrap items-center gap-1.5 text-xs">
+            {[
+              "Prezident maktabi",
+              "Al-Xorazmiy maktabi",
+              "Ixtisoslashtirilgan maktablar",
+            ].map((school) => (
+              <li
+                key={school}
+                className="inline-flex items-center rounded-full ring-1 ring-foreground/10 bg-card px-2.5 py-1 text-foreground/80"
+              >
+                {school}
+              </li>
+            ))}
+          </ul>
 
           <div className="mt-10 flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">Hozircha</span>
+            <span className="text-muted-foreground">Masalalar bazasi</span>
             <span className="font-mono text-xs px-2 py-0.5 rounded-full ring-1 ring-foreground/15">
               admin-only
             </span>

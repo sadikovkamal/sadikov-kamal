@@ -27,9 +27,9 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Sadikov Kamal — Isbotga yo'l",
+  title: "Sadikov Kamal — matematika o'qituvchisi",
   description:
-    "Sadikov Kamal — O'zbekiston matematika olimpiadasi masalalari ma'lumotlar bazasi.",
+    "Matematika o'qituvchisi. Prezident maktabi, Al-Xorazmiy nomidagi maktab va ixtisoslashtirilgan maktablarda dars berib, o'quvchilarni olimpiadalarga tayyorlaydi.",
 };
 
 export default function RootLayout({
