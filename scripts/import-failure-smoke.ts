@@ -12,6 +12,7 @@ import { db } from "../src/db";
 import { sources, ageCategories, topics } from "../src/db/schema";
 import { parseBundle } from "../src/lib/import/parse";
 import { validateBundle } from "../src/lib/import/validate";
+import { parentIdSet } from "../src/lib/taxonomy/hierarchy";
 
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(`assertion failed: ${msg}`);
@@ -21,10 +22,25 @@ async function main() {
   // Pick one real code of each kind so the "good" block in the bundle
   // can actually pass validation; the rest deliberately use codes that
   // don't exist.
-  const [oneSource] = await db.select({ code: sources.code }).from(sources).limit(1);
-  const [oneAge] = await db.select({ code: ageCategories.code }).from(ageCategories).limit(1);
-  const [oneTopic] = await db.select({ code: topics.code }).from(topics).limit(1);
-  assert(oneSource && oneAge && oneTopic, "seed missing — run pnpm db:seed");
+  // Must pick a LEAF source and topic (non-parent) so the "good" block
+  // passes the new parent-guard check in the validator.
+  const [oneAge] = await db
+    .select({ code: ageCategories.code })
+    .from(ageCategories)
+    .limit(1);
+  const allSources = await db
+    .select({ id: sources.id, code: sources.code, parentId: sources.parentId })
+    .from(sources);
+  const sourceParents = parentIdSet(allSources);
+  const leafSource = allSources.find((s) => !sourceParents.has(s.id));
+  const allTopics = await db
+    .select({ id: topics.id, code: topics.code, parentId: topics.parentId })
+    .from(topics);
+  const topicParents = parentIdSet(allTopics);
+  const leafTopic = allTopics.find((t) => !topicParents.has(t.id));
+  assert(oneAge && leafSource && leafTopic, "seed missing — run pnpm db:seed");
+  const oneSource = leafSource;
+  const oneTopic = leafTopic;
 
   const S = oneSource.code;
   const A = oneAge.code;

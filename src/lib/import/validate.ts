@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/db";
 import { sources, topics, ageCategories } from "@/db/schema";
 import { BUNDLE_LIMITS, problemFrontmatterSchema, type ProblemFrontmatter } from "./schema";
+import { parentIdSet } from "@/lib/taxonomy/hierarchy";
 import type { ParsedBundle, ParsedProblem } from "./parse";
 
 export interface ProblemValidation {
@@ -42,8 +43,20 @@ export async function validateBundle(
   const imageNames = new Set(bundle.images.keys());
 
   const [allSources, allTopics, allAgeCategories] = await Promise.all([
-    db.select({ id: sources.id, code: sources.code }).from(sources),
-    db.select({ id: topics.id, code: topics.code }).from(topics),
+    db
+      .select({
+        id: sources.id,
+        code: sources.code,
+        parentId: sources.parentId,
+      })
+      .from(sources),
+    db
+      .select({
+        id: topics.id,
+        code: topics.code,
+        parentId: topics.parentId,
+      })
+      .from(topics),
     db
       .select({ id: ageCategories.id, code: ageCategories.code })
       .from(ageCategories),
@@ -53,9 +66,19 @@ export async function validateBundle(
   const ageCategoryIdByCode = new Map(
     allAgeCategories.map((r) => [r.code, r.id])
   );
+  const sourceParents = parentIdSet(allSources);
+  const topicParents = parentIdSet(allTopics);
 
   const result: ProblemValidation[] = bundle.problems.map((p) =>
-    validateProblem(p, sourceIdByCode, ageCategoryIdByCode, topicIdByCode, imageNames)
+    validateProblem(
+      p,
+      sourceIdByCode,
+      ageCategoryIdByCode,
+      topicIdByCode,
+      sourceParents,
+      topicParents,
+      imageNames
+    )
   );
 
   return {
@@ -71,6 +94,8 @@ function validateProblem(
   sourceIdByCode: Map<string, string>,
   ageCategoryIdByCode: Map<string, string>,
   topicIdByCode: Map<string, string>,
+  sourceParents: Set<string>,
+  topicParents: Set<string>,
   imageNames: Set<string>
 ): ProblemValidation {
   const errors: string[] = [];
@@ -109,10 +134,14 @@ function validateProblem(
     }
   }
 
-  // 4. Resolve codes to UUIDs.
+  // 4. Resolve codes to UUIDs, then reject any parent (non-leaf) target.
   const sourceId = sourceIdByCode.get(fm.source);
   if (!sourceId) {
     errors.push(`Manba topilmadi: ${fm.source}`);
+  } else if (sourceParents.has(sourceId)) {
+    errors.push(
+      `Manba parent guruh: ${fm.source} (faqat ichki manba tanlanadi)`
+    );
   }
 
   const ageCategoryIds: string[] = [];
@@ -125,8 +154,17 @@ function validateProblem(
   const topicIds: string[] = [];
   for (const code of fm.topics) {
     const id = topicIdByCode.get(code);
-    if (id) topicIds.push(id);
-    else errors.push(`Mavzu topilmadi: ${code}`);
+    if (!id) {
+      errors.push(`Mavzu topilmadi: ${code}`);
+      continue;
+    }
+    if (topicParents.has(id)) {
+      errors.push(
+        `Mavzu parent guruh: ${code} (faqat ichki mavzu tanlanadi)`
+      );
+      continue;
+    }
+    topicIds.push(id);
   }
 
   if (errors.length > 0) {
