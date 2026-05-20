@@ -40,17 +40,17 @@ async function main() {
   )!;
 
   // Age-category lookup: tests build fixtures with grade numbers, we
-  // translate to UUIDs via the seeded "N-sinf" labels.
+  // translate to codes via the seeded "N-sinf" labels.
   const allCategories = await db.select().from(ageCategories);
-  const catByGrade = new Map<number, string>();
+  const catByGrade = new Map<number, { id: string; code: string }>();
   for (const c of allCategories) {
     const m = c.name.match(/^(\d+)-sinf$/);
-    if (m) catByGrade.set(Number(m[1]), c.id);
+    if (m) catByGrade.set(Number(m[1]), { id: c.id, code: c.code });
   }
-  const cat = (n: number): string => {
-    const id = catByGrade.get(n);
-    if (!id) throw new Error(`age category for grade ${n} not seeded`);
-    return id;
+  const cat = (n: number): { id: string; code: string } => {
+    const entry = catByGrade.get(n);
+    if (!entry) throw new Error(`age category for grade ${n} not seeded`);
+    return entry;
   };
 
   // --- Seed test fixtures ---------------------------------------------------
@@ -75,7 +75,7 @@ async function main() {
         bodyMd: f.body,
         sourceId: f.source.id,
         topicIds: [f.topic.id],
-        ageCategoryIds: f.grades.map(cat),
+        ageCategoryIds: f.grades.map((g) => cat(g).id),
       },
       admin.id
     );
@@ -137,7 +137,7 @@ async function main() {
     // --- Source filter ------------------------------------------------------
     {
       const r = await listProblems(
-        withMarker({ sourceIds: [national.id] }),
+        withMarker({ sourceCodes: [national.code] }),
         { field: "createdAt", direction: "desc" },
         1,
         25
@@ -150,7 +150,7 @@ async function main() {
     // --- Topic filter (EXISTS subquery, no duplicates) ---------------------
     {
       const r = await listProblems(
-        withMarker({ topicIds: [algebra.id] }),
+        withMarker({ topicCodes: [algebra.code] }),
         { field: "createdAt", direction: "desc" },
         1,
         25
@@ -166,14 +166,14 @@ async function main() {
     {
       const cat11 = cat(11);
       const r = await listProblems(
-        withMarker({ ageCategoryIds: [cat11] }),
+        withMarker({ ageCategoryCodes: [cat11.code] }),
         { field: "createdAt", direction: "desc" },
         1,
         25
       );
       assert(r.total === 3, `11-sinf total=${r.total}, want 3`);
       assert(
-        r.rows.every((row) => row.ageCategories.some((c) => c.id === cat11)),
+        r.rows.every((row) => row.ageCategories.some((c) => c.id === cat11.id)),
         "age category filter leaked"
       );
       console.log(`[6] ageCategory=11-sinf -> ${r.total} rows`);
@@ -183,8 +183,8 @@ async function main() {
     {
       const r = await listProblems(
         withMarker({
-          topicIds: [algebra.id],
-          sourceIds: [imo.id],
+          topicCodes: [algebra.code],
+          sourceCodes: [imo.code],
         }),
         { field: "createdAt", direction: "desc" },
         1,
@@ -228,13 +228,13 @@ async function main() {
       const cat10 = cat(10);
       const cat11 = cat(11);
       const sp = new URLSearchParams(
-        `q=cauchy&ageCategory=${cat10},${cat11}&sortField=code&sortDir=asc&page=2`
+        `q=cauchy&ageCategory=${cat10.code},${cat11.code}&sortField=code&sortDir=asc&page=2`
       );
       const parsed = parseSearchParams(sp);
       assert(parsed.filters.search === "cauchy", "search not parsed");
       assert(
-        JSON.stringify(parsed.filters.ageCategoryIds) ===
-          JSON.stringify([cat10, cat11]),
+        JSON.stringify(parsed.filters.ageCategoryCodes) ===
+          JSON.stringify([cat10.code, cat11.code]),
         "ageCategory csv parse"
       );
       assert(parsed.sort.field === "code", "sortField parse");

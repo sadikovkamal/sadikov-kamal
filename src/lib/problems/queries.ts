@@ -21,6 +21,7 @@ import {
   ageCategories,
   sources,
 } from "@/db/schema";
+import { withDescendants } from "@/lib/taxonomy/hierarchy";
 
 /**
  * Fetch a single problem with all its associations expanded.
@@ -72,9 +73,12 @@ export type ProblemWithRelations = NonNullable<
 
 export interface ProblemListFilters {
   search?: string;
-  sourceIds?: string[];
-  ageCategoryIds?: string[];
-  topicIds?: string[];
+  /** S###### codes; filter expands to descendants when a parent code is given. */
+  sourceCodes?: string[];
+  /** A###### codes. Age categories are flat — no expansion. */
+  ageCategoryCodes?: string[];
+  /** T###### codes; filter expands to descendants when a parent code is given. */
+  topicCodes?: string[];
 }
 
 export interface ProblemListSort {
@@ -127,41 +131,78 @@ export async function listProblems(
       sql`to_tsvector('simple', ${problems.bodyMd}) @@ websearch_to_tsquery('simple', ${filters.search})`
     );
   }
-  if (filters.sourceIds?.length) {
-    conds.push(inArray(problems.sourceId, filters.sourceIds));
+  // Source filter — expand to descendants on the SQL side. We need
+  // (id, parentId) for the topology and (code, id) for the resolution,
+  // so a single read with all three columns covers both.
+  if (filters.sourceCodes?.length) {
+    const allSources = await db
+      .select({
+        id: sources.id,
+        code: sources.code,
+        parentId: sources.parentId,
+      })
+      .from(sources);
+    const idByCode = new Map(allSources.map((s) => [s.code, s.id]));
+    const seedIds = filters.sourceCodes
+      .map((c) => idByCode.get(c))
+      .filter((id): id is string => id != null);
+    if (seedIds.length > 0) {
+      const expanded = withDescendants(seedIds, allSources);
+      conds.push(inArray(problems.sourceId, expanded));
+    }
   }
-  if (filters.ageCategoryIds?.length) {
+
+  // Age category filter — flat, no expansion. Translate code -> id with
+  // a subquery so codes flow straight through.
+  if (filters.ageCategoryCodes?.length) {
     conds.push(
       exists(
         db
           .select({ one: sql<number>`1` })
           .from(problemAgeCategories)
+          .innerJoin(
+            ageCategories,
+            eq(ageCategories.id, problemAgeCategories.ageCategoryId)
+          )
           .where(
             and(
               eq(problemAgeCategories.problemId, problems.id),
-              inArray(
-                problemAgeCategories.ageCategoryId,
-                filters.ageCategoryIds
-              )
+              inArray(ageCategories.code, filters.ageCategoryCodes)
             )
           )
       )
     );
   }
-  if (filters.topicIds?.length) {
-    conds.push(
-      exists(
-        db
-          .select({ one: sql<number>`1` })
-          .from(problemTopics)
-          .where(
-            and(
-              eq(problemTopics.problemId, problems.id),
-              inArray(problemTopics.topicId, filters.topicIds)
+
+  // Topic filter — expand to descendants like sources do.
+  if (filters.topicCodes?.length) {
+    const allTopics = await db
+      .select({
+        id: topics.id,
+        code: topics.code,
+        parentId: topics.parentId,
+      })
+      .from(topics);
+    const idByCode = new Map(allTopics.map((t) => [t.code, t.id]));
+    const seedIds = filters.topicCodes
+      .map((c) => idByCode.get(c))
+      .filter((id): id is string => id != null);
+    if (seedIds.length > 0) {
+      const expanded = withDescendants(seedIds, allTopics);
+      conds.push(
+        exists(
+          db
+            .select({ one: sql<number>`1` })
+            .from(problemTopics)
+            .where(
+              and(
+                eq(problemTopics.problemId, problems.id),
+                inArray(problemTopics.topicId, expanded)
+              )
             )
-          )
-      )
-    );
+        )
+      );
+    }
   }
   const whereClause = conds.length ? and(...conds) : undefined;
 
