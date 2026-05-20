@@ -35,9 +35,9 @@ export function parseSearchParams(sp: URLSearchParams): {
 } {
   const filters: ProblemListFilters = {
     search: sp.get("q") ?? undefined,
-    sourceIds: csv(sp.get("source")),
-    ageCategoryIds: csv(sp.get("ageCategory")),
-    topicIds: csv(sp.get("topic")),
+    sourceCodes: csv(sp.get("source")),
+    ageCategoryCodes: csv(sp.get("ageCategory")),
+    topicCodes: csv(sp.get("topic")),
   };
 
   const sortField = sp.get("sortField");
