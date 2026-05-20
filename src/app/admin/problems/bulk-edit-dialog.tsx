@@ -135,6 +135,7 @@ export function BulkEditDialog({
               options={sourcesAvailable}
               selected={sourceId ? [sourceId] : []}
               onChange={handleSourceChange}
+              mode="leaf-only"
             />
           </Field>
 
@@ -163,6 +164,7 @@ export function BulkEditDialog({
               options={topicsAvailable}
               selected={topicIds}
               onChange={setTopicIds}
+              mode="leaf-only"
             />
           </Field>
         </div>
