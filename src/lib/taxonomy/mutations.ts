@@ -74,6 +74,9 @@ export async function bulkCreateTopics(
       .from(topics);
 
     let runningMax = maxRow.maxCode ?? "";
+    // nextTopicCode only looks at the max of what it's passed, so we feed it
+    // the running max one element at a time instead of accumulating the
+    // whole list. Keeps allocations O(1) per row.
     const withCodes = inputs.map((input) => {
       const code = nextTopicCode(runningMax ? [runningMax] : []);
       runningMax = code;

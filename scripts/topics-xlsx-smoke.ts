@@ -100,13 +100,15 @@ async function main() {
     { name: `C3 ${SUFFIX}`, parent_id: "0", description: "" },
     // 6: name too long
     { name: "x".repeat(101), parent_id: "0", description: "" },
+    // 7: description too long
+    { name: `C5 ${SUFFIX}`, parent_id: "0", description: "y".repeat(1001) },
   ]);
   const dirtyParsed = await parseTopicsXlsx(dirtyBytes);
   assert(dirtyParsed.bundleErrors.length === 0, "C: no bundle errors expected");
   const dirtyReport = await validateTopicsBundle(dirtyParsed);
   assert(
-    dirtyReport.errorCount === 6,
-    `C: expected 6 row errors, got ${dirtyReport.errorCount}`
+    dirtyReport.errorCount === 7,
+    `C: expected 7 row errors, got ${dirtyReport.errorCount}`
   );
   // Spot-check error messages.
   const r1 = dirtyReport.rows[0];
@@ -122,6 +124,10 @@ async function main() {
     dirtyReport.rows[3].errors.some((e) => e.includes("dublikat")) &&
       dirtyReport.rows[4].errors.some((e) => e.includes("dublikat")),
     "C rows 4/5: in-file dup msg"
+  );
+  assert(
+    dirtyReport.rows[6].errors.some((e) => e.includes("Ta'rif")),
+    "C row7: description-length msg"
   );
   console.log("[3] row-level errors ok");
 

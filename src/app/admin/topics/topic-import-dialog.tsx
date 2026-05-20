@@ -110,7 +110,7 @@ export function TopicImportDialog({
       <Dialog
         open={open}
         onOpenChange={(o) => {
-          if (!o && !isImporting) closeAll();
+          if (!o && !isImporting && !isPreviewing) closeAll();
           else onOpenChange(o);
         }}
       >
