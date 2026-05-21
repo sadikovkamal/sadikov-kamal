@@ -88,25 +88,39 @@ function CategoryCard({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    // Card is no longer a click target — only the pen icon edits. The
+    // card stays a div so screen readers don't announce it as a button.
+    <div
       className={cn(
         "group relative rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm",
-        "hover:ring-foreground/25 hover:shadow-md transition-all",
-        "px-4 py-4 text-left min-h-[120px]",
+        "hover:ring-foreground/20 transition-all",
+        "px-4 py-4 min-h-[120px]",
         "flex flex-col justify-between gap-3"
       )}
     >
-      {/* Top row: code chip + edit icon (visible on hover) */}
+      {/* Top row: code chip + dedicated edit button */}
       <div className="flex items-start justify-between">
         <code className="font-mono text-[10px] tabular-nums text-muted-foreground/70 leading-none">
           {code}
         </code>
-        <Pencil
-          className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-hidden
-        />
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={`${name} toifasini tahrirlash`}
+          // Always visible but dim until hover/focus, so touch users
+          // can see it without hovering and mouse users get a clear
+          // affordance the moment they enter the card.
+          className={cn(
+            "size-6 inline-flex items-center justify-center rounded-md",
+            "text-muted-foreground/60 cursor-pointer",
+            "hover:bg-muted hover:text-foreground",
+            "group-hover:text-muted-foreground",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]",
+            "transition-colors"
+          )}
+        >
+          <Pencil className="size-3.5" aria-hidden />
+        </button>
       </div>
 
       {/* Name — focal */}
@@ -125,6 +139,6 @@ function CategoryCard({
           </span>
         </span>
       </div>
-    </button>
+    </div>
   );
 }
