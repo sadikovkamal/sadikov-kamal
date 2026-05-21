@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { ChevronRight, Pencil } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemById } from "@/lib/problems/queries";
-import { getPublicUrl } from "@/lib/storage/r2";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,26 +70,11 @@ export default async function ProblemDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-6">
         <article className="space-y-5 min-w-0">
           <Section title="Shart">
+            {/* The image is already inlined inside bodyMd — the executor
+                rewrites every ![](images/foo.png) reference to the
+                absolute R2 URL on import. Rendering p.images separately
+                here would double-print every image. */}
             <MarkdownPreview source={p.bodyMd} />
-            {p.images.length > 0 && (
-              <div className="mt-4 space-y-3">
-                {p.images.map((img) => (
-                  <div
-                    key={img.id}
-                    className="relative w-full overflow-hidden rounded-md ring-1 ring-foreground/10 bg-muted"
-                  >
-                    <Image
-                      src={getPublicUrl(img.storageKey)}
-                      alt={img.altText ?? img.originalFilename}
-                      width={1200}
-                      height={800}
-                      sizes="(max-width: 1024px) 100vw, 800px"
-                      className="h-auto w-full object-contain"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
           </Section>
 
         </article>
