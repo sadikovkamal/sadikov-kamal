@@ -197,17 +197,27 @@ export function SourcesExplorer({
         <EmptyState insideName={current?.name ?? null} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {visibleChildren.map((s) => (
-            <SourceCard
-              key={s.id}
-              source={s}
-              childCount={childCountById.get(s.id) ?? 0}
-              onOpen={() => navigateInto(s.code)}
-              onEdit={() => setEditingId(s.id)}
-              onInfo={() => setInfoId(s.id)}
-              onZoom={() => setLightboxId(s.id)}
-            />
-          ))}
+          {visibleChildren.map((s) => {
+            const isParent = (childCountById.get(s.id) ?? 0) > 0;
+            return (
+              <SourceCard
+                key={s.id}
+                source={s}
+                childCount={childCountById.get(s.id) ?? 0}
+                // Parent → drill down into ?parent=<code> (stays in the
+                // explorer). Leaf → jump to the per-source topics page
+                // where the user picks a (source × topic) filter.
+                onOpen={() =>
+                  isParent
+                    ? navigateInto(s.code)
+                    : router.push(`/admin/sources/${s.code}`)
+                }
+                onEdit={() => setEditingId(s.id)}
+                onInfo={() => setInfoId(s.id)}
+                onZoom={() => setLightboxId(s.id)}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -283,17 +293,20 @@ function SourceCard({
   // wrap it differently for the parent arrow vs. the leaf rectangle.
   const content = (
     <>
-      {/* Whole-card click target. Parents navigate, leaves open info.
-          Below the action buttons in DOM order so the buttons stay
-          clickable. */}
+      {/* Whole-card click target. Parents navigate down the source
+          tree; leaves jump to the per-source topics page (where the
+          user picks the (source × topic) filter). The "i" button on
+          the right is still the way to peek at metadata without
+          leaving the explorer. Below the action buttons in DOM order
+          so the buttons stay clickable. */}
       <button
         type="button"
-        onClick={hasChildren ? onOpen : onInfo}
+        onClick={onOpen}
         className="absolute inset-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]"
         aria-label={
           hasChildren
             ? `${source.name}ni ochish`
-            : `${source.name} haqida ma'lumot`
+            : `${source.name} bo'yicha mavzularni ko'rish`
         }
       />
 

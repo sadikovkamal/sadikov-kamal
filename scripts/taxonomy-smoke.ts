@@ -16,6 +16,7 @@ import {
 import {
   listTopicsWithCounts,
   listSourcesWithCounts,
+  listTopicsForSource,
 } from "../src/lib/taxonomy/queries";
 import {
   createTopic,
@@ -135,6 +136,35 @@ async function main() {
     `parent topic rollup must roll up the child's 1, got ${parentTopicCount}`
   );
   console.log(`[5a] count + rollup picks up real problem inserts`);
+
+  // listTopicsForSource: the per-source topics page reads from here.
+  // It must (a) include the topic the problem hit, (b) include that
+  // topic's ancestors so the tree is connected, (c) report count=1 on
+  // both the leaf and the parent (via rollup), and (d) NOT include any
+  // unrelated topic from the global taxonomy.
+  const subtree = await listTopicsForSource(sourceId);
+  const ids = new Set(subtree.map((t) => t.id));
+  assert(
+    ids.has(childId) && ids.has(topicId),
+    "listTopicsForSource must include both the hit leaf and its parent"
+  );
+  const leafRow = subtree.find((t) => t.id === childId);
+  const parentRow = subtree.find((t) => t.id === topicId);
+  assert(
+    leafRow?.problemCount === 1,
+    `per-source leaf count must be 1, got ${leafRow?.problemCount}`
+  );
+  assert(
+    parentRow?.problemCount === 1,
+    `per-source parent rollup must be 1, got ${parentRow?.problemCount}`
+  );
+  // The full DB has many other topics; none of them should show up here.
+  const allTopicCount = (await listTopicsWithCounts()).length;
+  assert(
+    subtree.length < allTopicCount,
+    `listTopicsForSource must be a strict subset (sub=${subtree.length}, all=${allTopicCount})`
+  );
+  console.log(`[5b] listTopicsForSource: connected subtree + per-source counts ok`);
 
   let deleteFailed = false;
   try {
