@@ -25,6 +25,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { withDescendants } from "@/lib/taxonomy/hierarchy";
 import type { ProblemListSort } from "@/lib/problems/queries";
 
 export interface FilterOption {
@@ -459,11 +460,23 @@ export function FilterPopover({
   }, [options, query, expanded]);
 
   function toggleSelect(id: string) {
-    onChange(
-      selected.includes(id)
-        ? selected.filter((x) => x !== id)
-        : [...selected, id]
+    // Cascade so ticking a parent visually checks every descendant
+    // (and unticking it strips them again). Selection becomes the
+    // explicit list of every code that should match. Backend still
+    // expands parents to descendants too as a safety net, so older
+    // URLs that only contain the parent code keep working.
+    const subtree = withDescendants(
+      [id],
+      options.map((o) => ({ id: o.id, parentId: o.parentId ?? null }))
     );
+    if (selected.includes(id)) {
+      const drop = new Set(subtree);
+      onChange(selected.filter((x) => !drop.has(x)));
+    } else {
+      const next = new Set(selected);
+      for (const x of subtree) next.add(x);
+      onChange(Array.from(next));
+    }
   }
 
   function toggleExpand(id: string) {
