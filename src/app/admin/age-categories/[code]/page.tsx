@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight, GraduationCap } from "lucide-react";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { ageCategories } from "@/db/schema";
+import { ageCategories, sources } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { listTopicsForAgeCategory } from "@/lib/taxonomy/queries";
 import { Button } from "@/components/ui/button";
+import { AgeCategorySourceFilter } from "./age-category-source-filter";
 import { AgeCategoryTopicsTree } from "./age-category-topics-tree";
 
 /**
@@ -20,11 +21,14 @@ import { AgeCategoryTopicsTree } from "./age-category-topics-tree";
  */
 export default async function AgeCategoryTopicsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ code: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireAdmin();
   const { code } = await params;
+  const sp = await searchParams;
 
   const [category] = await db
     .select()
@@ -33,7 +37,44 @@ export default async function AgeCategoryTopicsPage({
     .limit(1);
   if (!category) notFound();
 
-  const topicsForCategory = await listTopicsForAgeCategory(category.id);
+  // `?source=S000001,S000002` — same csv convention the problems list
+  // uses. Empty / missing = no source restriction (all sources).
+  const sourceCsv = Array.isArray(sp.source) ? sp.source.join(",") : sp.source;
+  const selectedSourceCodes = (sourceCsv ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // Pull every source so we can both translate codes → UUIDs for the
+  // query and feed the filter popover the same dictionary the problems
+  // page uses.
+  const allSources = await db
+    .select({
+      id: sources.id,
+      code: sources.code,
+      name: sources.name,
+      parentId: sources.parentId,
+    })
+    .from(sources)
+    .orderBy(sources.code);
+
+  // Cascade expansion: if the user selects a parent source, count its
+  // whole subtree. Mirrors the listProblems source-filter behavior so
+  // both pages interpret the same `?source=` value identically.
+  const { withDescendants } = await import("@/lib/taxonomy/hierarchy");
+  const codeToId = new Map(allSources.map((s) => [s.code, s.id]));
+  const idsFromCodes = selectedSourceCodes
+    .map((c) => codeToId.get(c))
+    .filter((id): id is string => !!id);
+  const expandedSourceIds =
+    idsFromCodes.length > 0
+      ? withDescendants(idsFromCodes, allSources)
+      : [];
+
+  const topicsForCategory = await listTopicsForAgeCategory(
+    category.id,
+    expandedSourceIds.length > 0 ? expandedSourceIds : undefined
+  );
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -69,7 +110,9 @@ export default async function AgeCategoryTopicsPage({
         </nav>
       </div>
 
-      {/* Header — graduation icon + name + code */}
+      {/* Header — graduation icon + name + code, source filter on the
+          right. The filter narrows the tree below to topics that
+          appear under (this age category × selected sources). */}
       <header className="flex items-start gap-4 pb-4 border-b">
         <div
           className="size-14 shrink-0 rounded-lg flex items-center justify-center bg-[var(--accent-brand)]/8 text-[var(--accent-brand-strong)] ring-1 ring-[var(--accent-brand)]/15"
@@ -90,6 +133,12 @@ export default async function AgeCategoryTopicsPage({
             {topicsForCategory.length} ta mavzu
           </p>
         </div>
+        <div className="shrink-0 self-center">
+          <AgeCategorySourceFilter
+            sourcesAvailable={allSources}
+            selectedSourceCodes={selectedSourceCodes}
+          />
+        </div>
       </header>
 
       {/* Topics tree */}
@@ -106,6 +155,7 @@ export default async function AgeCategoryTopicsPage({
         <AgeCategoryTopicsTree
           topics={topicsForCategory}
           ageCategoryCode={category.code}
+          selectedSourceCodes={selectedSourceCodes}
         />
       )}
     </div>

@@ -192,6 +192,23 @@ async function main() {
   );
   console.log(`[5c] listTopicsForAgeCategory: connected subtree + per-age counts ok`);
 
+  // Source filter applied to the age-category lookup: an unrelated
+  // source must return an empty tree, while the actual source returns
+  // the same hit as the unfiltered call.
+  const acEmpty = await listTopicsForAgeCategory(age9.id, [
+    "00000000-0000-0000-0000-000000000000",
+  ]);
+  assert(
+    acEmpty.length === 0,
+    `source filter with unknown id must return empty tree, got ${acEmpty.length} rows`
+  );
+  const acWithRealSource = await listTopicsForAgeCategory(age9.id, [sourceId]);
+  assert(
+    acWithRealSource.some((t) => t.id === childId),
+    "source filter with the real sourceId must still surface the leaf"
+  );
+  console.log(`[5d] listTopicsForAgeCategory: source filter narrows the tree`);
+
   let deleteFailed = false;
   try {
     await deleteSource(sourceId);

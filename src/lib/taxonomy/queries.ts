@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   topics,
@@ -195,10 +195,18 @@ export async function listAgeCategoriesWithCounts(): Promise<
  * doc for the connected-tree + per-scope-rollup rationale. Differs
  * only in which junction it filters on: problem_age_categories
  * instead of problems.source_id.
+ *
+ * `sourceIds`, when non-empty, further restricts to problems whose
+ * source belongs to that set — used by the page's "Manba" filter to
+ * narrow the tree to (age category × selected sources). An empty /
+ * undefined value is treated as "no source restriction" (every
+ * source counts).
  */
 export async function listTopicsForAgeCategory(
-  ageCategoryId: string
+  ageCategoryId: string,
+  sourceIds?: string[]
 ): Promise<TopicWithCount[]> {
+  const hasSourceFilter = sourceIds && sourceIds.length > 0;
   const [allTopics, directCounts] = await Promise.all([
     db
       .select({
@@ -221,7 +229,14 @@ export async function listTopicsForAgeCategory(
         problemAgeCategories,
         eq(problemAgeCategories.problemId, problems.id)
       )
-      .where(eq(problemAgeCategories.ageCategoryId, ageCategoryId))
+      .where(
+        hasSourceFilter
+          ? and(
+              eq(problemAgeCategories.ageCategoryId, ageCategoryId),
+              inArray(problems.sourceId, sourceIds)
+            )
+          : eq(problemAgeCategories.ageCategoryId, ageCategoryId)
+      )
       .groupBy(problemTopics.topicId),
   ]);
 
