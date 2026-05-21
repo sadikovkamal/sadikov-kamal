@@ -228,6 +228,11 @@ export function SourcesExplorer({
   );
 }
 
+/** Width (in px) of the right-side chevron protrusion on parent
+ *  cards. Used as both the polygon offset and the inner right
+ *  padding so content + icons stay inside the rectangular region. */
+const PARENT_ARROW_PX = 28;
+
 function SourceCard({
   source,
   childCount,
@@ -250,12 +255,30 @@ function SourceCard({
     ? `${childCount} ta bo'lim`
     : `${source.problemCount} ta masala`;
 
+  // Parent cards take an arrow / chevron silhouette via clip-path; the
+  // pointing direction matches the "drill into the next level" affordance
+  // the card already has. drop-shadow plays nicer with clip-path than
+  // box-shadow (which gets sliced off along the polygon edges).
+  const parentShapeStyle: React.CSSProperties | undefined = hasChildren
+    ? {
+        clipPath: `polygon(0 0, calc(100% - ${PARENT_ARROW_PX}px) 0, 100% 50%, calc(100% - ${PARENT_ARROW_PX}px) 100%, 0 100%)`,
+        filter:
+          "drop-shadow(0 1px 2px rgba(0,0,0,0.08)) drop-shadow(0 1px 1px rgba(0,0,0,0.04))",
+      }
+    : undefined;
+
   return (
     <div
       className={cn(
-        "group relative rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm overflow-hidden",
-        "hover:ring-foreground/25 hover:shadow-md transition-all"
+        "group relative bg-card transition-all",
+        hasChildren
+          ? // Parent: arrow-shaped; clip-path swallows ring + border-
+            // radius so we lean on drop-shadow for depth and hover.
+            "hover:brightness-[0.985]"
+          : // Leaf: classic rounded card with ring + box-shadow.
+            "rounded-xl ring-1 ring-foreground/10 shadow-sm overflow-hidden hover:ring-foreground/25 hover:shadow-md"
       )}
+      style={parentShapeStyle}
     >
       {/* Whole-card click target. Parents navigate, leaves open info.
           Below the action buttons in DOM order so the buttons stay
@@ -263,7 +286,10 @@ function SourceCard({
       <button
         type="button"
         onClick={hasChildren ? onOpen : onInfo}
-        className="absolute inset-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]"
+        className={cn(
+          "absolute inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]",
+          !hasChildren && "rounded-xl"
+        )}
         aria-label={
           hasChildren
             ? `${source.name}ni ochish`
@@ -271,7 +297,12 @@ function SourceCard({
         }
       />
 
-      <div className="relative flex items-stretch gap-3 p-3 pointer-events-none">
+      <div
+        className="relative flex items-stretch gap-3 p-3 pointer-events-none"
+        style={
+          hasChildren ? { paddingRight: PARENT_ARROW_PX + 8 } : undefined
+        }
+      >
         {/* Logo / lightbox trigger. Pointer-events restored via the
             inner button so the rest of the card stays passive. */}
         <div className="relative shrink-0 pointer-events-auto">
@@ -303,10 +334,8 @@ function SourceCard({
 
         {/* Body — name on its own line, then code + meta in a compact
             second line. The right edge of the title stays clear for
-            the action icons (pr-16); the meta row uses the full width
-            and pushes the parent chevron to its right edge so the
-            chevron lives inside the content flow instead of floating
-            in the bottom-right corner. */}
+            the action icons (pr-16). On parent cards the polygon
+            shape itself signals "open" so the inline chevron drops. */}
         <div className="min-w-0 flex-1 flex flex-col justify-center gap-1">
           <p className="font-semibold text-sm truncate leading-tight pr-16">
             {source.name}
@@ -326,23 +355,18 @@ function SourceCard({
             >
               {metaLabel}
             </span>
-            {hasChildren && (
-              <ChevronRight
-                className={cn(
-                  "ml-auto size-4 shrink-0 text-muted-foreground/50",
-                  "transition-all",
-                  "group-hover:text-foreground/70 group-hover:translate-x-0.5"
-                )}
-                aria-hidden
-              />
-            )}
           </div>
         </div>
       </div>
 
       {/* Action cluster — always visible, sits above the card click
-          target so each button is independently usable. */}
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-0.5">
+          target so each button is independently usable. On parent
+          cards we shift the cluster left of the arrow notch so the
+          icons stay inside the polygon. */}
+      <div
+        className="absolute top-2 z-10 flex items-center gap-0.5"
+        style={{ right: hasChildren ? PARENT_ARROW_PX + 4 : 8 }}
+      >
         <CardIconButton
           onClick={(e) => {
             e.stopPropagation();
