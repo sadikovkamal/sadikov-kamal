@@ -111,4 +111,133 @@ function render(source: string): string {
   expect("MathML <msqrt> survives sanitize", html, (s) => /<msqrt/.test(s));
 }
 
+// 12. Full KaTeX feature audit — each construct below was at one point
+// at risk of being silently stripped. Render each and assert both that
+// (a) the MathML accessibility tag survives, and (b) the visual HTML
+// span/svg the SAME feature relies on also survives. If any of these
+// fail, a category of formulas would render mangled in production.
+
+// 12.1 nth roots — <mroot> + svg radical
+{
+  const html = render("$\\sqrt[3]{x}$");
+  expect("nth root: <mroot>", html, (s) => /<mroot/.test(s));
+  expect("nth root: svg radical", html, (s) => /<svg[\s\S]*?<path/.test(s));
+}
+
+// 12.2 fractions and binomials — <mfrac> with linethickness
+{
+  const html = render("$\\frac{a+b}{c-d} + \\binom{n}{k}$");
+  expect("fraction: <mfrac>", html, (s) => /<mfrac/.test(s));
+  // \binom renders with linethickness="0"; must survive sanitize.
+  expect("binomial: linethickness attr", html, (s) => /linethickness=/.test(s));
+}
+
+// 12.3 sub/sup, integrals, sums, products — <msub>/<msup>/<msubsup>
+{
+  const html = render("$\\sum_{i=1}^{n} i^2 + \\int_0^1 x \\, dx + \\prod_{k=1}^{n} a_k$");
+  expect("sub/sup: <msubsup>", html, (s) => /<msubsup/.test(s));
+  expect("sum operator visible", html, (s) => /∑/.test(s.replace(/<annotation[\s\S]*?<\/annotation>/g, "")));
+  expect("integral operator visible", html, (s) => /∫/.test(s.replace(/<annotation[\s\S]*?<\/annotation>/g, "")));
+}
+
+// 12.4 mathbb / mathfrak / mathcal — <mi> with mathvariant
+{
+  const html = render("$\\mathbb{R} \\subset \\mathbb{C}, \\mathfrak{g}, \\mathcal{L}$");
+  // mathvariant is what makes ℝ render as the blackboard-bold R rather
+  // than a plain italic R. If stripped, the visual distinction is lost.
+  expect("mathvariant attribute survives", html, (s) => /mathvariant=/.test(s));
+}
+
+// 12.5 over-accents — <mover> with accent
+{
+  const html = render("$\\hat{x} + \\widehat{abc} + \\overrightarrow{AB}$");
+  expect("over-accent: <mover>", html, (s) => /<mover/.test(s));
+  // \overrightarrow uses svg for the stretchy arrow on top.
+  expect("overrightarrow: svg path", html, (s) => /<svg[\s\S]*?<path/.test(s));
+}
+
+// 12.6 under-accents — <munder>
+{
+  const html = render("$\\underbrace{a+b+c}_{=S} \\underline{xyz}$");
+  expect("under-accent: <munder>", html, (s) => /<munder/.test(s));
+}
+
+// 12.7 over-and-under combined — <munderover>
+{
+  const html = render("$\\sum_{i=1}^{n}$ display: $\\displaystyle\\sum_{i=1}^{n}$");
+  expect("displaystyle sum: <munderover>", html, (s) => /<munderover/.test(s));
+}
+
+// 12.8 cancel / boxed — <menclose> with notation
+{
+  const html = render("$\\frac{\\cancel{a}b}{\\cancel{a}c} = \\boxed{E=mc^2}$");
+  expect("menclose tag survives", html, (s) => /<menclose/.test(s));
+  expect("menclose notation attr", html, (s) => /notation=/.test(s));
+  // \cancel draws the strikethrough line via SVG <line>.
+  expect("cancel uses <line>", html, (s) => /<line[\s\S]*?x1=/.test(s));
+}
+
+// 12.9 stretchy delimiters — \left( \right)
+{
+  const html = render("$\\left( \\frac{a}{b} \\right) \\left[ x \\right]$");
+  expect("stretchy mo attrs", html, (s) => /stretchy=|fence=/.test(s));
+}
+
+// 12.10 matrices and arrays — <mtable> with column alignment
+{
+  const html = render("$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$");
+  expect("matrix: <mtable>", html, (s) => /<mtable/.test(s));
+  expect("matrix: columnalign attr", html, (s) => /columnalign=/.test(s));
+}
+
+// 12.11 color — <mstyle> with mathcolor
+{
+  const html = render("$\\color{red}{x^2 + y^2}$");
+  expect("color: <mstyle>", html, (s) => /<mstyle/.test(s));
+  expect("mathcolor attr survives", html, (s) => /mathcolor=/.test(s));
+}
+
+// 12.12 long stretchy arrows — \xrightarrow, \Longrightarrow
+{
+  const html = render("$A \\xrightarrow{f} B \\Longrightarrow C$");
+  // Long arrows are drawn via SVG paths. Without <svg><path> in the
+  // schema, the arrowhead disappears and only the label survives.
+  expect("long arrows: <svg><path>", html, (s) => /<svg[\s\S]*?<path/.test(s));
+}
+
+// 12.13 overbrace / underbrace
+{
+  const html = render("$\\overbrace{a+b+c}^{=S}$");
+  // Renders both <mover> for the accessibility tree and an svg brace.
+  expect("overbrace: <mover>", html, (s) => /<mover/.test(s));
+  expect("overbrace: svg", html, (s) => /<svg[\s\S]*?<path/.test(s));
+}
+
+// 12.14 nested radicals — recursive structure must survive
+{
+  const html = render("$\\sqrt{\\sqrt{x} + \\sqrt{y}}$");
+  // Should produce at least 3 svg radicals (outer + two inner).
+  const svgCount = (html.match(/<svg/g) ?? []).length;
+  expect("nested radicals: 3+ svgs", html, () => svgCount >= 3);
+}
+
+// 12.15 text inside math — \text{...}
+{
+  const html = render("$x \\text{ is positive when } x > 0$");
+  expect("text-in-math: <mtext>", html, (s) => /<mtext/.test(s));
+}
+
+// 12.16 cases environment — already tested above (case 4) but assert
+// the columnalign attr too since it's what gives cases their look.
+{
+  const html = render("$$f(x) = \\begin{cases} 1 & x > 0 \\\\ 0 & \\text{else} \\end{cases}$$");
+  expect("cases: columnalign", html, (s) => /columnalign=/.test(s));
+}
+
+// 12.17 spacing commands — \, \! \quad — should not leave gaps
+{
+  const html = render("$a \\, b \\quad c \\! d$");
+  expect("spacing: <mpadded> or <mspace>", html, (s) => /<mpadded|<mspace/.test(s));
+}
+
 console.log("\nMarkdown smoke: PASSED");
