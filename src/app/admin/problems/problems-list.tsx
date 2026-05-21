@@ -28,6 +28,7 @@ import {
 import { bulkDeleteProblemsAction } from "./_actions";
 import { BulkEditDialog } from "./bulk-edit-dialog";
 import { BULK_OP_LIMIT } from "./_constants";
+import { PAGE_SIZE_OPTIONS } from "./_url-state";
 import type { FilterOption } from "./filters";
 import type { ProblemListResult } from "@/lib/problems/queries";
 
@@ -81,6 +82,23 @@ export function ProblemsList({
     const next = new URLSearchParams(params.toString());
     if (n <= 1) next.delete("page");
     else next.set("page", String(n));
+    startTransition(() => {
+      const qs = next.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname);
+    });
+  }
+
+  function changePageSize(size: number) {
+    const next = new URLSearchParams(params.toString());
+    if (size === 25) next.delete("pageSize");
+    else next.set("pageSize", String(size));
+    // Recompute the page so the user keeps roughly the same item in view
+    // after the size change — otherwise jumping from 25 → 200 on page 10
+    // would land them past the end of the result set.
+    const firstItemIndex = (page - 1) * pageSize;
+    const newPage = Math.max(1, Math.floor(firstItemIndex / size) + 1);
+    if (newPage <= 1) next.delete("page");
+    else next.set("page", String(newPage));
     startTransition(() => {
       const qs = next.toString();
       router.push(qs ? `${pathname}?${qs}` : pathname);
@@ -232,11 +250,18 @@ export function ProblemsList({
       </ul>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 shrink-0">
-        <span className="tabular-nums">
-          {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} /{" "}
-          <span className="text-foreground font-medium">{total}</span> ta
-        </span>
+      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground pt-1 shrink-0">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="tabular-nums">
+            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} /{" "}
+            <span className="text-foreground font-medium">{total}</span> ta
+          </span>
+          <PageSizeSelector
+            value={pageSize}
+            onChange={changePageSize}
+            disabled={isPending}
+          />
+        </div>
         {totalPages > 1 && (
           <div className="flex items-center gap-1">
             <Button
@@ -477,6 +502,48 @@ function CardActions({ code }: { code: string }) {
         <ArrowUpRight className="size-3.5" />
       </Button>
     </div>
+  );
+}
+
+/* -------------------------- Page size selector ------------------------ */
+
+/**
+ * Native-<select> sized to match the prev/next buttons. Picked over a
+ * shadcn Select because the choices are short, fixed, and don't need
+ * search/icons/typeahead — the native control is one element, fully
+ * keyboard accessible, and respects platform conventions.
+ */
+function PageSizeSelector({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: number;
+  onChange: (size: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="inline-flex items-center gap-1.5 tabular-nums">
+      <span>Sahifada:</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number.parseInt(e.target.value, 10))}
+        disabled={disabled}
+        aria-label="Sahifada ko'rinadigan masalalar soni"
+        className={cn(
+          "h-7 rounded-md ring-1 ring-foreground/15 bg-card",
+          "px-1.5 text-xs text-foreground tabular-nums cursor-pointer",
+          "focus:outline-none focus:ring-2 focus:ring-[var(--accent-brand)]",
+          "disabled:opacity-50 disabled:cursor-not-allowed"
+        )}
+      >
+        {PAGE_SIZE_OPTIONS.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
