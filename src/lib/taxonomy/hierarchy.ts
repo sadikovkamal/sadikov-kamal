@@ -75,3 +75,40 @@ export function withDescendants(
   }
   return Array.from(out);
 }
+
+/**
+ * Sum each node's own count plus every descendant's own count and
+ * return a Map keyed by id. Leaves come back equal to their own count;
+ * ancestors come back as the total sitting under them.
+ *
+ * Used by the taxonomy listings so a parent topic/source's "ta masala"
+ * label reflects the rollup, not just direct attachments. The leaf-only
+ * attachment rule means ancestor "own" counts are 0 in normal operation,
+ * but the rollup still adds them defensively if drift slips in.
+ */
+export function rollupCounts<T extends NodeRef & { problemCount: number }>(
+  nodes: Iterable<T>
+): Map<string, number> {
+  const rows = Array.from(nodes);
+  const own = new Map<string, number>();
+  const childrenOf = new Map<string, string[]>();
+  for (const r of rows) {
+    own.set(r.id, r.problemCount);
+    if (r.parentId) {
+      const arr = childrenOf.get(r.parentId) ?? [];
+      arr.push(r.id);
+      childrenOf.set(r.parentId, arr);
+    }
+  }
+  const rollup = new Map<string, number>();
+  function compute(id: string): number {
+    const cached = rollup.get(id);
+    if (cached !== undefined) return cached;
+    let total = own.get(id) ?? 0;
+    for (const child of childrenOf.get(id) ?? []) total += compute(child);
+    rollup.set(id, total);
+    return total;
+  }
+  for (const r of rows) compute(r.id);
+  return rollup;
+}

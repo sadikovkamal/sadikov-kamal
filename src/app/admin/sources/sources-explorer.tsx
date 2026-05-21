@@ -251,8 +251,12 @@ function SourceCard({
   const hasChildren = childCount > 0;
   const hasLogo = !!source.logoPublicUrl;
 
+  // `problemCount` is now a rollup (own + descendants), so it's the
+  // right thing to show on every card. For parents, surface the
+  // sub-section count alongside so the "click to drill in" affordance
+  // still has a number behind it.
   const metaLabel = hasChildren
-    ? `${childCount} ta bo'lim`
+    ? `${source.problemCount} ta masala · ${childCount} ta bo'lim`
     : `${source.problemCount} ta masala`;
 
   // Common content used by both card variants. Pulled out so we can
@@ -470,7 +474,7 @@ function SourceInfoDialog({
           <DialogDescription>
             {isLeaf
               ? `${source.problemCount} ta masala`
-              : `${childCount} ta bo'lim`}
+              : `${source.problemCount} ta masala · ${childCount} ta bo'lim`}
             {parent && (
               <>
                 {" · "}

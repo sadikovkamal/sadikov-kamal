@@ -10,6 +10,7 @@ import {
   problemTopics,
   problemAgeCategories,
 } from "@/db/schema";
+import { rollupCounts } from "./hierarchy";
 
 export interface TopicWithCount {
   id: string;
@@ -39,7 +40,12 @@ export async function listTopicsWithCounts(): Promise<TopicWithCount[]> {
     // page builds a tree on top of this so display order ultimately
     // follows the tree shape, but the stable input keeps it deterministic.
     .orderBy(topics.code);
-  return rows;
+
+  // Roll counts up the tree so parents show the total problems sitting
+  // under them. With the leaf-only rule, ancestor "own" counts are 0,
+  // so the rollup is effectively "sum of all leaf-descendant counts".
+  const rollup = rollupCounts(rows);
+  return rows.map((r) => ({ ...r, problemCount: rollup.get(r.id) ?? 0 }));
 }
 
 export interface SourceWithCount {
@@ -81,12 +87,18 @@ export async function listSourcesWithCounts(): Promise<SourceWithCount[]> {
     // the stable code-based input keeps sibling order deterministic.
     .orderBy(sources.code);
 
+  // Roll counts up the tree so a parent source's "ta masala" label
+  // reflects every problem under its subtree, not just direct hits
+  // (which are always 0 under the leaf-only rule).
+  const rollup = rollupCounts(rows);
+
   // Lazy R2 URL resolution: if R2 isn't configured (e.g. local dev with
   // no .env), every logo URL falls back to null — the card simply renders
   // the abbreviation badge.
   const publicBase = resolveR2PublicBase();
   return rows.map((r) => ({
     ...r,
+    problemCount: rollup.get(r.id) ?? 0,
     logoPublicUrl: r.logoStorageKey && publicBase
       ? `${publicBase}/${r.logoStorageKey}`
       : null,
