@@ -54,6 +54,9 @@ export interface SourceWithCount {
    *  when no logo is set. Server-side resolution avoids exposing R2
    *  config to the client via NEXT_PUBLIC_*. */
   logoPublicUrl: string | null;
+  /** Free-form admin notes. Shown only in the info modal on the
+   *  explorer; null/empty leaves the modal section blank. */
+  description: string | null;
   problemCount: number;
 }
 
@@ -65,6 +68,7 @@ export async function listSourcesWithCounts(): Promise<SourceWithCount[]> {
       name: sources.name,
       parentId: sources.parentId,
       logoStorageKey: sources.logoStorageKey,
+      description: sources.description,
       problemCount: sql<number>`(
         SELECT count(*)::int
         FROM ${problems}

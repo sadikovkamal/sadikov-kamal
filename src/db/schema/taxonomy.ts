@@ -66,6 +66,12 @@ export const sources = pgTable(
      * deterministic abbreviation card.
      */
     logoStorageKey: text("logo_storage_key"),
+    /**
+     * Optional free-form admin notes — links, scope hints, anything
+     * useful. Not shown on the explorer card itself; surfaced in the
+     * info modal on demand to keep the grid scannable.
+     */
+    description: text("description"),
   },
   (t) => [
     index("sources_code_idx").on(t.code),

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -39,6 +40,7 @@ export interface SourceShape {
   parentId: string | null;
   logoStorageKey: string | null;
   logoPublicUrl: string | null;
+  description: string | null;
 }
 
 const NO_PARENT = "__none__";
@@ -68,6 +70,7 @@ export function SourceEditDialog({
   const [logoPublicUrl, setLogoPublicUrl] = useState<string | null>(
     source?.logoPublicUrl ?? null
   );
+  const [description, setDescription] = useState(source?.description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -109,6 +112,7 @@ export function SourceEditDialog({
       name: name.trim(),
       parentId: parentId === NO_PARENT ? null : parentId,
       logoStorageKey,
+      description: description.trim() || null,
     };
     startTransition(async () => {
       const res =
@@ -207,6 +211,20 @@ export function SourceEditDialog({
                 setLogoStorageKey(key);
                 setLogoPublicUrl(url);
               }}
+            />
+          </div>
+
+          {/* Description — free-form admin notes. Shown only in the
+              info modal on /admin/sources, so this is the one place
+              admins fill it in. Optional. */}
+          <div className="space-y-1">
+            <Label htmlFor="source-description">Ma&apos;lumot (ixtiyoriy)</Label>
+            <Textarea
+              id="source-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Manba haqida qo'shimcha izoh, havola, eslatma…"
             />
           </div>
 

@@ -17,6 +17,11 @@ const sourceSchema = z.object({
     .max(500)
     .nullable()
     .transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
+  description: z
+    .string()
+    .max(2000)
+    .nullable()
+    .transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
 });
 
 export type ActionResult = { success: true } | { error: string };

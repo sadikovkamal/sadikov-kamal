@@ -2,16 +2,27 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  ArrowLeft,
   ChevronRight,
+  Info,
   Library,
   Pencil,
   Plus,
-  ArrowLeft,
+  X,
+  ZoomIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { SourceEditDialog, type SourceShape } from "./source-edit-dialog";
 import { SourceLogo } from "./source-logo";
 import type { SourceWithCount } from "@/lib/taxonomy/queries";
@@ -22,9 +33,14 @@ import type { SourceWithCount } from "@/lib/taxonomy/queries";
  *   /admin/sources                → root sources
  *   /admin/sources?parent=<id>    → children of that parent
  *
- * Clicking a card with children navigates into it (URL changes,
- * back/forward in the browser works). The edit button on each card
- * opens the dialog without navigating.
+ * Each card has three affordances:
+ *   - Whole-card click: navigate into a parent, or open the info
+ *     dialog for a leaf.
+ *   - Info button: open the metadata + description dialog without
+ *     navigating.
+ *   - Edit pencil: open the edit dialog.
+ *   - Logo hover (when a real image is set): zoom-in overlay; click
+ *     opens a lightbox at the source resolution.
  */
 export function SourcesExplorer({
   sources,
@@ -36,9 +52,9 @@ export function SourcesExplorer({
   const parentId = params.get("parent");
 
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
+  const [infoId, setInfoId] = useState<string | null>(null);
+  const [lightboxId, setLightboxId] = useState<string | null>(null);
 
-  // Build quick lookup maps. We only need direct-children-of-parent for
-  // the current view, but having both helps the breadcrumb walk up.
   const byId = useMemo(() => {
     const map = new Map<string, SourceWithCount>();
     for (const s of sources) map.set(s.id, s);
@@ -60,7 +76,6 @@ export function SourcesExplorer({
     parentId ? s.parentId === parentId : s.parentId === null
   );
 
-  // Breadcrumb path: walk up from current to the root.
   const breadcrumb = useMemo(() => {
     const chain: SourceWithCount[] = [];
     let node = current;
@@ -79,6 +94,11 @@ export function SourcesExplorer({
     editingId !== null && editingId !== "new"
       ? sources.find((s) => s.id === editingId)
       : undefined;
+  const infoSource = infoId ? byId.get(infoId) ?? null : null;
+  const lightboxSource = lightboxId ? byId.get(lightboxId) ?? null : null;
+  const parentOfInfo = infoSource?.parentId
+    ? byId.get(infoSource.parentId) ?? null
+    : null;
 
   return (
     <div className="space-y-4">
@@ -167,6 +187,8 @@ export function SourcesExplorer({
               childCount={childCountById.get(s.id) ?? 0}
               onOpen={() => navigateInto(s.id)}
               onEdit={() => setEditingId(s.id)}
+              onInfo={() => setInfoId(s.id)}
+              onZoom={() => setLightboxId(s.id)}
             />
           ))}
         </div>
@@ -181,6 +203,27 @@ export function SourcesExplorer({
           onClose={() => setEditingId(null)}
         />
       )}
+
+      {infoSource && (
+        <SourceInfoDialog
+          source={infoSource}
+          parent={parentOfInfo}
+          childCount={childCountById.get(infoSource.id) ?? 0}
+          onClose={() => setInfoId(null)}
+          onEdit={() => {
+            setInfoId(null);
+            setEditingId(infoSource.id);
+          }}
+        />
+      )}
+
+      {lightboxSource?.logoPublicUrl && (
+        <LogoLightbox
+          name={lightboxSource.name}
+          url={lightboxSource.logoPublicUrl}
+          onClose={() => setLightboxId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -190,19 +233,19 @@ function SourceCard({
   childCount,
   onOpen,
   onEdit,
+  onInfo,
+  onZoom,
 }: {
   source: SourceWithCount;
   childCount: number;
   onOpen: () => void;
   onEdit: () => void;
+  onInfo: () => void;
+  onZoom: () => void;
 }) {
   const hasChildren = childCount > 0;
+  const hasLogo = !!source.logoPublicUrl;
 
-  // Meta line is intentionally short — one count, never both. Showing
-  // "0 masala" on a parent (whose problems live in descendants) is
-  // misleading, so parents show only their `childCount` and leaves
-  // show only their `problemCount`. This also keeps the line out of
-  // the truncation zone.
   const metaLabel = hasChildren
     ? `${childCount} ta bo'lim`
     : `${source.problemCount} ta masala`;
@@ -210,38 +253,60 @@ function SourceCard({
   return (
     <div
       className={cn(
-        "group relative rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm",
+        "group relative rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm overflow-hidden",
         "hover:ring-foreground/25 hover:shadow-md transition-all"
       )}
     >
-      {/* Whole-card click target. Parents open; leaves edit. Sits below
-          the edit pill in DOM order so hover-to-edit still works. */}
+      {/* Whole-card click target. Parents navigate, leaves open info.
+          Below the action buttons in DOM order so the buttons stay
+          clickable. */}
       <button
         type="button"
-        onClick={hasChildren ? onOpen : onEdit}
+        onClick={hasChildren ? onOpen : onInfo}
         className="absolute inset-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]"
         aria-label={
           hasChildren
             ? `${source.name}ni ochish`
-            : `${source.name}ni tahrirlash`
+            : `${source.name} haqida ma'lumot`
         }
       />
 
-      <div className="relative flex items-center gap-3 px-4 py-3.5 pointer-events-none">
-        <SourceLogo
-          name={source.name}
-          publicUrl={source.logoPublicUrl}
-          size="md"
-        />
+      <div className="relative flex items-stretch gap-3 p-3 pointer-events-none">
+        {/* Logo / lightbox trigger. Pointer-events restored via the
+            inner button so the rest of the card stays passive. */}
+        <div className="relative shrink-0 pointer-events-auto">
+          <SourceLogo
+            name={source.name}
+            publicUrl={source.logoPublicUrl}
+            size="md"
+          />
+          {hasLogo && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onZoom();
+              }}
+              aria-label={`${source.name} logosini kattalashtirish`}
+              className={cn(
+                "absolute inset-0 rounded-lg",
+                "flex items-center justify-center",
+                "bg-foreground/50 text-white opacity-0",
+                "hover:opacity-100 focus-visible:opacity-100 transition-opacity",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]"
+              )}
+            >
+              <ZoomIn className="size-4" aria-hidden />
+            </button>
+          )}
+        </div>
 
-        <div className="min-w-0 flex-1 flex flex-col gap-1">
-          {/* Name row — truncates here, not in the meta line */}
-          <p className="font-semibold text-sm truncate leading-tight">
+        {/* Body — name on its own line, then code + meta in a compact
+            second line. The right edge stays clear for action buttons. */}
+        <div className="min-w-0 flex-1 flex flex-col justify-center gap-1">
+          <p className="font-semibold text-sm truncate leading-tight pr-16">
             {source.name}
           </p>
-
-          {/* Meta row: code chip + single count. Chip and count are kept
-              short enough to fit even on the narrowest grid breakpoint. */}
           <div className="flex items-center gap-1.5 min-w-0">
             <code
               className={cn(
@@ -260,12 +325,13 @@ function SourceCard({
           </div>
         </div>
 
-        {/* Chevron — only on parents. Slides on hover so the card
-            visibly invites a click into the next level. */}
+        {/* Chevron — only on parents. Drops down to the bottom-right
+            so the action buttons own the top-right. */}
         {hasChildren && (
           <ChevronRight
             className={cn(
-              "size-4 shrink-0 text-muted-foreground/50 transition-all",
+              "absolute bottom-3 right-3 size-4 text-muted-foreground/40",
+              "transition-all",
               "group-hover:text-foreground/70 group-hover:translate-x-0.5"
             )}
             aria-hidden
@@ -273,23 +339,157 @@ function SourceCard({
         )}
       </div>
 
-      {/* Edit pill — appears on hover. Above the whole-card button. */}
-      <button
-        type="button"
-        onClick={onEdit}
-        className={cn(
-          "absolute top-2 right-2 z-10 inline-flex items-center gap-1 rounded-md",
-          "bg-card/80 backdrop-blur ring-1 ring-foreground/10 px-1.5 py-1",
-          "text-[10px] font-medium text-muted-foreground",
-          "opacity-0 group-hover:opacity-100 transition-opacity",
-          "hover:text-foreground hover:bg-card"
-        )}
-        aria-label={`${source.name}ni tahrirlash`}
-      >
-        <Pencil className="size-3" aria-hidden />
-        Tahrirlash
-      </button>
+      {/* Action cluster — always visible, sits above the card click
+          target so each button is independently usable. */}
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-0.5">
+        <CardIconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            onInfo();
+          }}
+          icon={<Info className="size-3.5" aria-hidden />}
+          label={`${source.name} haqida ma'lumot`}
+        />
+        <CardIconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          icon={<Pencil className="size-3.5" aria-hidden />}
+          label={`${source.name}ni tahrirlash`}
+        />
+      </div>
     </div>
+  );
+}
+
+function CardIconButton({
+  onClick,
+  icon,
+  label,
+}: {
+  onClick: (e: React.MouseEvent) => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "size-7 inline-flex items-center justify-center rounded-md",
+        "text-muted-foreground bg-card/80 backdrop-blur ring-1 ring-foreground/10",
+        "hover:text-foreground hover:bg-card hover:ring-foreground/25 transition-colors"
+      )}
+    >
+      {icon}
+    </button>
+  );
+}
+
+function SourceInfoDialog({
+  source,
+  parent,
+  childCount,
+  onClose,
+  onEdit,
+}: {
+  source: SourceWithCount;
+  parent: SourceWithCount | null;
+  childCount: number;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const isLeaf = childCount === 0;
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="truncate">{source.name}</span>
+            <code className="font-mono text-xs tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
+              {source.code}
+            </code>
+          </DialogTitle>
+          <DialogDescription>
+            {isLeaf
+              ? `${source.problemCount} ta masala`
+              : `${childCount} ta bo'lim`}
+            {parent && (
+              <>
+                {" · "}
+                <span>
+                  {"Parent: "}
+                  {parent.name}
+                </span>
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        {source.description ? (
+          <div className="rounded-lg ring-1 ring-foreground/10 bg-muted/30 px-3 py-2.5">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+              {source.description}
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">
+            Qo&apos;shimcha ma&apos;lumot kiritilmagan.
+          </p>
+        )}
+
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Yopish
+          </Button>
+          <Button onClick={onEdit}>
+            <Pencil data-icon="inline-start" />
+            Tahrirlash
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LogoLightbox({
+  name,
+  url,
+  onClose,
+}: {
+  name: string;
+  url: string;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl p-2 bg-card">
+        <DialogHeader className="sr-only">
+          <DialogTitle>{name} logosi</DialogTitle>
+        </DialogHeader>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Yopish"
+          className="absolute top-3 right-3 z-10 size-8 inline-flex items-center justify-center rounded-md text-white bg-foreground/60 hover:bg-foreground/80 transition-colors"
+        >
+          <X className="size-4" />
+        </button>
+        <div className="relative w-full max-h-[80vh] aspect-video overflow-hidden rounded-lg bg-muted">
+          <Image
+            src={url}
+            alt={`${name} logosi`}
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-contain"
+            priority
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

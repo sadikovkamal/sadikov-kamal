@@ -98,6 +98,7 @@ export interface SourceInput {
   name: string;
   parentId: string | null;
   logoStorageKey: string | null;
+  description: string | null;
 }
 
 export async function createSource(input: SourceInput): Promise<string> {

@@ -77,11 +77,13 @@ async function main() {
     name: "Smoke Source",
     parentId: null,
     logoStorageKey: null,
+    description: null,
   });
   await updateSource(sourceId, {
     name: "Smoke Source Updated",
     parentId: null,
     logoStorageKey: null,
+    description: null,
   });
   const sourcesList = await listSourcesWithCounts();
   const sFound = sourcesList.find((s) => s.id === sourceId);

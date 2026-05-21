@@ -94,11 +94,13 @@ async function mutationGuards() {
     name: `Parent src ${SUFFIX}`,
     parentId: null,
     logoStorageKey: null,
+    description: null,
   });
   const leafSourceId = await createSource({
     name: `Leaf src ${SUFFIX}`,
     parentId: parentSourceId,
     logoStorageKey: null,
+    description: null,
   });
 
   // Need an admin user for createdBy and an age category for the FK.
@@ -230,6 +232,7 @@ async function listingExpansion() {
     name: `Leaf-src ${SUFFIX}`,
     parentId: null,
     logoStorageKey: null,
+    description: null,
   });
 
   const admin = (await db.query.users.findMany()).find(
