@@ -276,7 +276,9 @@ function SourceCard({
       <div
         className="relative flex items-stretch gap-3 p-3 pointer-events-none"
         style={
-          hasChildren ? { paddingRight: PARENT_ARROW_PX + 8 } : undefined
+          // Reserve room on the right for both the arrow notch and
+          // the vertical action column (24px wide + a small gap).
+          hasChildren ? { paddingRight: PARENT_ARROW_PX + 32 } : undefined
         }
       >
         <div className="relative shrink-0 pointer-events-auto">
@@ -329,8 +331,12 @@ function SourceCard({
         </div>
       </div>
 
+      {/* Action cluster — vertically stacked so a single 24px column
+          fits comfortably inside the parent arrow's narrow right
+          edge (and reads as one tidy group on leaf cards too).
+          Vertically centered against the card body. */}
       <div
-        className="absolute top-2 z-10 flex items-center gap-0.5"
+        className="absolute top-1/2 -translate-y-1/2 z-10 flex flex-col gap-1"
         style={{ right: hasChildren ? PARENT_ARROW_PX + 4 : 8 }}
       >
         <CardIconButton
@@ -338,7 +344,7 @@ function SourceCard({
             e.stopPropagation();
             onInfo();
           }}
-          icon={<Info className="size-3.5" aria-hidden />}
+          icon={<Info className="size-3" aria-hidden />}
           label={`${source.name} haqida ma'lumot`}
         />
         <CardIconButton
@@ -346,7 +352,7 @@ function SourceCard({
             e.stopPropagation();
             onEdit();
           }}
-          icon={<Pencil className="size-3.5" aria-hidden />}
+          icon={<Pencil className="size-3" aria-hidden />}
           label={`${source.name}ni tahrirlash`}
         />
       </div>
@@ -354,14 +360,31 @@ function SourceCard({
   );
 
   if (hasChildren) {
-    // Parent variant — arrow silhouette via clip-path. The outer div
-    // is the "border layer" (bg = ring colour); the inner inset-px
-    // div is the actual card surface (bg-card). A 1px gap between
-    // the two reveals the outer colour along the polygon edge,
-    // producing a crisp hairline border that follows the chevron
-    // shape. drop-shadow gives depth (box-shadow + ring would be
-    // sliced off along the clip-path edges, hence this dance).
-    const clipPath = `polygon(0 0, calc(100% - ${PARENT_ARROW_PX}px) 0, 100% 50%, calc(100% - ${PARENT_ARROW_PX}px) 100%, 0 100%)`;
+    // Parent variant — arrow silhouette via clip-path. Outer div is
+    // the "border layer" (bg = ring colour); the inner div sits with
+    // 1px margin so the outer leaks through along the polygon edge
+    // as a hairline border. drop-shadow gives depth (box-shadow +
+    // ring would be sliced off along the clip-path edges).
+    //
+    // The polygon adds 3 vertices per left corner to approximate a
+    // ~6px radius quarter-circle, so the rectangle side of the card
+    // doesn't feel jaggedly straight against the chevron point. The
+    // chevron tip itself stays sharp — adding curve there would
+    // dilute the "arrow" affordance.
+    const r = 6;
+    const a = PARENT_ARROW_PX;
+    const mid = (r * 0.3).toFixed(1);
+    const clipPath = `polygon(
+      ${r}px 0,
+      calc(100% - ${a}px) 0,
+      100% 50%,
+      calc(100% - ${a}px) 100%,
+      ${r}px 100%,
+      ${mid}px calc(100% - ${mid}px),
+      0 calc(100% - ${r}px),
+      0 ${r}px,
+      ${mid}px ${mid}px
+    )`;
     return (
       <div
         className={cn(
@@ -410,7 +433,7 @@ function CardIconButton({
       aria-label={label}
       title={label}
       className={cn(
-        "size-7 inline-flex items-center justify-center rounded-md",
+        "size-6 inline-flex items-center justify-center rounded-md",
         "text-muted-foreground bg-card/80 backdrop-blur ring-1 ring-foreground/10",
         "hover:text-foreground hover:bg-card hover:ring-foreground/25 transition-colors"
       )}
