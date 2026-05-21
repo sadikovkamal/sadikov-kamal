@@ -13,7 +13,7 @@ import {
 } from "../src/lib/taxonomy/hierarchy";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../src/db";
-import { ageCategories, problems, topics } from "../src/db/schema";
+import { ageCategories, problems, problemTopics, topics, sources } from "../src/db/schema";
 import {
   createProblemTx,
   updateProblemTx,
@@ -314,10 +314,54 @@ async function listingExpansion() {
   console.log("[3] listProblems expands parent → descendants ok");
 }
 
+async function auditExistingData() {
+  // Belt-and-braces regression alarm: nothing in the live DB should
+  // already point a problem at a parent topic or parent source. The
+  // user confirmed no such rows exist; this guards against future
+  // changes that re-introduce them.
+  const [allTopics, allSources, problemTopicPairs, problemSourcePairs] =
+    await Promise.all([
+      db
+        .select({ id: topics.id, parentId: topics.parentId })
+        .from(topics),
+      db
+        .select({ id: sources.id, parentId: sources.parentId })
+        .from(sources),
+      db
+        .select({ problemId: problemTopics.problemId, topicId: problemTopics.topicId })
+        .from(problemTopics),
+      db
+        .select({ id: problems.id, sourceId: problems.sourceId })
+        .from(problems),
+    ]);
+
+  const topicParents = parentIdSet(allTopics);
+  const sourceParents = parentIdSet(allSources);
+
+  const badTopicRows = problemTopicPairs.filter((r) =>
+    topicParents.has(r.topicId)
+  );
+  const badSourceRows = problemSourcePairs.filter((r) =>
+    sourceParents.has(r.sourceId)
+  );
+
+  assert(
+    badTopicRows.length === 0,
+    `audit: ${badTopicRows.length} problems point at parent topics — first: ${JSON.stringify(badTopicRows[0])}`
+  );
+  assert(
+    badSourceRows.length === 0,
+    `audit: ${badSourceRows.length} problems point at parent sources — first: ${JSON.stringify(badSourceRows[0])}`
+  );
+
+  console.log("[4] audit: no existing problems on parent nodes ok");
+}
+
 async function main() {
   await helperSanity();
   await mutationGuards();
   await listingExpansion();
+  await auditExistingData();
   console.log("Smoke: PASSED");
 }
 

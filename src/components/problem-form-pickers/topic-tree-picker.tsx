@@ -99,10 +99,13 @@ export function TopicTreePicker({
 
   function toggleSelect(id: string) {
     if (value.includes(id)) {
+      // Always allow removal — so stale parent ids in `value` can be cleared.
       onChange(value.filter((v) => v !== id));
-    } else {
-      onChange([...value, id]);
+      return;
     }
+    // Refuse to add a parent — leaf-only rule.
+    if (parentSet.has(id)) return;
+    onChange([...value, id]);
   }
 
   const selected = available.filter(

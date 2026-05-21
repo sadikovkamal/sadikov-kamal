@@ -445,10 +445,17 @@ export function FilterPopover({
   const visible = useMemo<FlatNode[]>(() => {
     const q = query.trim().toLowerCase();
     if (!q) return flattenTree(options, expanded);
+    // Build a "has any child" set from the full options so search hits
+    // for parents still register as parents — otherwise leaf-only mode
+    // would render parent matches as enabled.
+    const hasAnyChild = new Set<string>();
+    for (const o of options) {
+      if (o.parentId) hasAnyChild.add(o.parentId);
+    }
     return options
       .filter((o) => o.name.toLowerCase().includes(q))
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map((o) => ({ ...o, depth: 0, hasChildren: false }));
+      .map((o) => ({ ...o, depth: 0, hasChildren: hasAnyChild.has(o.id) }));
   }, [options, query, expanded]);
 
   function toggleSelect(id: string) {
