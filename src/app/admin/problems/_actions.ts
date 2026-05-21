@@ -32,6 +32,20 @@ async function resolveProblemIdByCode(code: string): Promise<string | null> {
   return row[0]?.id ?? null;
 }
 
+/**
+ * Bust every cache that depends on per-source / per-topic problem
+ * counts. Call after any problem create / update / delete — otherwise
+ * the source explorer + topic tree keep showing pre-write rollup values
+ * until the next manual mutation forces a refresh.
+ */
+function revalidateProblemSurfaces(detailCode?: string) {
+  revalidatePath("/admin/problems");
+  revalidatePath("/admin/sources");
+  revalidatePath("/admin/topics");
+  revalidatePath("/admin");
+  if (detailCode) revalidatePath(`/admin/problems/${detailCode}`);
+}
+
 const problemSchema = z.object({
   bodyMd: z.string().min(1, "Problem body is required"),
   sourceId: z.string().uuid("Pick a source"),
@@ -94,7 +108,7 @@ export async function createProblemAction(
     return { error: e instanceof Error ? e.message : "Failed to create problem" };
   }
 
-  revalidatePath("/admin/problems");
+  revalidateProblemSurfaces(created.code);
   // redirect() throws an internal Next.js signal; must run outside try/catch.
   redirect(`/admin/problems/${created.code}`);
 }
@@ -124,8 +138,7 @@ export async function updateProblemAction(
 
   await cleanupOrphans(orphans);
 
-  revalidatePath("/admin/problems");
-  revalidatePath(`/admin/problems/${code}`);
+  revalidateProblemSurfaces(code);
   redirect(`/admin/problems/${code}`);
 }
 
@@ -147,7 +160,7 @@ export async function deleteProblemAction(
 
   await cleanupOrphans(orphans);
 
-  revalidatePath("/admin/problems");
+  revalidateProblemSurfaces();
   redirect("/admin/problems");
 }
 
@@ -179,7 +192,7 @@ export async function bulkDeleteProblemsAction(ids: string[]) {
   }
 
   await cleanupOrphans(orphans);
-  revalidatePath("/admin/problems");
+  revalidateProblemSurfaces();
 }
 
 /**
@@ -234,5 +247,5 @@ export async function bulkUpdateProblemsAction(input: unknown) {
           : "Masalalarni o'zgartirib bo'lmadi",
     };
   }
-  revalidatePath("/admin/problems");
+  revalidateProblemSurfaces();
 }

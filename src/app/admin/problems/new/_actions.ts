@@ -102,7 +102,14 @@ export async function executeImportAction(
     return { error: firstErr };
   }
 
+  // Import affects per-source / per-topic problem counts, so the
+  // taxonomy pages must be revalidated too — otherwise the source
+  // explorer keeps showing the pre-import "0 ta masala" rollup until
+  // the next manual mutation. The dashboard reads taxonomy counts too.
   revalidatePath("/admin/problems");
+  revalidatePath("/admin/sources");
+  revalidatePath("/admin/topics");
+  revalidatePath("/admin");
 
   return {
     success: true,
