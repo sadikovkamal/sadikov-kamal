@@ -1,11 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, Pencil } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronRight,
+  Hash,
+  Library,
+  Pencil,
+  Tags,
+} from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemById } from "@/lib/problems/queries";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DeleteProblemButton } from "./delete-button";
 
 export default async function ProblemDetailPage({
@@ -17,8 +23,6 @@ export default async function ProblemDetailPage({
   const { id } = await params;
   const p = await getProblemById(id);
   if (!p) notFound();
-
-  const title = [p.code, p.source?.name].filter(Boolean).join(" · ");
 
   return (
     <div className="space-y-5">
@@ -40,16 +44,21 @@ export default async function ProblemDetailPage({
         {p.source?.name && (
           <>
             <ChevronRight className="size-3" aria-hidden />
-            <span>{p.source.name}</span>
+            <span className="truncate">{p.source.name}</span>
           </>
         )}
       </nav>
 
       {/* Title + actions */}
       <header className="flex items-start justify-between gap-4 flex-wrap">
-        <h1 className="text-xl font-semibold tracking-tight min-w-0 break-words">
-          {title || "Masala"}
-        </h1>
+        <div className="flex items-center gap-3 min-w-0">
+          <code className="font-mono text-xs tabular-nums text-muted-foreground bg-muted/60 rounded px-2 py-1 shrink-0">
+            {p.code}
+          </code>
+          <h1 className="text-xl font-semibold tracking-tight min-w-0 break-words">
+            {p.source?.name ?? "Masala"}
+          </h1>
+        </div>
         <div className="flex gap-2 shrink-0">
           <Button
             variant="outline"
@@ -68,18 +77,27 @@ export default async function ProblemDetailPage({
 
       {/* Two-column body */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-6">
-        <article className="space-y-5 min-w-0">
-          <Section title="Shart">
-            {/* The image is already inlined inside bodyMd — the executor
-                rewrites every ![](images/foo.png) reference to the
-                absolute R2 URL on import. Rendering p.images separately
-                here would double-print every image. */}
-            <MarkdownPreview source={p.bodyMd} />
-          </Section>
-
+        <article className="min-w-0">
+          {/* Body — editorial reading surface. The card is a single
+              padded panel with no header label (the breadcrumb already
+              names the section as "shart"). Images inside the markdown
+              are capped at ~640px and centered so a 1200×800 photo
+              doesn't dominate the column; the executor already inlined
+              every ![](images/foo.png) reference as an absolute R2 URL,
+              so MarkdownPreview is the only image surface. */}
+          <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm px-6 py-6 md:px-8 md:py-7">
+            <MarkdownPreview
+              source={p.bodyMd}
+              className="[&_img]:max-w-[640px] [&_img]:mx-auto [&_img]:block [&_img]:my-6"
+            />
+          </div>
         </article>
 
-        {/* Sticky metadata sidebar */}
+        {/* Sticky metadata sidebar. Every taxonomy entry is a chip-link
+            into the matching filter so the admin can pivot from one
+            problem into the related set with a single click. URLs use
+            taxonomy codes (T###### / S###### / A######) — matches the
+            list URL contract. */}
         <aside className="lg:sticky lg:top-6 self-start">
           <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm overflow-hidden">
             <div className="px-5 py-3 border-b">
@@ -88,23 +106,22 @@ export default async function ProblemDetailPage({
               </span>
             </div>
             <div className="px-5 py-4 space-y-4">
-              <MetaRow label="Kod">
-                <span className="font-mono tabular-nums">{p.code}</span>
-              </MetaRow>
               {p.source && (
-                <MetaRow label="Manba">
+                <MetaRow label="Manba" icon={Library}>
                   <Link
-                    href={`/admin/problems?source=${p.sourceId}`}
-                    className="hover:text-foreground hover:underline underline-offset-4"
+                    href={`/admin/problems?source=${p.source.code}`}
+                    title={`Faqat ${p.source.name} manbasi`}
+                    className="inline-flex items-center gap-1 rounded-md ring-1 ring-foreground/10 bg-muted/40 hover:bg-muted hover:ring-foreground/25 px-1.5 py-0.5 text-[11px] font-medium text-foreground/85 transition-colors max-w-full"
                   >
-                    {p.source.name}
+                    <span className="truncate">{p.source.name}</span>
                   </Link>
                 </MetaRow>
               )}
-              <MetaRow label="Qo&apos;shilgan">
+
+              <MetaRow label="Qo&apos;shilgan" icon={CalendarDays}>
                 <time
                   dateTime={p.createdAt.toISOString()}
-                  className="tabular-nums text-xs"
+                  className="tabular-nums text-xs text-foreground/80"
                 >
                   {p.createdAt.toLocaleDateString("uz-UZ", {
                     year: "numeric",
@@ -113,41 +130,35 @@ export default async function ProblemDetailPage({
                   })}
                 </time>
               </MetaRow>
+
               {p.ageCategories.length > 0 && (
-                <MetaRow label="Yosh toifasi">
+                <MetaRow label="Yosh toifasi" icon={Hash}>
                   <div className="flex flex-wrap gap-1">
                     {p.ageCategories.map((c) => (
                       <Link
                         key={c.id}
-                        href={`/admin/problems?ageCategory=${c.id}`}
-                        className="inline-flex items-center"
+                        href={`/admin/problems?ageCategory=${c.code}`}
+                        title={`Faqat ${c.name}`}
+                        className="inline-flex items-center rounded-md ring-1 ring-foreground/10 bg-muted/40 hover:bg-muted hover:ring-foreground/25 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] font-normal py-0 px-1.5 hover:bg-muted-foreground/15 transition-colors"
-                        >
-                          {c.name}
-                        </Badge>
+                        {c.name}
                       </Link>
                     ))}
                   </div>
                 </MetaRow>
               )}
+
               {p.topics.length > 0 && (
-                <MetaRow label="Mavzular">
+                <MetaRow label="Mavzular" icon={Tags}>
                   <div className="flex flex-wrap gap-1">
                     {p.topics.map((t) => (
                       <Link
                         key={t.id}
-                        href={`/admin/problems?topic=${t.id}`}
-                        className="inline-flex items-center"
+                        href={`/admin/problems?topic=${t.code}`}
+                        title={`Faqat ${t.name} mavzusi`}
+                        className="inline-flex items-center gap-1 rounded-md ring-1 ring-foreground/10 bg-muted/30 hover:bg-muted hover:ring-foreground/25 px-1.5 py-0.5 text-[11px] text-foreground/85 transition-colors"
                       >
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] font-normal py-0 px-1.5 hover:bg-muted/60 transition-colors"
-                        >
-                          {t.name}
-                        </Badge>
+                        <span className="truncate">{t.name}</span>
                       </Link>
                     ))}
                   </div>
@@ -161,36 +172,20 @@ export default async function ProblemDetailPage({
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-2">
-      <h2 className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
-        {title}
-      </h2>
-      <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm px-5 py-4">
-        {children}
-      </div>
-    </section>
-  );
-}
-
 function MetaRow({
   label,
+  icon: Icon,
   children,
 }: {
   label: string;
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-        {label}
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+        <Icon className="size-3" aria-hidden />
+        <span>{label}</span>
       </div>
       <div className="text-[13px]">{children}</div>
     </div>
