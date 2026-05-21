@@ -36,7 +36,7 @@ async function main() {
   const MARKER = "PAGE_SMOKE_MARKER";
   const created: string[] = [];
   for (let i = 0; i < 3; i++) {
-    const id = await createProblemTx(
+    const { id } = await createProblemTx(
       {
         bodyMd: `${MARKER} fixture #${i + 1}`,
         sourceId: imo.id,

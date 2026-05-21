@@ -382,7 +382,7 @@ function ProblemCard({
             <span className="text-[11px] text-muted-foreground tabular-nums whitespace-nowrap">
               {formatDate(row.createdAt)}
             </span>
-            <CardActions id={row.id} />
+            <CardActions code={row.code} />
           </div>
         </div>
 
@@ -390,9 +390,10 @@ function ProblemCard({
             reads as a discrete "card-within-a-card". Clickable to open
             the detail page. `bodyPreview` is server-rendered HTML
             (KaTeX for math, escaped text otherwise) — safe to drop in
-            via dangerouslySetInnerHTML. */}
+            via dangerouslySetInnerHTML. Detail URL uses the human
+            P####### code, not the UUID. */}
         <Link
-          href={`/admin/problems/${row.id}`}
+          href={`/admin/problems/${row.code}`}
           className="block group/body rounded-lg ring-1 ring-foreground/5 bg-muted/40 hover:bg-muted/60 hover:ring-foreground/10 px-3.5 py-2.5 transition-colors"
         >
           {row.bodyPreview ? (
@@ -451,14 +452,14 @@ function ProblemCard({
   );
 }
 
-function CardActions({ id }: { id: string }) {
+function CardActions({ code }: { code: string }) {
   return (
     <div className="flex items-center gap-0.5 opacity-40 group-hover:opacity-100 transition-opacity">
       <Button
         variant="ghost"
         size="icon-xs"
         nativeButton={false}
-        render={<Link href={`/admin/problems/${id}/edit`} />}
+        render={<Link href={`/admin/problems/${code}/edit`} />}
         aria-label="Tahrirlash"
       >
         <Pencil className="size-3.5" />
@@ -467,7 +468,7 @@ function CardActions({ id }: { id: string }) {
         variant="ghost"
         size="icon-xs"
         nativeButton={false}
-        render={<Link href={`/admin/problems/${id}`} />}
+        render={<Link href={`/admin/problems/${code}`} />}
         aria-label="Ochish"
       >
         <ArrowUpRight className="size-3.5" />

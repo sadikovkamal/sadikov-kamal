@@ -126,7 +126,9 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
       });
     }
 
-    return created.id;
+    // Return both id (for any internal follow-up) and code (for the
+    // action layer to redirect into /admin/problems/<code>).
+    return { id: created.id, code };
   });
 }
 

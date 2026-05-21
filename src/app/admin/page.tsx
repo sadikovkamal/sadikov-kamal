@@ -317,7 +317,7 @@ export default async function AdminDashboard() {
               {recentProblems.map((p) => (
                 <li key={p.id}>
                   <Link
-                    href={`/admin/problems/${p.id}`}
+                    href={`/admin/problems/${p.code}`}
                     className="flex items-center gap-3 px-3 py-2 hover:bg-muted/40 transition-colors group"
                   >
                     <code className="font-mono text-[11px] tabular-nums text-muted-foreground">

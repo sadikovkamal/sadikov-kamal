@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import { deleteProblemAction } from "@/app/admin/problems/_actions";
 
-export function DeleteProblemButton({ id }: { id: string }) {
+export function DeleteProblemButton({ code }: { code: string }) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function onDelete() {
     startTransition(async () => {
       // Server action calls redirect() on success — execution stops here.
-      await deleteProblemAction(id);
+      await deleteProblemAction(code);
     });
   }
 

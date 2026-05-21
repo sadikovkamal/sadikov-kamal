@@ -93,7 +93,7 @@ async function main() {
   // Create a problem referencing the source, then try to delete it.
   // Use childId (a leaf) because the new leaf-only rule refuses to
   // attach a problem to topicId (which is the parent of childId).
-  const problemId = await createProblemTx(
+  const { id: problemId } = await createProblemTx(
     {
       bodyMd: "FK restrict test",
       sourceId,

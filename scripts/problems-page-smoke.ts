@@ -36,12 +36,13 @@ async function main() {
   const { token } = await createSession(admin.id);
   const cookie = `${SESSION_COOKIE_NAME}=${token}`;
   let createdId: string | null = null;
+  let createdCode: string | null = null;
   let failed: Error | null = null;
 
   try {
     // Insert a real problem via the data layer so detail/edit pages have
     // something to render.
-    createdId = await createProblemTx(
+    const created = await createProblemTx(
       {
         bodyMd: "Page smoke: $a + b > 0$ when $a, b > 0$.",
         sourceId: source.id,
@@ -50,10 +51,13 @@ async function main() {
       },
       admin.id
     );
+    createdId = created.id;
+    createdCode = created.code;
 
-    // /admin/problems/[id] view page with cookie
+    // /admin/problems/[code] view page with cookie. Detail / edit URLs
+    // are keyed by the human P####### code, not the UUID.
     {
-      const r = await fetch(`${BASE}/admin/problems/${createdId}`, {
+      const r = await fetch(`${BASE}/admin/problems/${createdCode}`, {
         headers: { cookie },
         redirect: "manual",
       });
@@ -72,12 +76,12 @@ async function main() {
       if (!/O(?:'|&#x27;|&apos;)chirish/.test(body)) {
         throw new Error(`detail page missing "O'chirish" delete control`);
       }
-      console.log(`[1] /admin/problems/${createdId.slice(0, 8)}… -> 200 OK with body + controls`);
+      console.log(`[1] /admin/problems/${createdCode} -> 200 OK with body + controls`);
     }
 
-    // /admin/problems/[id]/edit with cookie
+    // /admin/problems/[code]/edit with cookie
     {
-      const r = await fetch(`${BASE}/admin/problems/${createdId}/edit`, {
+      const r = await fetch(`${BASE}/admin/problems/${createdCode}/edit`, {
         headers: { cookie },
         redirect: "manual",
       });
@@ -88,19 +92,20 @@ async function main() {
       if (!/Masalani tahrirlash/.test(body)) {
         throw new Error(`edit page missing heading`);
       }
-      console.log(`[2] /admin/problems/${createdId.slice(0, 8)}…/edit -> 200 OK`);
+      console.log(`[2] /admin/problems/${createdCode}/edit -> 200 OK`);
     }
 
-    // /admin/problems/[id] for unknown id -> 404
+    // /admin/problems/[code] for unknown code -> 404. P9999999 is a
+    // valid shape but will not exist in any reasonable test DB.
     {
-      const r = await fetch(`${BASE}/admin/problems/00000000-0000-0000-0000-000000000000`, {
+      const r = await fetch(`${BASE}/admin/problems/P9999999`, {
         headers: { cookie },
         redirect: "manual",
       });
       if (r.status !== 404) {
-        throw new Error(`unknown id: expected 404, got ${r.status}`);
+        throw new Error(`unknown code: expected 404, got ${r.status}`);
       }
-      console.log(`[3] unknown problem id -> 404`);
+      console.log(`[3] unknown problem code -> 404`);
     }
   } catch (e) {
     failed = e instanceof Error ? e : new Error(String(e));

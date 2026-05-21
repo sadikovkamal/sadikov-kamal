@@ -4,7 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { db } from "@/db";
 import { topics, ageCategories } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
-import { getProblemById } from "@/lib/problems/queries";
+import { getProblemByCode } from "@/lib/problems/queries";
 import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
 import { getPublicUrl } from "@/lib/storage/r2";
 import { ProblemForm } from "@/components/problem-form";
@@ -12,14 +12,15 @@ import { ProblemForm } from "@/components/problem-form";
 export default async function EditProblemPage({
   params,
 }: {
+  // The dynamic segment is the problem's P####### code.
   params: Promise<{ id: string }>;
 }) {
   await requireAdmin();
-  const { id } = await params;
+  const { id: code } = await params;
 
   const [p, topicsAvailable, sourcesAvailable, ageCategoriesAvailable] =
     await Promise.all([
-      getProblemById(id),
+      getProblemByCode(code),
       db.select().from(topics).orderBy(topics.name),
       listSourcesWithCounts(),
       db.select().from(ageCategories).orderBy(ageCategories.code),
@@ -43,7 +44,7 @@ export default async function EditProblemPage({
         </Link>
         <ChevronRight className="size-3" aria-hidden />
         <Link
-          href={`/admin/problems/${id}`}
+          href={`/admin/problems/${p.code}`}
           className="hover:text-foreground transition-colors truncate max-w-[280px]"
         >
           {title || "Masala"}
@@ -63,7 +64,7 @@ export default async function EditProblemPage({
 
       <ProblemForm
         mode="edit"
-        problemId={id}
+        problemId={p.code}
         defaultValues={{
           bodyMd: p.bodyMd,
           sourceId: p.sourceId,
@@ -82,7 +83,9 @@ export default async function EditProblemPage({
         topicsAvailable={topicsAvailable}
         sourcesAvailable={sourcesAvailable}
         ageCategoriesAvailable={ageCategoriesAvailable}
-        uploadPrefix={`problems/${id}`}
+        // R2 storage paths stay UUID-keyed — they're internal storage
+        // keys, not URLs, so the human-facing code rename doesn't apply.
+        uploadPrefix={`problems/${p.id}`}
       />
     </div>
   );

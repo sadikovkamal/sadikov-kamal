@@ -24,15 +24,12 @@ import {
 import { withDescendants } from "@/lib/taxonomy/hierarchy";
 
 /**
- * Fetch a single problem with all its associations expanded.
- * Returns null if no row exists. Joins are parallelized.
+ * Hydrate a single problem with its junction rows + source + images.
+ * Shared between the two entry points below — feed it the raw row and
+ * it returns the same shape regardless of how the row was looked up.
  */
-export async function getProblemById(id: string) {
-  const problem = await db.query.problems.findFirst({
-    where: eq(problems.id, id),
-  });
-  if (!problem) return null;
-
+async function hydrateProblem(problem: typeof problems.$inferSelect) {
+  const id = problem.id;
   const [topicRows, ageCategoryRows, source, imageRows] = await Promise.all([
     db
       .select({ id: topics.id, code: topics.code, name: topics.name })
@@ -63,6 +60,33 @@ export async function getProblemById(id: string) {
     source,
     images: imageRows,
   };
+}
+
+/**
+ * Fetch a single problem by its UUID with all associations expanded.
+ * Returns null if no row exists. Used by mutations and any code path
+ * that already has the internal id.
+ */
+export async function getProblemById(id: string) {
+  const problem = await db.query.problems.findFirst({
+    where: eq(problems.id, id),
+  });
+  if (!problem) return null;
+  return hydrateProblem(problem);
+}
+
+/**
+ * Fetch a single problem by its human-facing `P#######` code. The
+ * detail / edit URLs use codes (see /admin/problems/<code>), so this
+ * is the resolver the page-level entry points reach for. Returns null
+ * if the code doesn't match any row.
+ */
+export async function getProblemByCode(code: string) {
+  const problem = await db.query.problems.findFirst({
+    where: eq(problems.code, code),
+  });
+  if (!problem) return null;
+  return hydrateProblem(problem);
 }
 
 export type ProblemWithRelations = NonNullable<

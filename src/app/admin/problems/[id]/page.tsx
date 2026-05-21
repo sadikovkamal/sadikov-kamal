@@ -9,7 +9,7 @@ import {
   Tags,
 } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
-import { getProblemById } from "@/lib/problems/queries";
+import { getProblemByCode } from "@/lib/problems/queries";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { Button } from "@/components/ui/button";
 import { DeleteProblemButton } from "./delete-button";
@@ -17,11 +17,14 @@ import { DeleteProblemButton } from "./delete-button";
 export default async function ProblemDetailPage({
   params,
 }: {
+  // The dynamic segment is the problem's P####### code, not its UUID.
+  // We keep the param name `id` so the folder structure stays
+  // `app/admin/problems/[id]` — only the value contract changed.
   params: Promise<{ id: string }>;
 }) {
   await requireAdmin();
-  const { id } = await params;
-  const p = await getProblemById(id);
+  const { id: code } = await params;
+  const p = await getProblemByCode(code);
   if (!p) notFound();
 
   return (
@@ -65,13 +68,13 @@ export default async function ProblemDetailPage({
             size="sm"
             nativeButton={false}
             render={
-              <Link href={`/admin/problems/${id}/edit`}>
+              <Link href={`/admin/problems/${p.code}/edit`}>
                 <Pencil data-icon="inline-start" />
                 Tahrirlash
               </Link>
             }
           />
-          <DeleteProblemButton id={id} />
+          <DeleteProblemButton code={p.code} />
         </div>
       </header>
 

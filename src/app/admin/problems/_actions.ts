@@ -1,8 +1,11 @@
 "use server";
 
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { db } from "@/db";
+import { problems } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { deleteFile } from "@/lib/storage/r2";
 import {
@@ -14,6 +17,20 @@ import {
   type ProblemInput,
 } from "@/lib/problems/mutations";
 import { BULK_OP_LIMIT } from "./_constants";
+
+/**
+ * The detail / edit URLs use the human-facing P####### code, so the
+ * single-item actions take a code, resolve it to the internal UUID,
+ * then call the mutation. Returns the UUID, or `null` if no row.
+ */
+async function resolveProblemIdByCode(code: string): Promise<string | null> {
+  const row = await db
+    .select({ id: problems.id })
+    .from(problems)
+    .where(eq(problems.code, code))
+    .limit(1);
+  return row[0]?.id ?? null;
+}
 
 const problemSchema = z.object({
   bodyMd: z.string().min(1, "Problem body is required"),
@@ -70,20 +87,20 @@ export async function createProblemAction(
 
   const input: ProblemInput = parsed.data;
 
-  let createdId: string;
+  let created: { id: string; code: string };
   try {
-    createdId = await createProblemTx(input, user.id);
+    created = await createProblemTx(input, user.id);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to create problem" };
   }
 
   revalidatePath("/admin/problems");
   // redirect() throws an internal Next.js signal; must run outside try/catch.
-  redirect(`/admin/problems/${createdId}`);
+  redirect(`/admin/problems/${created.code}`);
 }
 
 export async function updateProblemAction(
-  id: string,
+  code: string,
   raw: unknown
 ): Promise<ProblemActionResult> {
   await requireAdmin();
@@ -91,6 +108,9 @@ export async function updateProblemAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+
+  const id = await resolveProblemIdByCode(code);
+  if (!id) return { error: "Masala topilmadi" };
 
   const input: ProblemInput = parsed.data;
 
@@ -105,12 +125,17 @@ export async function updateProblemAction(
   await cleanupOrphans(orphans);
 
   revalidatePath("/admin/problems");
-  revalidatePath(`/admin/problems/${id}`);
-  redirect(`/admin/problems/${id}`);
+  revalidatePath(`/admin/problems/${code}`);
+  redirect(`/admin/problems/${code}`);
 }
 
-export async function deleteProblemAction(id: string): Promise<ProblemActionResult> {
+export async function deleteProblemAction(
+  code: string
+): Promise<ProblemActionResult> {
   await requireAdmin();
+
+  const id = await resolveProblemIdByCode(code);
+  if (!id) return { error: "Masala topilmadi" };
 
   let orphans: string[] = [];
   try {

@@ -70,8 +70,8 @@ async function main() {
     ageCategoryIds: [cat9, cat10, cat11],
   };
 
-  const newId = await createProblemTx(input, admin.id);
-  console.log(`[1] createProblemTx ok: ${newId}`);
+  const { id: newId, code: newCode } = await createProblemTx(input, admin.id);
+  console.log(`[1] createProblemTx ok: ${newCode} (${newId})`);
 
   // --- Read --------------------------------------------------------------
   const fetched = await getProblemById(newId);

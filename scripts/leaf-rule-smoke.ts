@@ -163,7 +163,7 @@ async function mutationGuards() {
   );
 
   // Build a real (leaf-only) problem so update + bulkUpdate have a target.
-  const okId = await createProblemTx(
+  const { id: okId } = await createProblemTx(
     {
       bodyMd: "Smoke OK",
       sourceId: leafSourceId,
@@ -242,7 +242,7 @@ async function listingExpansion() {
     .limit(1);
   assert(age, "age category missing");
 
-  const probAId = await createProblemTx(
+  const { id: probAId } = await createProblemTx(
     {
       bodyMd: `body-A ${SUFFIX}`,
       sourceId: leafSourceId,
@@ -252,7 +252,7 @@ async function listingExpansion() {
     },
     admin!.id
   );
-  const probBId = await createProblemTx(
+  const { id: probBId } = await createProblemTx(
     {
       bodyMd: `body-B ${SUFFIX}`,
       sourceId: leafSourceId,

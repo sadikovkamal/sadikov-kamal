@@ -70,7 +70,7 @@ async function main() {
 
   const created: string[] = [];
   for (const f of fixtures) {
-    const id = await createProblemTx(
+    const { id } = await createProblemTx(
       {
         bodyMd: f.body,
         sourceId: f.source.id,
