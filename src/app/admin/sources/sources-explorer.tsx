@@ -302,7 +302,11 @@ function SourceCard({
         </div>
 
         {/* Body — name on its own line, then code + meta in a compact
-            second line. The right edge stays clear for action buttons. */}
+            second line. The right edge of the title stays clear for
+            the action icons (pr-16); the meta row uses the full width
+            and pushes the parent chevron to its right edge so the
+            chevron lives inside the content flow instead of floating
+            in the bottom-right corner. */}
         <div className="min-w-0 flex-1 flex flex-col justify-center gap-1">
           <p className="font-semibold text-sm truncate leading-tight pr-16">
             {source.name}
@@ -322,21 +326,18 @@ function SourceCard({
             >
               {metaLabel}
             </span>
+            {hasChildren && (
+              <ChevronRight
+                className={cn(
+                  "ml-auto size-4 shrink-0 text-muted-foreground/50",
+                  "transition-all",
+                  "group-hover:text-foreground/70 group-hover:translate-x-0.5"
+                )}
+                aria-hidden
+              />
+            )}
           </div>
         </div>
-
-        {/* Chevron — only on parents. Drops down to the bottom-right
-            so the action buttons own the top-right. */}
-        {hasChildren && (
-          <ChevronRight
-            className={cn(
-              "absolute bottom-3 right-3 size-4 text-muted-foreground/40",
-              "transition-all",
-              "group-hover:text-foreground/70 group-hover:translate-x-0.5"
-            )}
-            aria-hidden
-          />
-        )}
       </div>
 
       {/* Action cluster — always visible, sits above the card click
@@ -429,6 +430,21 @@ function SourceInfoDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Logo preview — only when a real image is set. Sourced from
+            the same R2 URL the explorer uses; max height keeps tall
+            book covers from blowing the dialog out. */}
+        {source.logoPublicUrl && (
+          <div className="relative w-full h-48 rounded-lg ring-1 ring-foreground/10 bg-muted/40 overflow-hidden">
+            <Image
+              src={source.logoPublicUrl}
+              alt={`${source.name} logosi`}
+              fill
+              sizes="(max-width: 768px) 100vw, 400px"
+              className="object-contain"
+            />
+          </div>
+        )}
+
         {source.description ? (
           <div className="rounded-lg ring-1 ring-foreground/10 bg-muted/30 px-3 py-2.5">
             <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
@@ -466,7 +482,18 @@ function LogoLightbox({
 }) {
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl p-2 bg-card">
+      {/* Fullscreen viewer — overrides DialogContent's default
+          max-w-sm sizing by passing a fresh size set. p-0 and
+          rounded-none drop the padding/corners so the image breathes
+          edge-to-edge against a dim background. */}
+      <DialogContent
+        showCloseButton={false}
+        className={cn(
+          "w-screen h-[100dvh] max-w-none sm:max-w-none",
+          "top-0 left-0 translate-x-0 translate-y-0",
+          "p-0 gap-0 rounded-none ring-0 bg-foreground/95"
+        )}
+      >
         <DialogHeader className="sr-only">
           <DialogTitle>{name} logosi</DialogTitle>
         </DialogHeader>
@@ -474,16 +501,16 @@ function LogoLightbox({
           type="button"
           onClick={onClose}
           aria-label="Yopish"
-          className="absolute top-3 right-3 z-10 size-8 inline-flex items-center justify-center rounded-md text-white bg-foreground/60 hover:bg-foreground/80 transition-colors"
+          className="absolute top-4 right-4 z-10 size-10 inline-flex items-center justify-center rounded-full text-white bg-foreground/40 hover:bg-foreground/60 transition-colors"
         >
-          <X className="size-4" />
+          <X className="size-5" />
         </button>
-        <div className="relative w-full max-h-[80vh] aspect-video overflow-hidden rounded-lg bg-muted">
+        <div className="relative w-full h-full">
           <Image
             src={url}
             alt={`${name} logosi`}
             fill
-            sizes="(max-width: 768px) 100vw, 768px"
+            sizes="100vw"
             className="object-contain"
             priority
           />
