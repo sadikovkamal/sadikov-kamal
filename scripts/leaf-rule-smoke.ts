@@ -315,14 +315,10 @@ async function listingExpansion() {
 }
 
 async function auditExistingData() {
-  // Belt-and-braces report: scan every (problem, topic) and
-  // (problem, source) pair against the parent set so admins can see
-  // any pre-existing leaf-rule violations. Surfaced as a warning, not
-  // an assertion — these rows pre-date the rule (the live DB had 4
-  // such problems on parent sources at deploy time) and need a manual
-  // re-bind, but they don't block the smoke. Flip the warnings to
-  // assert() once the counts reach zero so the audit becomes a true
-  // regression alarm.
+  // Regression alarm: nothing in the live DB should point a problem at
+  // a parent topic or parent source. Verified clean at deploy time
+  // (4 legacy smoke-fixture rows were removed); future drift trips
+  // these asserts and the smoke fails loudly.
   const [allTopics, allSources, problemTopicPairs, problemSourcePairs] =
     await Promise.all([
       db
@@ -349,20 +345,16 @@ async function auditExistingData() {
     sourceParents.has(r.sourceId)
   );
 
-  if (badTopicRows.length > 0) {
-    console.warn(
-      `[!] audit: ${badTopicRows.length} (problem, topic) pair(s) point at parent topics — first: ${JSON.stringify(badTopicRows[0])}`
-    );
-  }
-  if (badSourceRows.length > 0) {
-    console.warn(
-      `[!] audit: ${badSourceRows.length} problem(s) point at parent sources — first: ${JSON.stringify(badSourceRows[0])}`
-    );
-  }
-
-  console.log(
-    `[4] audit: ${badTopicRows.length} parent-topic + ${badSourceRows.length} parent-source legacy rows (see warnings above if non-zero)`
+  assert(
+    badTopicRows.length === 0,
+    `audit: ${badTopicRows.length} (problem, topic) pair(s) point at parent topics — first: ${JSON.stringify(badTopicRows[0])}`
   );
+  assert(
+    badSourceRows.length === 0,
+    `audit: ${badSourceRows.length} problem(s) point at parent sources — first: ${JSON.stringify(badSourceRows[0])}`
+  );
+
+  console.log("[4] audit: no existing problems on parent nodes ok");
 }
 
 async function main() {

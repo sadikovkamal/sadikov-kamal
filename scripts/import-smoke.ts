@@ -114,47 +114,65 @@ Second problem with an image.
     validation: report,
     uploadedBy: admin.id,
   });
-  assert(
-    exec.successCount === 2,
-    `success=${exec.successCount}, want 2 (errorLog=${JSON.stringify(exec.errorLog)})`
-  );
-  assert(exec.createdCodes.length === 2, `createdCodes len=${exec.createdCodes.length}`);
-  console.log(`[3] executeImport: ${exec.successCount}/${exec.totalCount} → ${exec.createdCodes.join(", ")}`);
+  // Track inserted artifacts BEFORE the post-execute asserts so the
+  // finally block can clean them up even when an assertion below throws.
+  // Previously a single failed assert here left the inserted problems
+  // and R2 objects behind, which made the leaf-rule audit dirty.
+  const createdCodes = exec.createdCodes;
+  const insertedStorageKeys: string[] = [];
 
-  // --- DB verification --------------------------------------------------
-  const inserted = await db
-    .select()
-    .from(problems)
-    .where(inArray(problems.code, exec.createdCodes));
-  assert(inserted.length === 2, `inserted ${inserted.length}, want 2`);
+  try {
+    assert(
+      exec.successCount === 2,
+      `success=${exec.successCount}, want 2 (errorLog=${JSON.stringify(exec.errorLog)})`
+    );
+    assert(createdCodes.length === 2, `createdCodes len=${createdCodes.length}`);
+    console.log(`[3] executeImport: ${exec.successCount}/${exec.totalCount} → ${createdCodes.join(", ")}`);
 
-  const sample = inserted.find((p) => /r2\.dev|imports\//.test(p.bodyMd));
-  assert(sample, "no problem with rewritten image reference found");
-  console.log(`[4] image markdown ref rewritten to R2 URL`);
+    // --- DB verification ------------------------------------------------
+    const inserted = await db
+      .select()
+      .from(problems)
+      .where(inArray(problems.code, createdCodes));
+    assert(inserted.length === 2, `inserted ${inserted.length}, want 2`);
 
-  const insertedImages = await db
-    .select()
-    .from(images)
-    .where(inArray(images.problemId, inserted.map((p) => p.id)));
-  assert(insertedImages.length === 1, `image rows=${insertedImages.length}, want 1`);
-  console.log(`[5] ${insertedImages.length} image row persisted`);
+    const sample = inserted.find((p) => /r2\.dev|imports\//.test(p.bodyMd));
+    assert(sample, "no problem with rewritten image reference found");
+    console.log(`[4] image markdown ref rewritten to R2 URL`);
 
-  // --- splitProblemBlocks unit-ish check --------------------------------
-  const text = "---\nfoo: 1\n---\n\nbody1\n\n---\nfoo: 2\n---\n\nbody2";
-  const blocks = splitProblemBlocks(text);
-  assert(blocks.length === 2, `splitProblemBlocks returned ${blocks.length}, want 2`);
-  console.log(`[6] splitProblemBlocks correctly handles multi-problem text`);
+    const insertedImages = await db
+      .select()
+      .from(images)
+      .where(inArray(images.problemId, inserted.map((p) => p.id)));
+    for (const img of insertedImages) insertedStorageKeys.push(img.storageKey);
+    assert(insertedImages.length === 1, `image rows=${insertedImages.length}, want 1`);
+    console.log(`[5] ${insertedImages.length} image row persisted`);
 
-  // --- Cleanup ----------------------------------------------------------
-  for (const img of insertedImages) {
-    try {
-      await deleteFile(img.storageKey);
-    } catch {
-      // best-effort
+    // --- splitProblemBlocks unit-ish check ------------------------------
+    const text = "---\nfoo: 1\n---\n\nbody1\n\n---\nfoo: 2\n---\n\nbody2";
+    const blocks = splitProblemBlocks(text);
+    assert(blocks.length === 2, `splitProblemBlocks returned ${blocks.length}, want 2`);
+    console.log(`[6] splitProblemBlocks correctly handles multi-problem text`);
+  } finally {
+    // Cleanup must run even on assertion failure — otherwise the leftover
+    // rows pollute the leaf-rule audit.
+    for (const key of insertedStorageKeys) {
+      try {
+        await deleteFile(key);
+      } catch {
+        // best-effort
+      }
+    }
+    if (createdCodes.length > 0) {
+      const deleted = await db
+        .delete(problems)
+        .where(inArray(problems.code, createdCodes))
+        .returning({ code: problems.code });
+      console.log(
+        `[cleanup] removed ${deleted.length} problems, ${insertedStorageKeys.length} R2 objects`
+      );
     }
   }
-  await db.delete(problems).where(inArray(problems.id, inserted.map((p) => p.id)));
-  console.log(`[cleanup] removed ${inserted.length} problems, ${insertedImages.length} R2 objects`);
   void eq;
 
   console.log(`\nImport smoke: PASSED`);
