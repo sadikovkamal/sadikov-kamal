@@ -17,6 +17,7 @@ import {
   listTopicsWithCounts,
   listSourcesWithCounts,
   listTopicsForSource,
+  listTopicsForAgeCategory,
 } from "../src/lib/taxonomy/queries";
 import {
   createTopic,
@@ -165,6 +166,31 @@ async function main() {
     `listTopicsForSource must be a strict subset (sub=${subtree.length}, all=${allTopicCount})`
   );
   console.log(`[5b] listTopicsForSource: connected subtree + per-source counts ok`);
+
+  // listTopicsForAgeCategory: the per-age-category page reads from
+  // here. Same shape as the source variant — assert leaf + ancestor
+  // both come back with count=1, and the result is a strict subset of
+  // the global topic list.
+  const age9 = (await db.select().from(ageCategories)).find(
+    (c) => c.name === "9-sinf"
+  )!;
+  const acSubtree = await listTopicsForAgeCategory(age9.id);
+  const acIds = new Set(acSubtree.map((t) => t.id));
+  assert(
+    acIds.has(childId) && acIds.has(topicId),
+    "listTopicsForAgeCategory must include both the hit leaf and its parent"
+  );
+  const acLeaf = acSubtree.find((t) => t.id === childId);
+  const acParent = acSubtree.find((t) => t.id === topicId);
+  assert(
+    acLeaf?.problemCount === 1,
+    `per-age-category leaf count must be 1, got ${acLeaf?.problemCount}`
+  );
+  assert(
+    acParent?.problemCount === 1,
+    `per-age-category parent rollup must be 1, got ${acParent?.problemCount}`
+  );
+  console.log(`[5c] listTopicsForAgeCategory: connected subtree + per-age counts ok`);
 
   let deleteFailed = false;
   try {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { BookOpen, Pencil, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -21,6 +22,7 @@ export function AgeCategoriesList({
 }: {
   categories: AgeCategoryWithCount[];
 }) {
+  const router = useRouter();
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
 
   const editing =
@@ -43,7 +45,11 @@ export function AgeCategoriesList({
             code={c.code}
             name={c.name}
             problemCount={c.problemCount}
-            onClick={() => setEditingId(c.id)}
+            // Whole-card click navigates to the per-category topics
+            // page; the pen icon (a child button) stops propagation
+            // and opens the edit modal instead.
+            onOpen={() => router.push(`/admin/age-categories/${c.code}`)}
+            onEdit={() => setEditingId(c.id)}
           />
         ))}
 
@@ -80,20 +86,34 @@ function CategoryCard({
   code,
   name,
   problemCount,
-  onClick,
+  onOpen,
+  onEdit,
 }: {
   code: string;
   name: string;
   problemCount: number;
-  onClick: () => void;
+  onOpen: () => void;
+  onEdit: () => void;
 }) {
   return (
-    // Card is no longer a click target — only the pen icon edits. The
-    // card stays a div so screen readers don't announce it as a button.
+    // Card is the navigation click target. The pen icon is a nested
+    // <button>; pointer/keyboard events on it stopPropagation so
+    // editing doesn't double-trigger navigation.
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${name} toifasidagi mavzularni ko'rish`}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       className={cn(
         "group relative rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm",
-        "hover:ring-foreground/20 transition-all",
+        "hover:ring-foreground/25 hover:shadow-md transition-all cursor-pointer",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]",
         "px-4 py-4 min-h-[120px]",
         "flex flex-col justify-between gap-3"
       )}
@@ -105,7 +125,15 @@ function CategoryCard({
         </code>
         <button
           type="button"
-          onClick={onClick}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          onKeyDown={(e) => {
+            // Enter/Space on the pen must edit, not navigate. The
+            // outer div's keyboard handler would otherwise fire too.
+            if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+          }}
           aria-label={`${name} toifasini tahrirlash`}
           // Always visible but dim until hover/focus, so touch users
           // can see it without hovering and mouse users get a clear

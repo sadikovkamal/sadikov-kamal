@@ -190,6 +190,66 @@ export async function listAgeCategoriesWithCounts(): Promise<
 }
 
 /**
+ * Topics that actually appear under problems in one specific age
+ * category. Same shape and contract as listTopicsForSource — see its
+ * doc for the connected-tree + per-scope-rollup rationale. Differs
+ * only in which junction it filters on: problem_age_categories
+ * instead of problems.source_id.
+ */
+export async function listTopicsForAgeCategory(
+  ageCategoryId: string
+): Promise<TopicWithCount[]> {
+  const [allTopics, directCounts] = await Promise.all([
+    db
+      .select({
+        id: topics.id,
+        code: topics.code,
+        name: topics.name,
+        parentId: topics.parentId,
+        description: topics.description,
+      })
+      .from(topics)
+      .orderBy(topics.code),
+    db
+      .select({
+        topicId: problemTopics.topicId,
+        count: sql<number>`count(distinct ${problems.id})::int`,
+      })
+      .from(problems)
+      .innerJoin(problemTopics, eq(problemTopics.problemId, problems.id))
+      .innerJoin(
+        problemAgeCategories,
+        eq(problemAgeCategories.problemId, problems.id)
+      )
+      .where(eq(problemAgeCategories.ageCategoryId, ageCategoryId))
+      .groupBy(problemTopics.topicId),
+  ]);
+
+  const byId = new Map(allTopics.map((t) => [t.id, t]));
+  const keep = new Set<string>();
+  for (const { topicId } of directCounts) {
+    let cur: string | null | undefined = topicId;
+    while (cur && !keep.has(cur)) {
+      keep.add(cur);
+      cur = byId.get(cur)?.parentId ?? null;
+    }
+  }
+
+  const directByTopicId = new Map(
+    directCounts.map((r) => [r.topicId, r.count])
+  );
+  const kept = allTopics
+    .filter((t) => keep.has(t.id))
+    .map((t) => ({
+      ...t,
+      problemCount: directByTopicId.get(t.id) ?? 0,
+    }));
+
+  const rollup = rollupCounts(kept);
+  return kept.map((r) => ({ ...r, problemCount: rollup.get(r.id) ?? 0 }));
+}
+
+/**
  * Topics that actually appear under problems in one specific source,
  * shaped as a connected tree.
  *
