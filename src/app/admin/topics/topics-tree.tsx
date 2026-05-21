@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronDown,
   ChevronRight,
@@ -24,6 +25,7 @@ import type { TopicWithCount } from "@/lib/taxonomy/queries";
  * they're not working on.
  */
 export function TopicsTree({ topics }: { topics: TopicWithCount[] }) {
+  const router = useRouter();
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -143,6 +145,8 @@ export function TopicsTree({ topics }: { topics: TopicWithCount[] }) {
                   collapsed,
                   onToggle: toggle,
                   onEdit: (id) => setEditingId(id),
+                  onOpenLeaf: (code) =>
+                    router.push(`/admin/problems?topic=${code}`),
                 })}
               </tbody>
             </table>
@@ -170,12 +174,15 @@ function renderRows({
   collapsed,
   onToggle,
   onEdit,
+  onOpenLeaf,
 }: {
   nodes: TopicTreeNode<TopicWithCount>[];
   depth: number;
   collapsed: Set<string>;
   onToggle: (id: string) => void;
   onEdit: (id: string) => void;
+  /** Navigate to the problems list filtered by this leaf topic's code. */
+  onOpenLeaf: (code: string) => void;
 }): React.ReactNode[] {
   const rows: React.ReactNode[] = [];
   for (const node of nodes) {
@@ -183,8 +190,40 @@ function renderRows({
     const isCollapsed = collapsed.has(node.topic.id);
     const Chevron = isCollapsed ? ChevronRight : ChevronDown;
 
+    // Whole-row activation. Parents toggle; leaves jump to the filtered
+    // problems list. Same handler on click and on Enter/Space so the
+    // table is keyboard-navigable without surprising the user with a
+    // separate trigger.
+    const activate = () => {
+      if (hasChildren) onToggle(node.topic.id);
+      else onOpenLeaf(node.topic.code);
+    };
+
     rows.push(
-      <tr key={node.topic.id} className="group">
+      <tr
+        key={node.topic.id}
+        className={
+          "group cursor-pointer transition-colors " +
+          "hover:bg-muted/30 focus-visible:bg-muted/40 " +
+          "focus:outline-none focus-visible:ring-2 " +
+          "focus-visible:ring-[var(--accent-brand)]"
+        }
+        role="button"
+        tabIndex={0}
+        aria-label={
+          hasChildren
+            ? `${node.topic.name} — ${isCollapsed ? "ochish" : "yopish"}`
+            : `${node.topic.name} — masalalarini ko'rish`
+        }
+        aria-expanded={hasChildren ? !isCollapsed : undefined}
+        onClick={activate}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            activate();
+          }
+        }}
+      >
         <td className="px-3 py-2 whitespace-nowrap">
           <code className="font-mono text-xs tabular-nums text-muted-foreground">
             {node.topic.code}
@@ -196,17 +235,16 @@ function renderRows({
             style={{ paddingLeft: `${depth * 20}px` }}
           >
             {hasChildren ? (
-              <button
-                type="button"
-                onClick={() => onToggle(node.topic.id)}
-                aria-label={
-                  isCollapsed ? `${node.topic.name}ni ochish` : `${node.topic.name}ni yopish`
-                }
-                aria-expanded={!isCollapsed}
-                className="size-5 inline-flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0 cursor-pointer"
+              // Chevron is purely decorative now — the row itself is the
+              // hit target. Keep it as a <span> so nested-button warnings
+              // don't fire and the row's keyboard behavior isn't
+              // intercepted by an inner button.
+              <span
+                className="size-5 inline-flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors shrink-0"
+                aria-hidden
               >
-                <Chevron className="size-3.5" aria-hidden />
-              </button>
+                <Chevron className="size-3.5" />
+              </span>
             ) : (
               // Spacer so leaf nodes line up with parent labels.
               <span
@@ -237,15 +275,26 @@ function renderRows({
           {node.topic.problemCount}
         </td>
         <td className="px-3 py-2 pr-3 text-right">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onEdit(node.topic.id)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity"
+          {/* Edit button must not trigger the row click (which would
+              toggle/navigate). stopPropagation on both the pointer
+              event and the surrounding wrapper. */}
+          <span
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
-            <Pencil data-icon="inline-start" />
-            Tahrirlash
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(node.topic.id);
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            >
+              <Pencil data-icon="inline-start" />
+              Tahrirlash
+            </Button>
+          </span>
         </td>
       </tr>
     );
@@ -258,6 +307,7 @@ function renderRows({
           collapsed,
           onToggle,
           onEdit,
+          onOpenLeaf,
         })
       );
     }
