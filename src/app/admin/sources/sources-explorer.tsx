@@ -265,7 +265,7 @@ function SourceCard({
       <button
         type="button"
         onClick={hasChildren ? onOpen : onInfo}
-        className="absolute inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]"
+        className="absolute inset-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]"
         aria-label={
           hasChildren
             ? `${source.name}ni ochish`
@@ -296,7 +296,7 @@ function SourceCard({
               }}
               aria-label={`${source.name} logosini kattalashtirish`}
               className={cn(
-                "absolute inset-0 rounded-lg",
+                "absolute inset-0 rounded-lg cursor-pointer",
                 "flex items-center justify-center",
                 "bg-foreground/50 text-white opacity-0",
                 "hover:opacity-100 focus-visible:opacity-100 transition-opacity",
@@ -433,7 +433,7 @@ function CardIconButton({
       aria-label={label}
       title={label}
       className={cn(
-        "size-6 inline-flex items-center justify-center rounded-md",
+        "size-6 inline-flex items-center justify-center rounded-md cursor-pointer",
         "text-muted-foreground bg-card/80 backdrop-blur ring-1 ring-foreground/10",
         "hover:text-foreground hover:bg-card hover:ring-foreground/25 transition-colors"
       )}
