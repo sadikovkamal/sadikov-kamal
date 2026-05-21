@@ -31,7 +31,7 @@ import type { SourceWithCount } from "@/lib/taxonomy/queries";
  * Card-grid explorer for the sources taxonomy. One folder at a time:
  *
  *   /admin/sources                → root sources
- *   /admin/sources?parent=<id>    → children of that parent
+ *   /admin/sources?parent=<code>  → children of that parent (S######)
  *
  * Each card has three affordances:
  *   - Whole-card click: navigate into a parent, or open the info
@@ -49,7 +49,11 @@ export function SourcesExplorer({
 }) {
   const router = useRouter();
   const params = useSearchParams();
-  const parentId = params.get("parent");
+  // The `parent` query param carries the public source code (S######),
+  // not the internal UUID — that keeps URLs human-readable and stable
+  // even if the underlying row is recreated. We translate to the UUID
+  // internally via `byCode`.
+  const parentCode = params.get("parent");
 
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [infoId, setInfoId] = useState<string | null>(null);
@@ -58,6 +62,12 @@ export function SourcesExplorer({
   const byId = useMemo(() => {
     const map = new Map<string, SourceWithCount>();
     for (const s of sources) map.set(s.id, s);
+    return map;
+  }, [sources]);
+
+  const byCode = useMemo(() => {
+    const map = new Map<string, SourceWithCount>();
+    for (const s of sources) map.set(s.code, s);
     return map;
   }, [sources]);
 
@@ -71,9 +81,10 @@ export function SourcesExplorer({
     return map;
   }, [sources]);
 
-  const current = parentId ? (byId.get(parentId) ?? null) : null;
+  const current = parentCode ? (byCode.get(parentCode) ?? null) : null;
+  const currentId = current?.id ?? null;
   const visibleChildren = sources.filter((s) =>
-    parentId ? s.parentId === parentId : s.parentId === null
+    currentId ? s.parentId === currentId : s.parentId === null
   );
 
   const breadcrumb = useMemo(() => {
@@ -86,8 +97,8 @@ export function SourcesExplorer({
     return chain;
   }, [current, byId]);
 
-  function navigateInto(id: string) {
-    router.push(`/admin/sources?parent=${id}`);
+  function navigateInto(code: string) {
+    router.push(`/admin/sources?parent=${code}`);
   }
 
   const editingSource =
@@ -111,11 +122,17 @@ export function SourcesExplorer({
             nativeButton={false}
             render={
               <Link
-                href={
-                  current?.parentId
-                    ? `/admin/sources?parent=${current.parentId}`
-                    : "/admin/sources"
-                }
+                href={(() => {
+                  // Walk one level up the chain, resolving the UUID
+                  // parentId back to the parent's public code so the
+                  // URL stays code-keyed.
+                  const parent = current?.parentId
+                    ? byId.get(current.parentId)
+                    : null;
+                  return parent
+                    ? `/admin/sources?parent=${parent.code}`
+                    : "/admin/sources";
+                })()}
               >
                 <ArrowLeft data-icon="inline-start" />
                 Orqaga
@@ -143,7 +160,7 @@ export function SourcesExplorer({
                     </span>
                   ) : (
                     <Link
-                      href={`/admin/sources?parent=${node.id}`}
+                      href={`/admin/sources?parent=${node.code}`}
                       className="hover:text-foreground transition-colors"
                     >
                       {node.name}
@@ -185,7 +202,7 @@ export function SourcesExplorer({
               key={s.id}
               source={s}
               childCount={childCountById.get(s.id) ?? 0}
-              onOpen={() => navigateInto(s.id)}
+              onOpen={() => navigateInto(s.code)}
               onEdit={() => setEditingId(s.id)}
               onInfo={() => setInfoId(s.id)}
               onZoom={() => setLightboxId(s.id)}
@@ -199,7 +216,10 @@ export function SourcesExplorer({
           mode={editingId === "new" ? "create" : "edit"}
           source={editingSource as SourceShape | undefined}
           allSources={sources}
-          defaultParentId={editingId === "new" ? parentId : null}
+          // Dialog talks to the server using internal UUIDs (FK column),
+          // so translate the URL's `?parent=<code>` back to the parent's
+          // UUID before handing it off.
+          defaultParentId={editingId === "new" ? currentId : null}
           onClose={() => setEditingId(null)}
         />
       )}
