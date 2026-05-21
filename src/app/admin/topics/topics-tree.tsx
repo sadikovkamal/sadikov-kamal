@@ -184,16 +184,13 @@ function renderRows({
     const Chevron = isCollapsed ? ChevronRight : ChevronDown;
 
     rows.push(
-      <tr
-        key={node.topic.id}
-        className="group hover:bg-muted/40 transition-colors"
-      >
-        <td className="px-3 py-2.5 whitespace-nowrap">
+      <tr key={node.topic.id} className="group">
+        <td className="px-3 py-2 whitespace-nowrap">
           <code className="font-mono text-xs tabular-nums text-muted-foreground">
             {node.topic.code}
           </code>
         </td>
-        <td className="px-3 py-2.5">
+        <td className="px-3 py-2">
           <div
             className="flex items-center gap-1.5 min-w-0"
             style={{ paddingLeft: `${depth * 20}px` }}
@@ -206,7 +203,7 @@ function renderRows({
                   isCollapsed ? `${node.topic.name}ni ochish` : `${node.topic.name}ni yopish`
                 }
                 aria-expanded={!isCollapsed}
-                className="size-5 inline-flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+                className="size-5 inline-flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0 cursor-pointer"
               >
                 <Chevron className="size-3.5" aria-hidden />
               </button>
@@ -219,13 +216,27 @@ function renderRows({
                 <span className="size-1 rounded-full bg-muted-foreground/30" />
               </span>
             )}
-            <span className="font-medium truncate">{node.topic.name}</span>
+            {/* Inline chip — only the topic name area carries a visible
+                background, instead of the whole row tinting on hover.
+                Stays tight around the text so siblings read as a list of
+                chips rather than a striped table. */}
+            <span
+              className={
+                "inline-flex items-center min-w-0 max-w-full " +
+                "rounded-md bg-muted/50 ring-1 ring-foreground/5 " +
+                "px-2 py-1 text-sm font-medium " +
+                "group-hover:bg-muted group-hover:ring-foreground/10 " +
+                "transition-colors"
+              }
+            >
+              <span className="truncate">{node.topic.name}</span>
+            </span>
           </div>
         </td>
-        <td className="px-3 py-2.5 text-right tabular-nums text-xs text-muted-foreground">
+        <td className="px-3 py-2 text-right tabular-nums text-xs text-muted-foreground">
           {node.topic.problemCount}
         </td>
-        <td className="px-3 py-2.5 pr-3 text-right">
+        <td className="px-3 py-2 pr-3 text-right">
           <Button
             variant="ghost"
             size="sm"
