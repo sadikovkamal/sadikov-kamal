@@ -10,6 +10,7 @@ import {
   parentIdSet,
   isLeaf,
   withDescendants,
+  rollupCounts,
 } from "../src/lib/taxonomy/hierarchy";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../src/db";
@@ -72,6 +73,41 @@ async function helperSanity() {
     JSON.stringify(subUnknown) === JSON.stringify(["99"]),
     `withDescendants(unknown) = ${JSON.stringify(subUnknown)}`
   );
+
+  // rollupCounts: parents sum every descendant's own count + their own.
+  //
+  //   A (own=0)
+  //   ├─ B (own=0)
+  //   │   ├─ D (own=3, leaf)
+  //   │   └─ E (own=5, leaf)
+  //   └─ C (own=2, leaf)
+  //   F (own=10, root leaf)
+  //
+  // Expected: D=3, E=5, B=8 (3+5), C=2, A=10 (8+2), F=10.
+  const countNodes = [
+    { id: "A", parentId: null, problemCount: 0 },
+    { id: "B", parentId: "A", problemCount: 0 },
+    { id: "D", parentId: "B", problemCount: 3 },
+    { id: "E", parentId: "B", problemCount: 5 },
+    { id: "C", parentId: "A", problemCount: 2 },
+    { id: "F", parentId: null, problemCount: 10 },
+  ];
+  const roll = rollupCounts(countNodes);
+  assert(roll.get("D") === 3, `rollup D=3, got ${roll.get("D")}`);
+  assert(roll.get("E") === 5, `rollup E=5, got ${roll.get("E")}`);
+  assert(roll.get("B") === 8, `rollup B=8, got ${roll.get("B")}`);
+  assert(roll.get("C") === 2, `rollup C=2, got ${roll.get("C")}`);
+  assert(roll.get("A") === 10, `rollup A=10, got ${roll.get("A")}`);
+  assert(roll.get("F") === 10, `rollup F=10, got ${roll.get("F")}`);
+
+  // Drift defense: a problem mis-attached to an ancestor still gets
+  // counted under that ancestor (leaf-only guard normally prevents this,
+  // but the rollup must not silently drop it).
+  const drift = rollupCounts([
+    { id: "P", parentId: null, problemCount: 7 },
+    { id: "L", parentId: "P", problemCount: 11 },
+  ]);
+  assert(drift.get("P") === 18, `drift P=18, got ${drift.get("P")}`);
 
   console.log("[1] hierarchy helpers ok");
 }
