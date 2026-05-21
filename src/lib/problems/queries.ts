@@ -319,10 +319,13 @@ function stripMarkdownToPreview(md: string, maxLen: number): string {
   // 2. Truncate while math tokens are still visible-as-source. We do
   //    a rough char count that treats each $expr$ as the length of its
   //    rendered text equivalent ≈ source length — close enough for a
-  //    one-line preview budget.
+  //    one-line preview budget. If the cut lands inside a $...$ run,
+  //    strip back to before the unmatched $ — otherwise the tokenizer
+  //    in step 3 leaves an unpaired $ as literal text and the preview
+  //    shows raw "$ABC…" instead of the rendered ABC.
   const truncated =
     cleaned.length > maxLen
-      ? cleaned.slice(0, maxLen).replace(/\$+[^$]*$/, "").trimEnd() + "…"
+      ? stripUnclosedMath(cleaned.slice(0, maxLen)).trimEnd() + "…"
       : cleaned;
 
   // 3. Tokenize on math delimiters and KaTeX-render each math token.
@@ -355,6 +358,25 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/**
+ * If `s` ends with an unmatched math-opening `$`, strip back to before
+ * it. Walks the string once and toggles an "are we inside math?" flag
+ * each time it sees `$`; if the flag is still on at the end, returns
+ * `s.slice(0, openingIdx)`. Idempotent on already-balanced strings.
+ * Block math (`$$ ... $$`) is treated as two single `$`s — the inner
+ * toggling cancels out so balanced `$$...$$` is left alone, and a
+ * partial `$$ABC` correctly strips back to before the first `$`.
+ */
+function stripUnclosedMath(s: string): string {
+  let openIdx = -1;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === "$") {
+      openIdx = openIdx === -1 ? i : -1;
+    }
+  }
+  return openIdx === -1 ? s : s.slice(0, openIdx);
 }
 
 function renderMathInline(expr: string): string {
