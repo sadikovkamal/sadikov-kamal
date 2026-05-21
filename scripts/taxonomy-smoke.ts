@@ -109,6 +109,33 @@ async function main() {
     admin.id
   );
 
+  // Regression: a problem attached to a leaf source must bump that
+  // source's rollup count by 1, and ripple up to ancestors. This
+  // catches the correlated-subquery-shadowing bug where the inner
+  // `problems.id` shadowed the outer `sources.id` and the count was
+  // permanently 0.
+  const afterAttach = await listSourcesWithCounts();
+  const leafCount = afterAttach.find((s) => s.id === sourceId)?.problemCount;
+  assert(
+    leafCount === 1,
+    `leaf source rollup must be 1 after one attached problem, got ${leafCount}`
+  );
+  const childTopicCount = (await listTopicsWithCounts()).find(
+    (t) => t.id === childId
+  )?.problemCount;
+  assert(
+    childTopicCount === 1,
+    `leaf topic rollup must be 1 after one attached problem, got ${childTopicCount}`
+  );
+  const parentTopicCount = (await listTopicsWithCounts()).find(
+    (t) => t.id === topicId
+  )?.problemCount;
+  assert(
+    parentTopicCount === 1,
+    `parent topic rollup must roll up the child's 1, got ${parentTopicCount}`
+  );
+  console.log(`[5a] count + rollup picks up real problem inserts`);
+
   let deleteFailed = false;
   try {
     await deleteSource(sourceId);
