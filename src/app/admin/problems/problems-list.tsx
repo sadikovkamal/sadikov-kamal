@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -248,9 +248,12 @@ export function ProblemsList({
             >
               <ChevronLeft className="size-4" aria-hidden />
             </Button>
-            <span className="px-2 tabular-nums">
-              {page} / {totalPages}
-            </span>
+            <PageInput
+              page={page}
+              totalPages={totalPages}
+              disabled={isPending}
+              onGo={gotoPage}
+            />
             <Button
               variant="outline"
               size="icon-sm"
@@ -473,6 +476,85 @@ function CardActions({ code }: { code: string }) {
       >
         <ArrowUpRight className="size-3.5" />
       </Button>
+    </div>
+  );
+}
+
+/* -------------------------- Page input -------------------------------- */
+
+/**
+ * Editable "N / total" indicator. Typing into the input updates local
+ * state without navigating; Enter (or blur) commits — values are clamped
+ * to [1, totalPages]. When the URL-driven `page` prop changes elsewhere
+ * (prev/next clicks, filter changes), the local input snaps back to it.
+ */
+function PageInput({
+  page,
+  totalPages,
+  disabled,
+  onGo,
+}: {
+  page: number;
+  totalPages: number;
+  disabled?: boolean;
+  onGo: (n: number) => void;
+}) {
+  const [raw, setRaw] = useState(String(page));
+
+  // Sync local input whenever the source of truth (URL → prop) changes.
+  useEffect(() => {
+    setRaw(String(page));
+  }, [page]);
+
+  function commit() {
+    const n = Number.parseInt(raw, 10);
+    if (!Number.isFinite(n)) {
+      setRaw(String(page));
+      return;
+    }
+    const clamped = Math.min(totalPages, Math.max(1, n));
+    if (clamped !== page) {
+      onGo(clamped);
+    } else {
+      // Clean up any leading-zeros or stray chars the user typed.
+      setRaw(String(clamped));
+    }
+  }
+
+  // Width grows with the digit count so 3-digit totals still fit
+  // without truncating, but 1- or 2-digit pages stay compact.
+  const width = Math.max(2, String(totalPages).length) + 1; // +1 for caret breathing room
+
+  return (
+    <div className="flex items-center gap-1 px-1 tabular-nums">
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={raw}
+        onChange={(e) => setRaw(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            setRaw(String(page));
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        disabled={disabled}
+        aria-label={`Sahifa raqami (1 dan ${totalPages} gacha)`}
+        className={cn(
+          "h-7 rounded-md ring-1 ring-foreground/15 bg-card text-center",
+          "text-xs text-foreground tabular-nums",
+          "focus:outline-none focus:ring-2 focus:ring-[var(--accent-brand)]",
+          "disabled:opacity-50"
+        )}
+        style={{ width: `${width}ch`, minWidth: "2.25rem" }}
+      />
+      <span>/ {totalPages}</span>
     </div>
   );
 }
