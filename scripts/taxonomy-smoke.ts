@@ -209,6 +209,23 @@ async function main() {
   );
   console.log(`[5d] listTopicsForAgeCategory: source filter narrows the tree`);
 
+  // Symmetric check on the source listing: passing an unrelated age
+  // category id returns an empty tree; passing the real one keeps the
+  // leaf in the result.
+  const srcEmpty = await listTopicsForSource(sourceId, [
+    "00000000-0000-0000-0000-000000000000",
+  ]);
+  assert(
+    srcEmpty.length === 0,
+    `age filter with unknown id must return empty tree, got ${srcEmpty.length} rows`
+  );
+  const srcWithRealAge = await listTopicsForSource(sourceId, [age9.id]);
+  assert(
+    srcWithRealAge.some((t) => t.id === childId),
+    "age filter with the real ageCategoryId must still surface the leaf"
+  );
+  console.log(`[5e] listTopicsForSource: age-category filter narrows the tree`);
+
   let deleteFailed = false;
   try {
     await deleteSource(sourceId);

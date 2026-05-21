@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { sources } from "@/db/schema";
+import { ageCategories, sources } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import {
   listSourcesWithCounts,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/taxonomy/queries";
 import { Button } from "@/components/ui/button";
 import { SourceLogo } from "../source-logo";
+import { SourceAgeCategoryFilter } from "./source-age-category-filter";
 import { SourceTopicsTree } from "./source-topics-tree";
 
 /**
@@ -25,11 +26,14 @@ import { SourceTopicsTree } from "./source-topics-tree";
  */
 export default async function SourceTopicsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ code: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireAdmin();
   const { code } = await params;
+  const sp = await searchParams;
 
   // Resolve the public S###### code to the internal UUID, then pull
   // everything we need for the header (source + parent chain + logo)
@@ -41,10 +45,38 @@ export default async function SourceTopicsPage({
     .limit(1);
   if (!source) notFound();
 
-  const [allSources, topicsForSource] = await Promise.all([
+  // `?ageCategory=A000006,A000007` — same csv convention the problems
+  // list uses. Empty / missing = no age restriction.
+  const ageCsv = Array.isArray(sp.ageCategory)
+    ? sp.ageCategory.join(",")
+    : sp.ageCategory;
+  const selectedAgeCategoryCodes = (ageCsv ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const [allSources, allAgeCategories] = await Promise.all([
     listSourcesWithCounts(),
-    listTopicsForSource(source.id),
+    db
+      .select({
+        id: ageCategories.id,
+        code: ageCategories.code,
+        name: ageCategories.name,
+      })
+      .from(ageCategories)
+      .orderBy(ageCategories.code),
   ]);
+  const ageCodeToId = new Map(
+    allAgeCategories.map((a) => [a.code, a.id])
+  );
+  const selectedAgeIds = selectedAgeCategoryCodes
+    .map((c) => ageCodeToId.get(c))
+    .filter((id): id is string => !!id);
+
+  const topicsForSource = await listTopicsForSource(
+    source.id,
+    selectedAgeIds.length > 0 ? selectedAgeIds : undefined
+  );
 
   // Walk back up the source tree so the breadcrumb shows the full path
   // (Manbalar > Olimpiadalar > IMO 2024) instead of a bare title.
@@ -114,7 +146,9 @@ export default async function SourceTopicsPage({
         </nav>
       </div>
 
-      {/* Header — source logo + name + counts */}
+      {/* Header — source logo + name + counts, age-category filter on
+          the right. The filter narrows the tree below to topics that
+          appear under (this source × selected age categories). */}
       <header className="flex items-start gap-4 pb-4 border-b">
         <SourceLogo
           name={source.name}
@@ -134,6 +168,12 @@ export default async function SourceTopicsPage({
             {totalProblems} ta masala · {topicsForSource.length} ta mavzu
           </p>
         </div>
+        <div className="shrink-0 self-center">
+          <SourceAgeCategoryFilter
+            ageCategoriesAvailable={allAgeCategories}
+            selectedAgeCategoryCodes={selectedAgeCategoryCodes}
+          />
+        </div>
       </header>
 
       {/* Topics tree */}
@@ -150,6 +190,7 @@ export default async function SourceTopicsPage({
         <SourceTopicsTree
           topics={topicsForSource}
           sourceCode={source.code}
+          selectedAgeCategoryCodes={selectedAgeCategoryCodes}
         />
       )}
     </div>

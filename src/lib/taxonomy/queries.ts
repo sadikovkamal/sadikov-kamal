@@ -282,12 +282,19 @@ export async function listTopicsForAgeCategory(
  *     main /admin/topics tree, so a parent shows the sum of every
  *     descendant's hits inside this source.
  *
+ * `ageCategoryIds`, when non-empty, further restricts to problems that
+ * appear in that age-category set — used by the page's "Yosh toifasi"
+ * filter to narrow the tree to (source × selected age categories).
+ * An empty / undefined value means "no age restriction".
+ *
  * Returned rows are ordered by topic code, same convention as
  * listTopicsWithCounts; the tree builder reorders by hierarchy on top.
  */
 export async function listTopicsForSource(
-  sourceId: string
+  sourceId: string,
+  ageCategoryIds?: string[]
 ): Promise<TopicWithCount[]> {
+  const hasAgeFilter = ageCategoryIds && ageCategoryIds.length > 0;
   // 1) Pull every topic so the tree-walk has parent_id available, and
   //    pull the (topic_id, count) pairs restricted to this source.
   const [allTopics, directCounts] = await Promise.all([
@@ -301,18 +308,38 @@ export async function listTopicsForSource(
       })
       .from(topics)
       .orderBy(topics.code),
-    db
-      .select({
-        topicId: problemTopics.topicId,
-        // Count distinct problem ids — a problem could appear in the
-        // junction more than once if (problemId, topicId) lacked the
-        // composite PK, but we still want one hit per problem.
-        count: sql<number>`count(distinct ${problems.id})::int`,
-      })
-      .from(problems)
-      .innerJoin(problemTopics, eq(problemTopics.problemId, problems.id))
-      .where(eq(problems.sourceId, sourceId))
-      .groupBy(problemTopics.topicId),
+    hasAgeFilter
+      ? db
+          .select({
+            topicId: problemTopics.topicId,
+            count: sql<number>`count(distinct ${problems.id})::int`,
+          })
+          .from(problems)
+          .innerJoin(problemTopics, eq(problemTopics.problemId, problems.id))
+          .innerJoin(
+            problemAgeCategories,
+            eq(problemAgeCategories.problemId, problems.id)
+          )
+          .where(
+            and(
+              eq(problems.sourceId, sourceId),
+              inArray(problemAgeCategories.ageCategoryId, ageCategoryIds)
+            )
+          )
+          .groupBy(problemTopics.topicId)
+      : db
+          .select({
+            topicId: problemTopics.topicId,
+            // Count distinct problem ids — a problem could appear in
+            // the junction more than once if (problemId, topicId)
+            // lacked the composite PK, but we still want one hit per
+            // problem.
+            count: sql<number>`count(distinct ${problems.id})::int`,
+          })
+          .from(problems)
+          .innerJoin(problemTopics, eq(problemTopics.problemId, problems.id))
+          .where(eq(problems.sourceId, sourceId))
+          .groupBy(problemTopics.topicId),
   ]);
 
   // 2) Walk ancestors so the kept set is closed under "parent of".

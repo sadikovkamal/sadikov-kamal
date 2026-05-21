@@ -25,9 +25,15 @@ import type { TopicWithCount } from "@/lib/taxonomy/queries";
 export function SourceTopicsTree({
   topics,
   sourceCode,
+  selectedAgeCategoryCodes = [],
 }: {
   topics: TopicWithCount[];
   sourceCode: string;
+  /** Currently selected age-category codes from the page's filter.
+   *  The click-through preserves them so the resulting problems list
+   *  shows the same (source × ages × topic) intersection the user
+   *  was looking at. */
+  selectedAgeCategoryCodes?: string[];
 }) {
   const router = useRouter();
   const tree = useMemo(() => buildTopicTree(topics), [topics]);
@@ -59,12 +65,16 @@ export function SourceTopicsTree({
   }
 
   function openProblems(topicCode: string) {
-    // Two URL params so the problems list filters by (source × topic).
-    // The list query already expands `topic` into descendants, so a
-    // parent here yields every leaf's problems in this source.
-    router.push(
-      `/admin/problems?source=${sourceCode}&topic=${topicCode}`
-    );
+    // source + topic, plus whatever age categories the page's filter
+    // currently has selected — so the resulting problems list is the
+    // same intersection the user was looking at on this page.
+    const params = new URLSearchParams();
+    params.set("source", sourceCode);
+    params.set("topic", topicCode);
+    if (selectedAgeCategoryCodes.length > 0) {
+      params.set("ageCategory", selectedAgeCategoryCodes.join(","));
+    }
+    router.push(`/admin/problems?${params.toString()}`);
   }
 
   return (
