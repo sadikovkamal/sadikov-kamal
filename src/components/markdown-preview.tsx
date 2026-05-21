@@ -41,6 +41,23 @@ const sanitizeSchema = {
     // KaTeX emits MathML alongside HTML for accessibility.
     math: ["xmlns", "display"],
     annotation: ["encoding"],
+    // KaTeX draws radicals, arrows, integrals etc. via inline SVG.
+    // Without these attributes the <svg>/<path> get stripped to empty
+    // elements and the radical line disappears, leaving the operand
+    // hanging on its own ("√ab" → " ab").
+    svg: [
+      "xmlns",
+      "width",
+      "height",
+      "viewBox",
+      "preserveAspectRatio",
+      "fill",
+      "stroke",
+      "className",
+      "style",
+      "aria-hidden",
+    ],
+    path: ["d", "fill", "stroke", "strokeWidth", "className", "style"],
   },
   tagNames: [
     ...(defaultSchema.tagNames ?? []),
@@ -63,6 +80,9 @@ const sanitizeSchema = {
     "mtext",
     "annotation",
     "semantics",
+    // KaTeX inline SVG output (radicals, arrows, accents, …)
+    "svg",
+    "path",
   ],
 };
 

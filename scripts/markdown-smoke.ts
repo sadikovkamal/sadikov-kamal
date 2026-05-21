@@ -99,4 +99,16 @@ function render(source: string): string {
   expect("greek letters rendered (alpha mi tag)", html, (s) => /<mi>α<\/mi>|<mi[^>]*>α/.test(s) || /class="mord mathnormal"/.test(s));
 }
 
+// 11. Square roots — radicals draw via inline <svg>, which used to be
+// stripped by the sanitize schema, so the operand showed up without
+// the radical line ("√ab" rendered as " ab"). Lock that fix here.
+{
+  const html = render("Prove $6a + 4b + 5c \\geq 5\\sqrt{ab} + 7\\sqrt{ac} + 3\\sqrt{bc}$.");
+  expect("radical svg survives sanitize", html, (s) => /<svg[\s\S]*?<path/.test(s));
+  expect("radical operand still present (ab)", html, (s) => /ab/.test(s));
+  // MathML side: <msqrt> must also survive (allows screen readers to
+  // announce "square root of ab" even if the SVG is hidden visually).
+  expect("MathML <msqrt> survives sanitize", html, (s) => /<msqrt/.test(s));
+}
+
 console.log("\nMarkdown smoke: PASSED");
