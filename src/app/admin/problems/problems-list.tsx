@@ -326,7 +326,7 @@ function ProblemCard({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const stripe = stripeColor(row.topicNames[0] ?? row.code);
+  const stripe = stripeColor(row.topics[0]?.name ?? row.code);
   return (
     <li
       className={cn(
@@ -343,10 +343,10 @@ function ProblemCard({
         aria-hidden
       />
 
-      <div className="flex-1 min-w-0 p-4">
+      <div className="flex-1 min-w-0 p-4 space-y-3">
         {/* Header row */}
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
             <div
               onClick={(e) => e.stopPropagation()}
               className="shrink-0"
@@ -360,14 +360,18 @@ function ProblemCard({
             <code className="font-mono text-[11px] tabular-nums text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5 shrink-0">
               {row.code}
             </code>
-            {row.sourceName ? (
-              <span className="inline-flex items-center gap-1 rounded-md ring-1 ring-foreground/10 bg-muted/40 px-1.5 py-0.5 text-[11px] font-medium text-foreground/80 min-w-0">
+            {row.sourceCode ? (
+              <Link
+                href={`/admin/problems?source=${row.sourceCode}`}
+                className="inline-flex items-center gap-1 rounded-md ring-1 ring-foreground/10 bg-muted/40 hover:bg-muted hover:ring-foreground/25 px-1.5 py-0.5 text-[11px] font-medium text-foreground/80 min-w-0 transition-colors"
+                title={`Faqat ${row.sourceName} manbasi`}
+              >
                 <Library
                   className="size-3 text-muted-foreground shrink-0"
                   aria-hidden
                 />
                 <span className="truncate">{row.sourceName}</span>
-              </span>
+              </Link>
             ) : (
               <span className="inline-flex items-center rounded-md ring-1 ring-dashed ring-foreground/15 bg-muted/20 px-1.5 py-0.5 text-[11px] text-muted-foreground italic">
                 Manba ko&apos;rsatilmagan
@@ -382,12 +386,14 @@ function ProblemCard({
           </div>
         </div>
 
-        {/* Body preview — clickable to open detail. `bodyPreview` is
-            server-rendered HTML (KaTeX for math, escaped text otherwise),
-            so it's safe to drop in via dangerouslySetInnerHTML. */}
+        {/* Body preview — its own sub-panel so the problem statement
+            reads as a discrete "card-within-a-card". Clickable to open
+            the detail page. `bodyPreview` is server-rendered HTML
+            (KaTeX for math, escaped text otherwise) — safe to drop in
+            via dangerouslySetInnerHTML. */}
         <Link
           href={`/admin/problems/${row.id}`}
-          className="block group/body"
+          className="block group/body rounded-lg ring-1 ring-foreground/5 bg-muted/40 hover:bg-muted/60 hover:ring-foreground/10 px-3.5 py-2.5 transition-colors"
         >
           {row.bodyPreview ? (
             <p
@@ -401,41 +407,40 @@ function ProblemCard({
           )}
         </Link>
 
-        {/* Footer — topics + age categories */}
-        {(row.topicNames.length > 0 || row.ageCategories.length > 0) && (
-          <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
+        {/* Footer — every topic + age category is a chip-shaped link
+            that drills into the matching filter. Topics use a colour
+            dot derived from the topic name (same hue family as the
+            left stripe); age categories stay neutral. */}
+        {(row.topics.length > 0 || row.ageCategories.length > 0) && (
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-1 flex-wrap">
-              {row.topicNames.slice(0, 4).map((t, i) => (
-                <span
-                  key={t}
-                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+              {row.topics.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/admin/problems?topic=${t.code}`}
+                  title={`Faqat ${t.name} mavzusi`}
+                  className="inline-flex items-center gap-1 rounded-md ring-1 ring-foreground/10 bg-muted/30 hover:bg-muted hover:ring-foreground/25 px-1.5 py-0.5 text-[11px] text-foreground/80 transition-colors"
                 >
                   <span
-                    className="size-1.5 rounded-full"
-                    style={{ backgroundColor: stripeColor(t) }}
+                    className="size-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: stripeColor(t.name) }}
                     aria-hidden
                   />
-                  {t}
-                  {i < Math.min(row.topicNames.length, 4) - 1 && (
-                    <span className="text-muted-foreground/40 ml-1">·</span>
-                  )}
-                </span>
+                  <span className="truncate">{t.name}</span>
+                </Link>
               ))}
-              {row.topicNames.length > 4 && (
-                <span className="text-[11px] text-muted-foreground/70">
-                  +{row.topicNames.length - 4}
-                </span>
-              )}
             </div>
             {row.ageCategories.length > 0 && (
               <div className="flex items-center gap-1 flex-wrap">
                 {row.ageCategories.map((c) => (
-                  <span
+                  <Link
                     key={c.id}
-                    className="inline-flex items-center rounded-md ring-1 ring-foreground/10 bg-muted/40 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground"
+                    href={`/admin/problems?ageCategory=${c.code}`}
+                    title={`Faqat ${c.name}`}
+                    className="inline-flex items-center rounded-md ring-1 ring-foreground/10 bg-muted/40 hover:bg-muted hover:ring-foreground/25 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {c.name}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}

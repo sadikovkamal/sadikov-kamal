@@ -92,13 +92,21 @@ export interface ProblemListAgeCategory {
   name: string;
 }
 
+export interface ProblemListTopic {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface ProblemListRow {
   id: string;
   code: string;
   bodyPreview: string;
+  /** Source code (e.g. `S000001`) — null when the source row vanished. */
+  sourceCode: string | null;
   sourceName: string;
   createdAt: Date;
-  topicNames: string[];
+  topics: ProblemListTopic[];
   ageCategories: ProblemListAgeCategory[];
 }
 
@@ -224,6 +232,7 @@ export async function listProblems(
       code: problems.code,
       bodyMd: problems.bodyMd,
       createdAt: problems.createdAt,
+      sourceCode: sources.code,
       sourceName: sources.name,
     })
     .from(problems)
@@ -237,11 +246,17 @@ export async function listProblems(
 
   if (rows.length === 0) return { rows: [], total };
 
-  // Hydrate topic names + age categories in two batched queries.
+  // Hydrate topics (id+code+name for chip links) + age categories in
+  // two batched queries.
   const ids = rows.map((r) => r.id);
   const [topicRows, ageCategoryRows] = await Promise.all([
     db
-      .select({ problemId: problemTopics.problemId, topicName: topics.name })
+      .select({
+        problemId: problemTopics.problemId,
+        id: topics.id,
+        code: topics.code,
+        name: topics.name,
+      })
       .from(problemTopics)
       .innerJoin(topics, eq(topics.id, problemTopics.topicId))
       .where(inArray(problemTopics.problemId, ids)),
@@ -260,10 +275,10 @@ export async function listProblems(
       .where(inArray(problemAgeCategories.problemId, ids)),
   ]);
 
-  const topicsByProblem = new Map<string, string[]>();
+  const topicsByProblem = new Map<string, ProblemListTopic[]>();
   for (const r of topicRows) {
     const arr = topicsByProblem.get(r.problemId) ?? [];
-    arr.push(r.topicName);
+    arr.push({ id: r.id, code: r.code, name: r.name });
     topicsByProblem.set(r.problemId, arr);
   }
   const ageCategoriesByProblem = new Map<string, ProblemListAgeCategory[]>();
@@ -278,9 +293,10 @@ export async function listProblems(
       id: r.id,
       code: r.code,
       bodyPreview: stripMarkdownToPreview(r.bodyMd, 140),
+      sourceCode: r.sourceCode,
       sourceName: r.sourceName ?? "—",
       createdAt: r.createdAt,
-      topicNames: topicsByProblem.get(r.id) ?? [],
+      topics: topicsByProblem.get(r.id) ?? [],
       ageCategories: (ageCategoriesByProblem.get(r.id) ?? []).sort((a, b) =>
         a.code.localeCompare(b.code)
       ),
