@@ -346,7 +346,13 @@ function SourceCard({
         </div>
 
         <div className="min-w-0 flex-1 flex flex-col justify-center gap-1">
-          <p className="font-semibold text-sm truncate leading-tight pr-16">
+          {/* Full name, wrapped. Action buttons are absolutely
+              positioned (vertically centered), so the card grows
+              gracefully when a name needs 2-3 lines — grid stretches
+              same-row cards to match and the chevron's clip-path
+              tracks height via its `100% 50%` apex. `pr-16` keeps the
+              text out from under the action column. */}
+          <p className="font-semibold text-sm leading-snug break-words pr-16">
             {source.name}
           </p>
           <div className="flex items-center gap-1.5 min-w-0">
