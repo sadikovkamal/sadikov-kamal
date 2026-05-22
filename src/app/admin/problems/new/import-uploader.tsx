@@ -355,7 +355,7 @@ function ValidationDetails({
           <p className="font-medium text-destructive">Arxiv darajasidagi xatolar</p>
           <ul className="list-disc ml-4 text-destructive/90">
             {validation.bundleErrors.map((e, i) => (
-              <li key={i}>{e}</li>
+              <li key={`bundle-${i}-${e}`}>{e}</li>
             ))}
           </ul>
         </div>
@@ -375,7 +375,7 @@ function ValidationDetails({
                 </p>
                 <ul className="mt-1 space-y-0.5 text-destructive/90">
                   {p.errors.map((e, i) => (
-                    <li key={i}>• {e}</li>
+                    <li key={`err-${i}-${e}`}>• {e}</li>
                   ))}
                 </ul>
               </div>

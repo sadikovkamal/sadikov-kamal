@@ -24,6 +24,8 @@ const sourceSchema = z.object({
     .transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
 });
 
+const idSchema = z.string().uuid();
+
 export type ActionResult = { success: true } | { error: string };
 
 export async function createSourceAction(raw: unknown): Promise<ActionResult> {
@@ -47,6 +49,7 @@ export async function updateSourceAction(
   raw: unknown
 ): Promise<ActionResult> {
   await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { error: "Invalid id" };
   const parsed = sourceSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -66,6 +69,7 @@ export async function updateSourceAction(
 
 export async function deleteSourceAction(id: string): Promise<ActionResult> {
   await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { error: "Invalid id" };
   try {
     await deleteSource(id);
   } catch (e) {

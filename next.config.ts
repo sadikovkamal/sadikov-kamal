@@ -26,7 +26,62 @@ const nextConfig: NextConfig = {
     remotePatterns: r2Hostname
       ? [{ protocol: "https", hostname: r2Hostname }]
       : [],
+    // Prefer AVIF (20% smaller than WebP) with WebP as fallback for older
+    // browsers. Next.js negotiates via the Accept header automatically.
+    formats: ["image/avif", "image/webp"],
   },
+
+  // These packages use Node.js-native APIs (native bindings / C++ addons) and
+  // must not be bundled by the App Router RSC bundler. postgres uses a custom
+  // native TLS path; bcryptjs ships a native binding via node-pre-gyp.
+  serverExternalPackages: ["postgres", "bcryptjs"],
+
+  // Security headers applied at the Next.js layer so they are present for
+  // ALL runtimes (next start, Docker, Vercel). The vercel.json headers
+  // duplicate a subset of these for CDN-edge delivery, but the Next.js layer
+  // is the authoritative source.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          {
+            // Content-Security-Policy
+            // - default-src 'self': block unexpected origins by default
+            // - script-src 'self' 'unsafe-inline': Next.js inline scripts
+            //   (hydration, Font Optimization) require unsafe-inline;
+            //   upgrade to a nonce-based CSP once the team adds nonce support.
+            // - style-src 'self' 'unsafe-inline': Tailwind/inline styles
+            // - img-src 'self' data: blob: https:: local images + R2
+            // - font-src 'self': Next.js font optimization serves from origin
+            // - connect-src 'self': API routes only
+            // - frame-ancestors 'none': belt-and-suspenders with X-Frame-Options
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob: https:",
+              "font-src 'self'",
+              "connect-src 'self'",
+              "frame-ancestors 'none'",
+            ].join("; "),
+          },
+        ],
+      },
+    ];
+  },
+
   experimental: {
     // Vercel caps server-action bodies at ~4.5 MB on Hobby/Pro tiers — going
     // above that is meaningless in production (the platform rejects with 413

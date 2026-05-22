@@ -17,6 +17,7 @@ import {
   type ProblemInput,
 } from "@/lib/problems/mutations";
 import { BULK_OP_LIMIT } from "./_constants";
+import { PROBLEM_CODE_REGEX } from "@/lib/problems/codes";
 
 /**
  * The detail / edit URLs use the human-facing P####### code, so the
@@ -118,6 +119,7 @@ export async function updateProblemAction(
   raw: unknown
 ): Promise<ProblemActionResult> {
   await requireAdmin();
+  if (!PROBLEM_CODE_REGEX.test(code)) return { error: "Invalid problem code" };
   const parsed = problemSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -146,6 +148,7 @@ export async function deleteProblemAction(
   code: string
 ): Promise<ProblemActionResult> {
   await requireAdmin();
+  if (!PROBLEM_CODE_REGEX.test(code)) return { error: "Invalid problem code" };
 
   const id = await resolveProblemIdByCode(code);
   if (!id) return { error: "Masala topilmadi" };
@@ -193,6 +196,7 @@ export async function bulkDeleteProblemsAction(ids: string[]) {
 
   await cleanupOrphans(orphans);
   revalidateProblemSurfaces();
+  return;
 }
 
 /**
@@ -248,4 +252,5 @@ export async function bulkUpdateProblemsAction(input: unknown) {
     };
   }
   revalidateProblemSurfaces();
+  return;
 }

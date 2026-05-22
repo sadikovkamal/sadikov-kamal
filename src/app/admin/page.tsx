@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { sql, desc, gte } from "drizzle-orm";
@@ -24,6 +25,11 @@ import { cn, formatCount } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "./_components/page-header";
 
+export const metadata: Metadata = {
+  title: "Dashboard — Admin",
+  description: "Masalalar bazasining umumiy holati.",
+};
+
 // recharts is ~200 KB and only the activity chart needs it. The rest of
 // the dashboard is server-rendered HTML so it paints instantly.
 const ActivityChart = dynamic(
@@ -49,8 +55,10 @@ const ActivityChart = dynamic(
 export default async function AdminDashboard() {
   await requireAdmin();
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
 
   const [
     problemsCountRow,

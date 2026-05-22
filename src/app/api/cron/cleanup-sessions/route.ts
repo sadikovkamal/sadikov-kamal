@@ -9,6 +9,14 @@ export async function GET(request: Request) {
   const unauthorized = verifyCron(request);
   if (unauthorized) return unauthorized;
 
-  await purgeExpiredSessions();
+  try {
+    await purgeExpiredSessions();
+  } catch (e) {
+    console.error("[cron] cleanup-sessions failed:", e);
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : "Unknown error" },
+      { status: 500 }
+    );
+  }
   return NextResponse.json({ ok: true, job: "cleanup-sessions" });
 }

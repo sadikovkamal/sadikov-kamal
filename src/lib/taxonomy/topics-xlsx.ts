@@ -63,7 +63,7 @@ export async function parseTopicsXlsx(
 
   const headerRow = sheet.getRow(1);
   const headerToCol = new Map<string, number>();
-  headerRow.eachCell((cell, col) => {
+  headerRow.eachCell((cell: ExcelJS.Cell, col: number) => {
     const raw = cell.value;
     if (typeof raw === "string") {
       headerToCol.set(raw.trim().toLowerCase(), col);
@@ -322,7 +322,7 @@ function cellToString(value: ExcelJS.CellValue): string {
   // exceljs sometimes returns { richText: [...] } or { result: ... } for formulas.
   if (typeof value === "object") {
     if ("richText" in value && Array.isArray(value.richText)) {
-      return value.richText.map((rt) => rt.text ?? "").join("");
+      return value.richText.map((rt: ExcelJS.RichText) => rt.text ?? "").join("");
     }
     if ("result" in value && value.result != null) {
       return String(value.result);

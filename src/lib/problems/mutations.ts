@@ -82,9 +82,10 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
     await assertLeavesOnly(tx, [input.sourceId], input.topicIds);
     // Compute next code from the current max. Pulling just max() keeps
     // this O(1) instead of fetching every code.
-    const [{ maxCode }] = await tx
+    const [maxRow] = await tx
       .select({ maxCode: sql<string | null>`max(${problems.code})` })
       .from(problems);
+    const maxCode = maxRow?.maxCode ?? null;
     const seq = maxCode ? parseProblemCodeSeq(maxCode) : 0;
     const code = formatProblemCode(Number.isFinite(seq) ? seq + 1 : 1);
 
@@ -98,6 +99,8 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
         metadata: input.metadata ?? {},
       })
       .returning({ id: problems.id });
+
+    if (!created) throw new Error("Problem insert returned no rows");
 
     if (input.topicIds.length) {
       await tx.insert(problemTopics).values(

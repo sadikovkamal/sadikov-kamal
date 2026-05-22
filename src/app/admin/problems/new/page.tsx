@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Download, Sparkles } from "lucide-react";
 import { db } from "@/db";
@@ -6,6 +7,11 @@ import { requireAdmin } from "@/lib/auth";
 import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
 import { ProblemForm } from "@/components/problem-form";
 import { ImportUploader } from "./import-uploader";
+
+export const metadata: Metadata = {
+  title: "Yangi masala — Admin",
+  description: "Yangi masala yaratish yoki ZIP arxivdan import qilish.",
+};
 
 export default async function NewProblemPage() {
   await requireAdmin();

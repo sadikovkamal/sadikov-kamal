@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-typecheck-build:
+    name: Lint, typecheck, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        # Provide a dummy DATABASE_URL so next build's static analysis doesn't
+        # fail trying to connect; real DB checks happen in vercel-build via
+        # scripts/run-migrate.ts which is NOT invoked during CI.
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+          # Suppress the "R2_PUBLIC_URL not set" warn in next.config.ts
+          SKIP_ENV_VALIDATION: "1"
+          # Needed by instrumentation.ts → env.ts at build time in Node runtime
+          NODE_ENV: "production"
+          SESSION_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+          CRON_SECRET: "ci-placeholder"
+          R2_ACCOUNT_ID: "ci"
+          R2_ACCESS_KEY_ID: "ci"
+          R2_SECRET_ACCESS_KEY: "ci"
+          R2_BUCKET_NAME: "ci"
+          R2_PUBLIC_URL: "https://ci.example.com"
+        run: npm run build

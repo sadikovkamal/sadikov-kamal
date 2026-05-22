@@ -232,15 +232,24 @@ function TreeRows({
         return (
           <div key={node.topic.id}>
             <div
+              role={parentSet.has(node.topic.id) ? undefined : "button"}
+              tabIndex={parentSet.has(node.topic.id) ? undefined : 0}
               className={cn(
                 "group flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-sm transition-colors",
                 parentSet.has(node.topic.id)
                   ? "cursor-default text-muted-foreground"
-                  : "cursor-pointer hover:bg-muted",
+                  : "cursor-pointer hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-brand)]",
                 isSelected && "bg-[var(--accent-brand)]/5"
               )}
               style={{ paddingLeft: `${depth * 16 + 8}px` }}
               aria-disabled={parentSet.has(node.topic.id) || undefined}
+              aria-label={
+                parentSet.has(node.topic.id)
+                  ? undefined
+                  : isSelected
+                    ? `${node.topic.name} mavzusini tanlovdan olib tashlash`
+                    : `${node.topic.name} mavzusini tanlash`
+              }
               title={
                 parentSet.has(node.topic.id)
                   ? "Faqat ichki mavzu tanlanadi — bu guruh"
@@ -249,6 +258,13 @@ function TreeRows({
               onClick={() => {
                 if (parentSet.has(node.topic.id)) return;
                 onToggleSelect(node.topic.id);
+              }}
+              onKeyDown={(e) => {
+                if (parentSet.has(node.topic.id)) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onToggleSelect(node.topic.id);
+                }
               }}
             >
               {hasChildren ? (

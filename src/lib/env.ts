@@ -57,6 +57,12 @@ const CHECKS: EnvCheck[] = [
     required: isProd && isVercel,
     reason: "Cron auth — required when Vercel Cron is active",
   },
+  {
+    name: "SESSION_SECRET",
+    required: isProd,
+    reason:
+      "HMAC key for session cookie signing — generate with `openssl rand -hex 32`",
+  },
 ];
 
 let validated = false;

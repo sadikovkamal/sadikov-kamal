@@ -99,8 +99,9 @@ export async function parseBundle(zipBytes: Uint8Array): Promise<ParsedBundle> {
   } else if (dirEntries.length > 0) {
     const sorted = [...dirEntries].sort((a, b) => a.name.localeCompare(b.name));
     for (let i = 0; i < sorted.length; i++) {
-      const text = await sorted[i].async("string");
-      const parsed = parseProblemMarkdown(text, sorted[i].name, i + 1);
+      const entry = sorted[i]!;
+      const text = await entry.async("string");
+      const parsed = parseProblemMarkdown(text, entry.name, i + 1);
       if (parsed) problems.push(parsed);
     }
   } else {
@@ -206,7 +207,7 @@ function parseProblemMarkdown(
 export function extractShartBody(content: string): string {
   const lines = content.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
-    if (/^#\s+Shart\b/i.test(lines[i].trim())) {
+    if (/^#\s+Shart\b/i.test((lines[i] ?? "").trim())) {
       return lines.slice(i + 1).join("\n").trim();
     }
   }
@@ -223,7 +224,7 @@ export function extractImageRefs(content: string): string[] {
   const regex = /!\[[^\]]*\]\(images\/([^)]+)\)/g;
   let m: RegExpExecArray | null;
   while ((m = regex.exec(content)) !== null) {
-    refs.push(m[1]);
+    refs.push(m[1]!);
   }
   return refs;
 }

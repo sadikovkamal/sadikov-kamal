@@ -15,6 +15,8 @@ const topicSchema = z.object({
   description: z.string().max(1000).nullable(),
 });
 
+const idSchema = z.string().uuid();
+
 export type ActionResult = { success: true } | { error: string };
 
 export async function createTopicAction(raw: unknown): Promise<ActionResult> {
@@ -40,6 +42,7 @@ export async function updateTopicAction(
   raw: unknown
 ): Promise<ActionResult> {
   await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { error: "Invalid id" };
   const parsed = topicSchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -59,6 +62,7 @@ export async function updateTopicAction(
 
 export async function deleteTopicAction(id: string): Promise<ActionResult> {
   await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { error: "Invalid id" };
   try {
     await deleteTopic(id);
   } catch (e) {

@@ -138,11 +138,12 @@ export async function executeImport(params: {
         // Auto-assign P####### code inside the transaction. We compute
         // it per row so each insert sees the latest max even when many
         // problems land in a single batch.
-        const [{ maxCode }] = await tx
+        const [maxRow] = await tx
           .select({
             maxCode: sql<string | null>`max(${problems.code})`,
           })
           .from(problems);
+        const maxCode = maxRow?.maxCode ?? null;
         const seq = maxCode ? parseProblemCodeSeq(maxCode) : 0;
         const code = formatProblemCode(
           Number.isFinite(seq) ? seq + 1 : 1
@@ -158,6 +159,8 @@ export async function executeImport(params: {
             metadata: {},
           })
           .returning({ id: problems.id });
+
+        if (!createdProblem) throw new Error("Problem insert returned no rows");
 
         await tx.insert(problemTopics).values(
           topicIds.map((topicId) => ({
@@ -227,7 +230,7 @@ async function runWithConcurrency<T>(
     while (true) {
       const i = cursor++;
       if (i >= items.length) return;
-      await worker(items[i]);
+      await worker(items[i]!);
     }
   };
   for (let w = 0; w < Math.min(limit, items.length); w++) {

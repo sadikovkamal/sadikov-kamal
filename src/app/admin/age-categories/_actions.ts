@@ -18,6 +18,8 @@ const ageCategorySchema = z.object({
     .transform((v) => (v && v.trim().length > 0 ? v.trim() : null)),
 });
 
+const idSchema = z.string().uuid();
+
 export type ActionResult = { success: true } | { error: string };
 
 export async function createAgeCategoryAction(
@@ -43,6 +45,7 @@ export async function updateAgeCategoryAction(
   raw: unknown
 ): Promise<ActionResult> {
   await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { error: "Invalid id" };
   const parsed = ageCategorySchema.safeParse(raw);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -61,6 +64,7 @@ export async function deleteAgeCategoryAction(
   id: string
 ): Promise<ActionResult> {
   await requireAdmin();
+  if (!idSchema.safeParse(id).success) return { error: "Invalid id" };
   try {
     await deleteAgeCategory(id);
   } catch (e) {

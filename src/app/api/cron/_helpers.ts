@@ -1,5 +1,6 @@
 import "server-only";
 
+import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 
 /**
@@ -16,8 +17,16 @@ export function verifyCron(request: Request): NextResponse | null {
       { status: 503 }
     );
   }
-  const auth = request.headers.get("authorization");
-  if (auth !== `Bearer ${expected}`) {
+  const auth = request.headers.get("authorization") ?? "";
+  const provided = `Bearer ${expected}`;
+  const bufA = Buffer.from(auth);
+  const bufB = Buffer.from(provided);
+  // Use timingSafeEqual to prevent timing-based secret enumeration.
+  // When lengths differ we compare bufB against itself (constant time)
+  // before returning false so callers can't infer length from timing.
+  const equal =
+    bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+  if (!equal) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;

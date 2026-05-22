@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
@@ -8,6 +9,17 @@ import { getProblemByCode } from "@/lib/problems/queries";
 import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
 import { getPublicUrl } from "@/lib/storage/r2";
 import { ProblemForm } from "@/components/problem-form";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id: code } = await params;
+  return {
+    title: `${code} tahrirlash — Admin`,
+  };
+}
 
 export default async function EditProblemPage({
   params,

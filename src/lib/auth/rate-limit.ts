@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomBytes } from "crypto";
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { loginAttempts } from "@/db/schema";
 
@@ -18,8 +18,8 @@ export const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 min
  */
 export async function isLoginAllowed(identifier: string): Promise<boolean> {
   const cutoff = new Date(Date.now() - LOGIN_WINDOW_MS);
-  const recent = await db
-    .select({ id: loginAttempts.id })
+  const [row] = await db
+    .select({ count: sql<number>`cast(count(*) as integer)` })
     .from(loginAttempts)
     .where(
       and(
@@ -27,7 +27,7 @@ export async function isLoginAllowed(identifier: string): Promise<boolean> {
         gte(loginAttempts.attemptedAt, cutoff)
       )
     );
-  return recent.length < MAX_LOGIN_ATTEMPTS;
+  return (row?.count ?? 0) < MAX_LOGIN_ATTEMPTS;
 }
 
 export async function recordLoginAttempt(identifier: string): Promise<void> {

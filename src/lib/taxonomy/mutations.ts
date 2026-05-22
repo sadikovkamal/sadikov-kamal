@@ -23,12 +23,13 @@ export async function createTopic(input: TopicInput): Promise<string> {
   const [maxRow] = await db
     .select({ maxCode: sql<string | null>`max(${topics.code})` })
     .from(topics);
-  const code = nextTopicCode(maxRow.maxCode ? [maxRow.maxCode] : []);
+  const code = nextTopicCode(maxRow?.maxCode ? [maxRow.maxCode] : []);
 
   const [created] = await db
     .insert(topics)
     .values({ ...input, code })
     .returning({ id: topics.id });
+  if (!created) throw new Error("Insert returned no rows");
   return created.id;
 }
 
@@ -73,7 +74,7 @@ export async function bulkCreateTopics(
       .select({ maxCode: sql<string | null>`max(${topics.code})` })
       .from(topics);
 
-    let runningMax = maxRow.maxCode ?? "";
+    let runningMax = maxRow?.maxCode ?? "";
     // nextTopicCode only looks at the max of what it's passed, so we feed it
     // the running max one element at a time instead of accumulating the
     // whole list. Keeps allocations O(1) per row.
@@ -107,12 +108,13 @@ export async function createSource(input: SourceInput): Promise<string> {
   const [maxRow] = await db
     .select({ maxCode: sql<string | null>`max(${sources.code})` })
     .from(sources);
-  const code = nextSourceCode(maxRow.maxCode ? [maxRow.maxCode] : []);
+  const code = nextSourceCode(maxRow?.maxCode ? [maxRow.maxCode] : []);
 
   const [created] = await db
     .insert(sources)
     .values({ ...input, code })
     .returning({ id: sources.id });
+  if (!created) throw new Error("Insert returned no rows");
   return created.id;
 }
 
@@ -143,12 +145,13 @@ export async function createAgeCategory(
   const [maxRow] = await db
     .select({ maxCode: sql<string | null>`max(${ageCategories.code})` })
     .from(ageCategories);
-  const code = nextAgeCategoryCode(maxRow.maxCode ? [maxRow.maxCode] : []);
+  const code = nextAgeCategoryCode(maxRow?.maxCode ? [maxRow.maxCode] : []);
 
   const [created] = await db
     .insert(ageCategories)
     .values({ ...input, code })
     .returning({ id: ageCategories.id });
+  if (!created) throw new Error("Insert returned no rows");
   return created.id;
 }
 

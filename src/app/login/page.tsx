@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { LoginForm } from "./login-form";
+
+export const metadata: Metadata = {
+  title: "Kirish — Sadikov Kamal",
+  description: "Sadikov Kamal administratsiya paneliga kirish.",
+};
 
 export default async function LoginPage({
   searchParams,

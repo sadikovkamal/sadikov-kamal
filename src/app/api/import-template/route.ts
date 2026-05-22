@@ -56,7 +56,7 @@ agar va faqat agar $AB = AC$ bo'lsa.
     "images/README.txt",
     `Barcha rasm fayllarini shu papkaga joylang.
 
-Qo'llaniladigan formatlar: PNG, JPG, GIF, WebP, SVG.
+Qo'llaniladigan formatlar: PNG, JPG, GIF, WebP.
 Har bir rasm uchun maksimal hajm: 5 MB.
 Har bir masalada eng ko'pi bilan 1 ta rasm bo'lishi mumkin.
 

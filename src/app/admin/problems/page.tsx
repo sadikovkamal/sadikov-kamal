@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { db } from "@/db";
@@ -9,6 +10,11 @@ import { parseSearchParams } from "./_url-state";
 import { ProblemsList } from "./problems-list";
 import { ProblemsFilterBar } from "./filters";
 import { PageHeader } from "../_components/page-header";
+
+export const metadata: Metadata = {
+  title: "Masalalar — Admin",
+  description: "Masalalar ro'yxati va filtrlash.",
+};
 
 export default async function ProblemsListPage({
   searchParams,

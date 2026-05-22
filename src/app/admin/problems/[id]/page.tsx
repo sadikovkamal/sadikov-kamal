@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,6 +14,17 @@ import { getProblemByCode } from "@/lib/problems/queries";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { Button } from "@/components/ui/button";
 import { DeleteProblemButton } from "./delete-button";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id: code } = await params;
+  return {
+    title: `${code} — Admin`,
+  };
+}
 
 export default async function ProblemDetailPage({
   params,
