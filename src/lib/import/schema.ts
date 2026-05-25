@@ -45,8 +45,7 @@ export type ProblemFrontmatter = z.infer<typeof problemFrontmatterSchema>;
 /** Bundle-wide caps. Pulled here so parse.ts and the UI share the numbers. */
 export const BUNDLE_LIMITS = {
   maxBytes: 50 * 1024 * 1024,
-  maxProblems: 200,
-  maxImageBytes: 5 * 1024 * 1024,
+  maxProblems: 500,
   /** Each problem carries at most one image (mirrors the single-problem form). */
   maxImagesPerProblem: 1,
 } as const;

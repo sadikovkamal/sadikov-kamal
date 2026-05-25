@@ -58,17 +58,13 @@ export async function parseBundle(zipBytes: Uint8Array): Promise<ParsedBundle> {
   }
 
   // 1. Images — anything under images/ at the root, no subdirectories.
+  //    No per-image cap: the bundle-wide maxBytes already bounds the
+  //    largest possible image to the ZIP size.
   const images = new Map<string, Uint8Array>();
   const imageEntries = zip.file(/^images\/[^/]+$/);
   for (const entry of imageEntries) {
     const filename = entry.name.replace(/^images\//, "");
     const bytes = await entry.async("uint8array");
-    if (bytes.byteLength > BUNDLE_LIMITS.maxImageBytes) {
-      bundleErrors.push(
-        `Image too large: images/${filename} (${bytes.byteLength} bytes, max ${BUNDLE_LIMITS.maxImageBytes})`
-      );
-      continue;
-    }
     images.set(filename, bytes);
   }
 

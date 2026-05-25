@@ -35,7 +35,8 @@ If both are present, the bundle is rejected.
 - All images referenced from problem markdown MUST live here.
 - Filenames may contain alphanumerics, dashes, underscores, dots. No
   slashes, no spaces.
-- Maximum **5 MB per image**.
+- No per-image cap — individual images are bounded only by the
+  bundle-wide 50 MB limit.
 - Allowed mime types: `image/png`, `image/jpeg`, `image/gif`,
   `image/webp`, `image/svg+xml`.
 - **At most one image per problem.** Multiple `![](...)` references in
@@ -44,7 +45,7 @@ If both are present, the bundle is rejected.
 ### Bundle-wide caps
 
 - Total size: **50 MB**.
-- Number of problems: **200 per bundle**.
+- Number of problems: **500 per bundle**.
 
 ---
 
@@ -148,8 +149,8 @@ when any of the following holds:
 6. A problem body is empty (`# Shart` missing).
 7. A problem references more than one image.
 8. A markdown image references a file not present under `images/`.
-9. The bundle exceeds 50 MB total, or 200 problems.
-10. An image exceeds 5 MB or has a non-allowed mime type.
+9. The bundle exceeds 50 MB total, or 500 problems.
+10. An image has a non-allowed mime type.
 
 **There is no dedupe check.** Re-uploading the same problem creates a
 new row with a fresh `P#######` code. Admins are responsible for

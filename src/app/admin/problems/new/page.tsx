@@ -146,7 +146,7 @@ function ImportSidebar() {
               har bir masalada eng ko&apos;pi bilan 1 ta
             </SpecRow>
             <SpecRow label="Cheklovlar">
-              50 MB ZIP · 200 ta masala · 5 MB rasm
+              50 MB ZIP · 500 ta masala
             </SpecRow>
           </dl>
         </div>

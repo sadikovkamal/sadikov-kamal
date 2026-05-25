@@ -15,6 +15,7 @@ import {
 } from "@/lib/problems/codes";
 import type { ParsedBundle } from "./parse";
 import type { ValidationReport } from "./validate";
+import { BUNDLE_LIMITS } from "./schema";
 
 export interface ExecuteErrorEntry {
   index: number;
@@ -83,6 +84,9 @@ export async function executeImport(params: {
         mimeType,
         originalFilename: filename,
         prefix: uploadPrefix,
+        // Import images aren't bounded by the single-upload 4 MB form
+        // cap — the ZIP itself is already capped at BUNDLE_LIMITS.maxBytes.
+        maxBytes: BUNDLE_LIMITS.maxBytes,
       });
       imageUrlByFilename.set(filename, {
         ...uploaded,

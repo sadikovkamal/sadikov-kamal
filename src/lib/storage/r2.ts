@@ -95,9 +95,12 @@ export const ALLOWED_MIME_TYPES = new Set([
 ]);
 
 /**
- * Hard cap. Anything above gets rejected before bytes leave the server.
- * Kept slightly below Vercel's ~4.5 MB server-action body cap so the
- * framework boundary doesn't reject before our handler runs.
+ * Default per-file cap for ad-hoc uploads (single-image form, markdown
+ * editor drag-and-drop). Kept slightly below Vercel's ~4.5 MB
+ * server-action body cap so the framework boundary doesn't reject
+ * before our handler runs. The bulk-import path passes its own
+ * (looser) cap — the ZIP-wide BUNDLE_LIMITS.maxBytes already bounds
+ * individual images there.
  */
 export const MAX_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
 
@@ -115,22 +118,30 @@ export interface UploadResult {
  * @param params.mimeType          - validated against ALLOWED_MIME_TYPES
  * @param params.originalFilename  - used to derive the file extension
  * @param params.prefix            - logical folder, e.g. "problems/{id}"
+ * @param params.maxBytes          - optional per-file cap (defaults to MAX_SIZE_BYTES)
  */
 export async function uploadFile(params: {
   file: Uint8Array;
   mimeType: string;
   originalFilename: string;
   prefix: string;
+  maxBytes?: number;
 }): Promise<UploadResult> {
-  const { file, mimeType, originalFilename, prefix } = params;
+  const {
+    file,
+    mimeType,
+    originalFilename,
+    prefix,
+    maxBytes = MAX_SIZE_BYTES,
+  } = params;
 
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
     throw new Error(`File type not allowed: ${mimeType}`);
   }
 
-  if (file.byteLength > MAX_SIZE_BYTES) {
+  if (file.byteLength > maxBytes) {
     throw new Error(
-      `File too large: ${file.byteLength} bytes (max ${MAX_SIZE_BYTES})`
+      `File too large: ${file.byteLength} bytes (max ${maxBytes})`
     );
   }
 

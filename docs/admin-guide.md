@@ -98,7 +98,7 @@ The `cleanup-login-attempts` cron also clears the table once a day.
 ### Rules of thumb
 
 - Keep batches under 50 problems for review-ability. The hard cap is
-  200 / 50 MB per the format spec.
+  500 / 50 MB per the format spec.
 - **Always Tekshirish before Import.** Errors at validation time are
   cheap; errors at execute time leave a partially-imported batch that
   has to be cleaned up by hand.
