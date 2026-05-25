@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Hash, Library, Tags } from "lucide-react";
+import { Hash, Library, Tags, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +35,7 @@ export function BulkEditDialog({
   sourcesAvailable,
   ageCategoriesAvailable,
   topicsAvailable,
+  methodsAvailable,
   onSuccess,
 }: {
   open: boolean;
@@ -43,11 +44,13 @@ export function BulkEditDialog({
   sourcesAvailable: FilterOption[];
   ageCategoriesAvailable: FilterOption[];
   topicsAvailable: FilterOption[];
+  methodsAvailable: FilterOption[];
   onSuccess: () => void;
 }) {
   const [sourceId, setSourceId] = useState<string | undefined>(undefined);
   const [ageCategoryIds, setAgeCategoryIds] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<string[]>([]);
+  const [methodIds, setMethodIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -55,6 +58,7 @@ export function BulkEditDialog({
     setSourceId(undefined);
     setAgeCategoryIds([]);
     setTopicIds([]);
+    setMethodIds([]);
     setError(null);
   }
 
@@ -77,7 +81,8 @@ export function BulkEditDialog({
   const hasAnyChange =
     sourceId !== undefined ||
     ageCategoryIds.length > 0 ||
-    topicIds.length > 0;
+    topicIds.length > 0 ||
+    methodIds.length > 0;
 
   function onSubmit() {
     if (!hasAnyChange) return;
@@ -87,10 +92,12 @@ export function BulkEditDialog({
       sourceId?: string;
       ageCategoryIds?: string[];
       topicIds?: string[];
+      methodIds?: string[];
     } = { ids: problemIds };
     if (sourceId) payload.sourceId = sourceId;
     if (ageCategoryIds.length > 0) payload.ageCategoryIds = ageCategoryIds;
     if (topicIds.length > 0) payload.topicIds = topicIds;
+    if (methodIds.length > 0) payload.methodIds = methodIds;
 
     startTransition(async () => {
       const res = await bulkUpdateProblemsAction(payload);
@@ -164,6 +171,21 @@ export function BulkEditDialog({
               options={topicsAvailable}
               selected={topicIds}
               onChange={setTopicIds}
+              mode="leaf-only"
+            />
+          </Field>
+
+          <Field
+            label="Metodlar"
+            hint="Mavjud metodlar ushbu ro'yxat bilan almashtiriladi."
+          >
+            <FilterPopover
+              label="Tanlang"
+              icon={<Wrench className="size-3.5" aria-hidden />}
+              count={methodIds.length}
+              options={methodsAvailable}
+              selected={methodIds}
+              onChange={setMethodIds}
               mode="leaf-only"
             />
           </Field>

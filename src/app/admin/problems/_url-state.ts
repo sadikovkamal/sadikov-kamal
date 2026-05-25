@@ -45,6 +45,7 @@ export function parseSearchParams(sp: URLSearchParams): {
     sourceCodes: csv(sp.get("source")),
     ageCategoryCodes: csv(sp.get("ageCategory")),
     topicCodes: csv(sp.get("topic")),
+    methodCodes: csv(sp.get("method")),
   };
 
   const sortField = sp.get("sortField");

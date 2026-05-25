@@ -42,6 +42,7 @@ export interface ProblemsListProps {
   sourcesAvailable: FilterOption[];
   ageCategoriesAvailable: FilterOption[];
   topicsAvailable: FilterOption[];
+  methodsAvailable: FilterOption[];
 }
 
 /**
@@ -65,6 +66,7 @@ export function ProblemsList({
   sourcesAvailable,
   ageCategoriesAvailable,
   topicsAvailable,
+  methodsAvailable,
 }: ProblemsListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -299,6 +301,7 @@ export function ProblemsList({
         sourcesAvailable={sourcesAvailable}
         ageCategoriesAvailable={ageCategoriesAvailable}
         topicsAvailable={topicsAvailable}
+        methodsAvailable={methodsAvailable}
         onSuccess={() => {
           // Clear the selection and refresh server data so the list
           // reflects the bulk update without a full reload.

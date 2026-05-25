@@ -15,6 +15,7 @@ import {
   Library,
   Search,
   Tags,
+  Wrench,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -124,11 +125,13 @@ export function ProblemsFilterBar({
   sourcesAvailable,
   ageCategoriesAvailable,
   topicsAvailable,
+  methodsAvailable,
   sort,
 }: {
   sourcesAvailable: FilterOption[];
   ageCategoriesAvailable: FilterOption[];
   topicsAvailable: FilterOption[];
+  methodsAvailable: FilterOption[];
   sort: ProblemListSort;
 }) {
   const router = useRouter();
@@ -142,12 +145,14 @@ export function ProblemsFilterBar({
   const sourceCodes = csv(params.get("source"));
   const ageCategoryCodes = csv(params.get("ageCategory"));
   const topicCodes = csv(params.get("topic"));
+  const methodCodes = csv(params.get("method"));
 
   const activeFilterCount =
     (search ? 1 : 0) +
     sourceCodes.length +
     ageCategoryCodes.length +
-    topicCodes.length;
+    topicCodes.length +
+    methodCodes.length;
 
   // Code-keyed views of the dictionaries. The FilterPopover keys
   // everything by `option.id`; in this view, that id IS the code,
@@ -181,6 +186,15 @@ export function ProblemsFilterBar({
       parentId: t.parentId ? (idToCode.get(t.parentId) ?? null) : null,
     }));
   }, [topicsAvailable]);
+  const methodOptionsByCode = useMemo<FilterOption[]>(() => {
+    const idToCode = new Map(methodsAvailable.map((m) => [m.id, m.code]));
+    return methodsAvailable.map((m) => ({
+      id: m.code,
+      code: m.code,
+      name: m.name,
+      parentId: m.parentId ? (idToCode.get(m.parentId) ?? null) : null,
+    }));
+  }, [methodsAvailable]);
 
   const sourceByCode = useMemo(
     () => new Map(sourcesAvailable.map((s) => [s.code, s])),
@@ -193,6 +207,10 @@ export function ProblemsFilterBar({
   const topicByCode = useMemo(
     () => new Map(topicsAvailable.map((t) => [t.code, t])),
     [topicsAvailable]
+  );
+  const methodByCode = useMemo(
+    () => new Map(methodsAvailable.map((m) => [m.code, m])),
+    [methodsAvailable]
   );
 
   function push(next: URLSearchParams) {
@@ -223,6 +241,7 @@ export function ProblemsFilterBar({
     next.delete("source");
     next.delete("ageCategory");
     next.delete("topic");
+    next.delete("method");
     push(next);
   }
 
@@ -263,6 +282,14 @@ export function ProblemsFilterBar({
           options={topicOptionsByCode}
           selected={topicCodes}
           onChange={(codes) => setCsv("topic", codes)}
+        />
+        <FilterPopover
+          label="Metodlar"
+          icon={<Wrench className="size-3.5" aria-hidden />}
+          count={methodCodes.length}
+          options={methodOptionsByCode}
+          selected={methodCodes}
+          onChange={(codes) => setCsv("method", codes)}
         />
 
         <div className="ml-auto">
@@ -331,6 +358,23 @@ export function ProblemsFilterBar({
                 kind="Mavzu"
                 onRemove={() =>
                   setCsv("topic", topicCodes.filter((x) => x !== code))
+                }
+              />
+            );
+          })}
+          {methodCodes.map((code) => {
+            const m = methodByCode.get(code);
+            if (!m) return null;
+            return (
+              <ActiveChip
+                key={`m-${code}`}
+                label={m.name}
+                kind="Metod"
+                onRemove={() =>
+                  setCsv(
+                    "method",
+                    methodCodes.filter((x) => x !== code)
+                  )
                 }
               />
             );

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { db } from "@/db";
-import { ageCategories, sources, topics } from "@/db/schema";
+import { ageCategories, sources, topics, methods } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { listProblems } from "@/lib/problems/queries";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ export default async function ProblemsListPage({
     sourcesAvailable,
     ageCategoriesAvailable,
     topicsAvailable,
+    methodsAvailable,
   ] = await Promise.all([
     listProblems(filters, sort, page, pageSize),
     db
@@ -75,6 +76,15 @@ export default async function ProblemsListPage({
       })
       .from(topics)
       .orderBy(topics.name),
+    db
+      .select({
+        id: methods.id,
+        code: methods.code,
+        name: methods.name,
+        parentId: methods.parentId,
+      })
+      .from(methods)
+      .orderBy(methods.name),
   ]);
 
   return (
@@ -103,6 +113,7 @@ export default async function ProblemsListPage({
         sourcesAvailable={sourcesAvailable}
         ageCategoriesAvailable={ageCategoriesAvailable}
         topicsAvailable={topicsAvailable}
+        methodsAvailable={methodsAvailable}
         sort={sort}
       />
 
@@ -114,6 +125,7 @@ export default async function ProblemsListPage({
         sourcesAvailable={sourcesAvailable}
         ageCategoriesAvailable={ageCategoriesAvailable}
         topicsAvailable={topicsAvailable}
+        methodsAvailable={methodsAvailable}
       />
     </div>
   );
