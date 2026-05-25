@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -570,11 +570,18 @@ function PageInput({
   onGo: (n: number) => void;
 }) {
   const [raw, setRaw] = useState(String(page));
-
   // Sync local input whenever the source of truth (URL → prop) changes.
-  useEffect(() => {
+  // Adjusting state during render (instead of useEffect + setState) is
+  // React's recommended pattern for "reset internal state when a prop
+  // changes" — it avoids the cascading-render cost of an effect and
+  // lets the input stay focused across page changes (a key={page}
+  // approach would remount and steal focus).
+  // See: https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevPage, setPrevPage] = useState(page);
+  if (page !== prevPage) {
+    setPrevPage(page);
     setRaw(String(page));
-  }, [page]);
+  }
 
   function commit() {
     const n = Number.parseInt(raw, 10);
