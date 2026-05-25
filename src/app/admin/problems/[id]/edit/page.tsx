@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { db } from "@/db";
-import { topics, ageCategories } from "@/db/schema";
+import { topics, ageCategories, methods } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemByCode } from "@/lib/problems/queries";
 import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
@@ -30,13 +30,19 @@ export default async function EditProblemPage({
   await requireAdmin();
   const { id: code } = await params;
 
-  const [p, topicsAvailable, sourcesAvailable, ageCategoriesAvailable] =
-    await Promise.all([
-      getProblemByCode(code),
-      db.select().from(topics).orderBy(topics.name),
-      listSourcesWithCounts(),
-      db.select().from(ageCategories).orderBy(ageCategories.code),
-    ]);
+  const [
+    p,
+    topicsAvailable,
+    sourcesAvailable,
+    ageCategoriesAvailable,
+    methodsAvailable,
+  ] = await Promise.all([
+    getProblemByCode(code),
+    db.select().from(topics).orderBy(topics.name),
+    listSourcesWithCounts(),
+    db.select().from(ageCategories).orderBy(ageCategories.code),
+    db.select().from(methods).orderBy(methods.code),
+  ]);
   if (!p) notFound();
 
   const title = [p.code, p.source?.name].filter(Boolean).join(" · ");
@@ -82,6 +88,7 @@ export default async function EditProblemPage({
           sourceId: p.sourceId,
           topicIds: p.topics.map((t) => t.id),
           ageCategoryIds: p.ageCategories.map((c) => c.id),
+          methodIds: p.methods.map((m) => m.id),
           image: p.images[0]
             ? {
                 storageKey: p.images[0].storageKey,
@@ -95,6 +102,7 @@ export default async function EditProblemPage({
         topicsAvailable={topicsAvailable}
         sourcesAvailable={sourcesAvailable}
         ageCategoriesAvailable={ageCategoriesAvailable}
+        methodsAvailable={methodsAvailable}
         // R2 storage paths stay UUID-keyed — they're internal storage
         // keys, not URLs, so the human-facing code rename doesn't apply.
         uploadPrefix={`problems/${p.id}`}

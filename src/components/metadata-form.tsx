@@ -4,16 +4,18 @@ import { Controller, useFormContext } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { TopicTreePicker } from "@/components/problem-form-pickers/topic-tree-picker";
 import { AgeCategoryGridPicker } from "@/components/problem-form-pickers/age-category-grid-picker";
+import { MethodTreePicker } from "@/components/problem-form-pickers/method-tree-picker";
 import {
   SourcePicker,
   type SourcePickerNode,
 } from "@/components/problem-form-pickers/source-picker";
-import type { Topic, AgeCategory } from "@/db/schema";
+import type { Topic, AgeCategory, Method } from "@/db/schema";
 
 export interface MetadataFormProps {
   topicsAvailable: Topic[];
   sourcesAvailable: SourcePickerNode[];
   ageCategoriesAvailable: AgeCategory[];
+  methodsAvailable: Method[];
 }
 
 /**
@@ -31,6 +33,7 @@ export function MetadataForm({
   topicsAvailable,
   sourcesAvailable,
   ageCategoriesAvailable,
+  methodsAvailable,
 }: MetadataFormProps) {
   const { control, formState } = useFormContext();
   const errors = formState.errors;
@@ -87,6 +90,28 @@ export function MetadataForm({
           )}
         />
         <FieldError message={errors.ageCategoryIds?.message} />
+      </div>
+
+      {/* Methods — optional, can be zero or more. */}
+      <div className="space-y-2 lg:col-span-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <Label>Metodlar</Label>
+          <span className="text-[11px] text-muted-foreground italic">
+            ixtiyoriy
+          </span>
+        </div>
+        <Controller
+          control={control}
+          name="methodIds"
+          render={({ field }) => (
+            <MethodTreePicker
+              available={methodsAvailable}
+              value={field.value ?? []}
+              onChange={field.onChange}
+            />
+          )}
+        />
+        <FieldError message={errors.methodIds?.message} />
       </div>
     </div>
   );

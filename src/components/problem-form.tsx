@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { uploadImageAction } from "@/app/admin/_actions/upload-image";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { MetadataForm } from "@/components/metadata-form";
-import type { Topic, AgeCategory } from "@/db/schema";
+import type { Topic, AgeCategory, Method } from "@/db/schema";
 import type { SourcePickerNode } from "@/components/problem-form-pickers/source-picker";
 import {
   createProblemAction,
@@ -53,6 +53,8 @@ const formSchema = z.object({
   ageCategoryIds: z
     .array(z.string())
     .min(1, "Kamida bitta yosh toifasini tanlang"),
+  // Methods are optional — zero or more allowed. No min(1).
+  methodIds: z.array(z.string()),
   image: imageSchema.nullable(),
 });
 
@@ -65,6 +67,7 @@ export interface ProblemFormProps {
   topicsAvailable: Topic[];
   sourcesAvailable: SourcePickerNode[];
   ageCategoriesAvailable: AgeCategory[];
+  methodsAvailable: Method[];
   uploadPrefix: string;
 }
 
@@ -75,6 +78,7 @@ export function ProblemForm({
   topicsAvailable,
   sourcesAvailable,
   ageCategoriesAvailable,
+  methodsAvailable,
   uploadPrefix,
 }: ProblemFormProps) {
   const router = useRouter();
@@ -127,6 +131,7 @@ export function ProblemForm({
             topicsAvailable={topicsAvailable}
             sourcesAvailable={sourcesAvailable}
             ageCategoriesAvailable={ageCategoriesAvailable}
+            methodsAvailable={methodsAvailable}
           />
         </section>
 

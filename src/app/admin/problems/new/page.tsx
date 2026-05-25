@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Download, Sparkles } from "lucide-react";
 import { db } from "@/db";
-import { topics, ageCategories } from "@/db/schema";
+import { topics, ageCategories, methods } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
 import { ProblemForm } from "@/components/problem-form";
@@ -15,14 +15,19 @@ export const metadata: Metadata = {
 
 export default async function NewProblemPage() {
   await requireAdmin();
-  const [topicsAvailable, sourcesAvailable, ageCategoriesAvailable] =
-    await Promise.all([
-      db.select().from(topics).orderBy(topics.name),
-      // Sources go through the same query the /admin/sources page uses
-      // so the picker shows logo URLs already resolved against R2.
-      listSourcesWithCounts(),
-      db.select().from(ageCategories).orderBy(ageCategories.code),
-    ]);
+  const [
+    topicsAvailable,
+    sourcesAvailable,
+    ageCategoriesAvailable,
+    methodsAvailable,
+  ] = await Promise.all([
+    db.select().from(topics).orderBy(topics.name),
+    // Sources go through the same query the /admin/sources page uses
+    // so the picker shows logo URLs already resolved against R2.
+    listSourcesWithCounts(),
+    db.select().from(ageCategories).orderBy(ageCategories.code),
+    db.select().from(methods).orderBy(methods.code),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -36,11 +41,13 @@ export default async function NewProblemPage() {
             sourceId: "",
             topicIds: [],
             ageCategoryIds: [],
+            methodIds: [],
             image: null,
           }}
           topicsAvailable={topicsAvailable}
           sourcesAvailable={sourcesAvailable}
           ageCategoriesAvailable={ageCategoriesAvailable}
+          methodsAvailable={methodsAvailable}
           uploadPrefix="problems/draft"
         />
 
