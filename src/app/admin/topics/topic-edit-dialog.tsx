@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Layers } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,17 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  buildTopicTree,
-  flattenTopicTree,
-} from "@/lib/taxonomy/topic-codes";
+import { NestedParentPicker } from "@/components/nested-parent-picker";
 import {
   createTopicAction,
   updateTopicAction,
@@ -38,8 +27,6 @@ export interface TopicShape {
   description: string | null;
 }
 
-const NO_PARENT = "__none__";
-
 export function TopicEditDialog({
   mode,
   topic,
@@ -52,17 +39,12 @@ export function TopicEditDialog({
   onClose: () => void;
 }) {
   const [name, setName] = useState(topic?.name ?? "");
-  const [parentId, setParentId] = useState<string>(topic?.parentId ?? NO_PARENT);
+  const [parentId, setParentId] = useState<string | null>(
+    topic?.parentId ?? null
+  );
   const [description, setDescription] = useState(topic?.description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  // Build the topic tree once. Flatten depth-first so the parent dropdown
-  // can render each row with its indent level + show "↳" markers.
-  const flat = useMemo(
-    () => flattenTopicTree(buildTopicTree(allTopics)),
-    [allTopics]
-  );
 
   // Block cycles: when editing, hide the topic itself and every descendant
   // from the parent picker. Without this, an admin could parent Algebra
@@ -91,15 +73,21 @@ export function TopicEditDialog({
     return blocked;
   }, [allTopics, topic]);
 
-  const parentOptions = flat.filter((n) => !blockedIds.has(n.topic.id));
-
-  const selectedParent = parentOptions.find((n) => n.topic.id === parentId);
+  // Hand the picker only the eligible options. The picker builds its own
+  // tree, so we can pass a flat filtered list — no pre-flattening here.
+  const parentOptions = useMemo(
+    () =>
+      allTopics
+        .filter((t) => !blockedIds.has(t.id))
+        .map((t) => ({ id: t.id, name: t.name, parentId: t.parentId })),
+    [allTopics, blockedIds]
+  );
 
   function onSave() {
     setError(null);
     const payload = {
       name: name.trim(),
-      parentId: parentId === NO_PARENT ? null : parentId,
+      parentId,
       description: description.trim() || null,
     };
     startTransition(async () => {
@@ -153,45 +141,14 @@ export function TopicEditDialog({
           </div>
           <div className="space-y-1">
             <Label htmlFor="topic-parent">Parent</Label>
-            <Select
+            <NestedParentPicker
+              id="topic-parent"
+              options={parentOptions}
               value={parentId}
-              onValueChange={(v) => setParentId(v ?? NO_PARENT)}
-            >
-              <SelectTrigger id="topic-parent" className="w-full">
-                {/* Trigger shows just the picked topic's name (or root
-                    sentinel) — no indent, no code chip — so the closed
-                    state stays compact. */}
-                <SelectValue placeholder="Tanlang">
-                  {(value) => {
-                    if (!value || value === NO_PARENT) {
-                      return (
-                        <span className="flex items-center gap-2">
-                          <Layers
-                            className="size-3.5 text-muted-foreground"
-                            aria-hidden
-                          />
-                          Asosiy mavzu
-                        </span>
-                      );
-                    }
-                    return selectedParent?.topic.name ?? "Tanlang";
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="max-h-[320px]">
-                <SelectItem value={NO_PARENT}>
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Layers className="size-3.5 shrink-0" aria-hidden />
-                    <span>Asosiy mavzu</span>
-                  </span>
-                </SelectItem>
-                {parentOptions.map(({ topic: t, depth }) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    <ParentRow name={t.name} depth={depth} />
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={setParentId}
+              noneLabel="Asosiy mavzu"
+              searchPlaceholder="Mavzu qidirish…"
+            />
           </div>
           <div className="space-y-1">
             <Label htmlFor="topic-desc">Ta&apos;rifi</Label>
@@ -227,33 +184,5 @@ export function TopicEditDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/**
- * Row inside the parent dropdown. Indents by depth and prefixes nested
- * rows with a faint "↳" so the eye catches hierarchy in a long list.
- * Admins pick parents by reading the name — codes belong to the edit
- * header / topic list, not this picker.
- */
-function ParentRow({
-  name,
-  depth,
-}: {
-  name: string;
-  depth: number;
-}) {
-  return (
-    <span
-      className="flex items-center gap-1.5 min-w-0"
-      style={{ paddingLeft: `${depth * 14}px` }}
-    >
-      {depth > 0 && (
-        <span className="text-muted-foreground/40 shrink-0" aria-hidden>
-          ↳
-        </span>
-      )}
-      <span className="truncate">{name}</span>
-    </span>
   );
 }
