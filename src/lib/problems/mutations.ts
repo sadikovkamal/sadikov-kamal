@@ -6,9 +6,11 @@ import {
   problems,
   problemTopics,
   problemAgeCategories,
+  problemMethods,
   images,
   topics,
   sources,
+  methods,
 } from "@/db/schema";
 import { formatProblemCode, parseProblemCodeSeq } from "./codes";
 import { parentIdSet } from "@/lib/taxonomy/hierarchy";
@@ -23,7 +25,8 @@ import { parentIdSet } from "@/lib/taxonomy/hierarchy";
 async function assertLeavesOnly(
   tx: Pick<typeof db, "select">,
   sourceIds: string[],
-  topicIds: string[]
+  topicIds: string[],
+  methodIds: string[] = []
 ): Promise<void> {
   if (sourceIds.length > 0) {
     const allSources = await tx
@@ -49,6 +52,18 @@ async function assertLeavesOnly(
       );
     }
   }
+  if (methodIds.length > 0) {
+    const allMethods = await tx
+      .select({ id: methods.id, parentId: methods.parentId })
+      .from(methods);
+    const methodParents = parentIdSet(allMethods);
+    const badMethod = methodIds.find((id) => methodParents.has(id));
+    if (badMethod) {
+      throw new Error(
+        `Parent guruh metodga masala biriktirib bo'lmaydi (${badMethod})`
+      );
+    }
+  }
 }
 
 export interface ProblemImageInput {
@@ -63,6 +78,8 @@ export interface ProblemInput {
   sourceId: string;
   topicIds: string[];
   ageCategoryIds: string[];
+  /** Optional — methods can be zero-or-more per problem (unlike topics). */
+  methodIds?: string[];
   image?: ProblemImageInput | null;
   metadata?: Record<string, unknown>;
 }
@@ -79,7 +96,12 @@ export interface ProblemInput {
  */
 export async function createProblemTx(input: ProblemInput, createdBy: string) {
   return db.transaction(async (tx) => {
-    await assertLeavesOnly(tx, [input.sourceId], input.topicIds);
+    await assertLeavesOnly(
+      tx,
+      [input.sourceId],
+      input.topicIds,
+      input.methodIds ?? []
+    );
     // Compute next code from the current max. Pulling just max() keeps
     // this O(1) instead of fetching every code.
     const [maxRow] = await tx
@@ -118,6 +140,14 @@ export async function createProblemTx(input: ProblemInput, createdBy: string) {
         }))
       );
     }
+    if (input.methodIds && input.methodIds.length > 0) {
+      await tx.insert(problemMethods).values(
+        input.methodIds.map((methodId) => ({
+          problemId: created.id,
+          methodId,
+        }))
+      );
+    }
 
     if (input.image) {
       await tx.insert(images).values({
@@ -152,7 +182,12 @@ export async function updateProblemTx(
   input: ProblemInput
 ): Promise<{ orphanStorageKeys: string[] }> {
   return db.transaction(async (tx) => {
-    await assertLeavesOnly(tx, [input.sourceId], input.topicIds);
+    await assertLeavesOnly(
+      tx,
+      [input.sourceId],
+      input.topicIds,
+      input.methodIds ?? []
+    );
     const oldImages = await tx
       .select({ storageKey: images.storageKey })
       .from(images)
@@ -172,6 +207,9 @@ export async function updateProblemTx(
     await tx
       .delete(problemAgeCategories)
       .where(eq(problemAgeCategories.problemId, id));
+    await tx
+      .delete(problemMethods)
+      .where(eq(problemMethods.problemId, id));
     // Image is single-slot in the UI; replace wholesale.
     await tx.delete(images).where(eq(images.problemId, id));
 
@@ -186,6 +224,11 @@ export async function updateProblemTx(
           problemId: id,
           ageCategoryId,
         }))
+      );
+    }
+    if (input.methodIds && input.methodIds.length > 0) {
+      await tx.insert(problemMethods).values(
+        input.methodIds.map((methodId) => ({ problemId: id, methodId }))
       );
     }
 
@@ -264,6 +307,8 @@ export interface BulkUpdateProblemsInput {
   sourceId?: string;
   ageCategoryIds?: string[];
   topicIds?: string[];
+  /** Replace semantics like topics. Undefined = don't touch; empty array = clear. */
+  methodIds?: string[];
 }
 
 export async function bulkUpdateProblemsTx(
@@ -273,20 +318,22 @@ export async function bulkUpdateProblemsTx(
   const touchSource = input.sourceId !== undefined;
   const touchAges = input.ageCategoryIds !== undefined;
   const touchTopics = input.topicIds !== undefined;
-  if (!touchSource && !touchAges && !touchTopics) return;
+  const touchMethods = input.methodIds !== undefined;
+  if (!touchSource && !touchAges && !touchTopics && !touchMethods) return;
 
   await db.transaction(async (tx) => {
     await assertLeavesOnly(
       tx,
       touchSource ? [input.sourceId!] : [],
-      touchTopics ? input.topicIds! : []
+      touchTopics ? input.topicIds! : [],
+      touchMethods ? input.methodIds! : []
     );
     if (touchSource) {
       await tx
         .update(problems)
         .set({ sourceId: input.sourceId!, updatedAt: new Date() })
         .where(inArray(problems.id, input.ids));
-    } else if (touchAges || touchTopics) {
+    } else if (touchAges || touchTopics || touchMethods) {
       // Only m2m changed — bump updatedAt explicitly so the change is
       // visible in "recently updated" views without us writing a no-op
       // column change.
@@ -320,6 +367,18 @@ export async function bulkUpdateProblemsTx(
       );
       if (rows.length > 0) {
         await tx.insert(problemTopics).values(rows);
+      }
+    }
+
+    if (touchMethods) {
+      await tx
+        .delete(problemMethods)
+        .where(inArray(problemMethods.problemId, input.ids));
+      const rows = input.ids.flatMap((problemId) =>
+        input.methodIds!.map((methodId) => ({ problemId, methodId }))
+      );
+      if (rows.length > 0) {
+        await tx.insert(problemMethods).values(rows);
       }
     }
   });

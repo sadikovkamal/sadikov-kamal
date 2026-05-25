@@ -16,9 +16,11 @@ import {
   problems,
   problemTopics,
   problemAgeCategories,
+  problemMethods,
   images,
   topics,
   ageCategories,
+  methods,
   sources,
 } from "@/db/schema";
 import { withDescendants } from "@/lib/taxonomy/hierarchy";
@@ -30,33 +32,41 @@ import { withDescendants } from "@/lib/taxonomy/hierarchy";
  */
 async function hydrateProblem(problem: typeof problems.$inferSelect) {
   const id = problem.id;
-  const [topicRows, ageCategoryRows, source, imageRows] = await Promise.all([
-    db
-      .select({ id: topics.id, code: topics.code, name: topics.name })
-      .from(problemTopics)
-      .innerJoin(topics, eq(topics.id, problemTopics.topicId))
-      .where(eq(problemTopics.problemId, id)),
-    db
-      .select({
-        id: ageCategories.id,
-        code: ageCategories.code,
-        name: ageCategories.name,
-      })
-      .from(problemAgeCategories)
-      .innerJoin(
-        ageCategories,
-        eq(ageCategories.id, problemAgeCategories.ageCategoryId)
-      )
-      .where(eq(problemAgeCategories.problemId, id))
-      .orderBy(ageCategories.code),
-    db.query.sources.findFirst({ where: eq(sources.id, problem.sourceId) }),
-    db.query.images.findMany({ where: eq(images.problemId, id) }),
-  ]);
+  const [topicRows, ageCategoryRows, methodRows, source, imageRows] =
+    await Promise.all([
+      db
+        .select({ id: topics.id, code: topics.code, name: topics.name })
+        .from(problemTopics)
+        .innerJoin(topics, eq(topics.id, problemTopics.topicId))
+        .where(eq(problemTopics.problemId, id)),
+      db
+        .select({
+          id: ageCategories.id,
+          code: ageCategories.code,
+          name: ageCategories.name,
+        })
+        .from(problemAgeCategories)
+        .innerJoin(
+          ageCategories,
+          eq(ageCategories.id, problemAgeCategories.ageCategoryId)
+        )
+        .where(eq(problemAgeCategories.problemId, id))
+        .orderBy(ageCategories.code),
+      db
+        .select({ id: methods.id, code: methods.code, name: methods.name })
+        .from(problemMethods)
+        .innerJoin(methods, eq(methods.id, problemMethods.methodId))
+        .where(eq(problemMethods.problemId, id))
+        .orderBy(methods.code),
+      db.query.sources.findFirst({ where: eq(sources.id, problem.sourceId) }),
+      db.query.images.findMany({ where: eq(images.problemId, id) }),
+    ]);
 
   return {
     ...problem,
     topics: topicRows,
     ageCategories: ageCategoryRows,
+    methods: methodRows,
     source,
     images: imageRows,
   };
@@ -103,6 +113,8 @@ export interface ProblemListFilters {
   ageCategoryCodes?: string[];
   /** T###### codes; filter expands to descendants when a parent code is given. */
   topicCodes?: string[];
+  /** M###### codes; filter expands to descendants when a parent code is given. */
+  methodCodes?: string[];
 }
 
 export interface ProblemListSort {
@@ -122,6 +134,12 @@ export interface ProblemListTopic {
   name: string;
 }
 
+export interface ProblemListMethod {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface ProblemListRow {
   id: string;
   code: string;
@@ -132,6 +150,7 @@ export interface ProblemListRow {
   createdAt: Date;
   topics: ProblemListTopic[];
   ageCategories: ProblemListAgeCategory[];
+  methods: ProblemListMethod[];
 }
 
 export interface ProblemListResult {
@@ -236,6 +255,37 @@ export async function listProblems(
       );
     }
   }
+
+  // Method filter — same descendant expansion as topics.
+  if (filters.methodCodes?.length) {
+    const allMethods = await db
+      .select({
+        id: methods.id,
+        code: methods.code,
+        parentId: methods.parentId,
+      })
+      .from(methods);
+    const idByCode = new Map(allMethods.map((m) => [m.code, m.id]));
+    const seedIds = filters.methodCodes
+      .map((c) => idByCode.get(c))
+      .filter((id): id is string => id != null);
+    if (seedIds.length > 0) {
+      const expanded = withDescendants(seedIds, allMethods);
+      conds.push(
+        exists(
+          db
+            .select({ one: sql<number>`1` })
+            .from(problemMethods)
+            .where(
+              and(
+                eq(problemMethods.problemId, problems.id),
+                inArray(problemMethods.methodId, expanded)
+              )
+            )
+        )
+      );
+    }
+  }
   const whereClause = conds.length ? and(...conds) : undefined;
 
   const orderColumn =
@@ -270,10 +320,10 @@ export async function listProblems(
 
   if (rows.length === 0) return { rows: [], total };
 
-  // Hydrate topics (id+code+name for chip links) + age categories in
-  // two batched queries.
+  // Hydrate topics (id+code+name for chip links) + age categories + methods
+  // in three batched queries.
   const ids = rows.map((r) => r.id);
-  const [topicRows, ageCategoryRows] = await Promise.all([
+  const [topicRows, ageCategoryRows, methodRows] = await Promise.all([
     db
       .select({
         problemId: problemTopics.problemId,
@@ -297,6 +347,16 @@ export async function listProblems(
         eq(ageCategories.id, problemAgeCategories.ageCategoryId)
       )
       .where(inArray(problemAgeCategories.problemId, ids)),
+    db
+      .select({
+        problemId: problemMethods.problemId,
+        id: methods.id,
+        code: methods.code,
+        name: methods.name,
+      })
+      .from(problemMethods)
+      .innerJoin(methods, eq(methods.id, problemMethods.methodId))
+      .where(inArray(problemMethods.problemId, ids)),
   ]);
 
   const topicsByProblem = new Map<string, ProblemListTopic[]>();
@@ -311,6 +371,12 @@ export async function listProblems(
     arr.push({ id: r.id, code: r.code, name: r.name });
     ageCategoriesByProblem.set(r.problemId, arr);
   }
+  const methodsByProblem = new Map<string, ProblemListMethod[]>();
+  for (const r of methodRows) {
+    const arr = methodsByProblem.get(r.problemId) ?? [];
+    arr.push({ id: r.id, code: r.code, name: r.name });
+    methodsByProblem.set(r.problemId, arr);
+  }
 
   return {
     rows: rows.map((r) => ({
@@ -322,6 +388,9 @@ export async function listProblems(
       createdAt: r.createdAt,
       topics: topicsByProblem.get(r.id) ?? [],
       ageCategories: (ageCategoriesByProblem.get(r.id) ?? []).sort((a, b) =>
+        a.code.localeCompare(b.code)
+      ),
+      methods: (methodsByProblem.get(r.id) ?? []).sort((a, b) =>
         a.code.localeCompare(b.code)
       ),
     })),

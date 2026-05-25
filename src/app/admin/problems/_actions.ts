@@ -58,6 +58,10 @@ const problemSchema = z.object({
   ageCategoryIds: z
     .array(z.string().uuid())
     .min(1, "Kamida bitta yosh toifasini tanlang"),
+  // Methods are optional (zero or more allowed). Default to [] so callers
+  // that omit the key from the payload (e.g. older form revisions) keep
+  // working without sending undefined into the mutation.
+  methodIds: z.array(z.string().uuid()).optional().default([]),
   image: z
     .object({
       storageKey: z.string().min(1),
@@ -224,12 +228,15 @@ const bulkUpdateSchema = z
     sourceId: z.string().uuid().optional(),
     ageCategoryIds: z.array(z.string().uuid()).min(1).optional(),
     topicIds: z.array(z.string().uuid()).min(1).optional(),
+    /** Methods can be cleared via bulk-edit — empty array means "no methods". */
+    methodIds: z.array(z.string().uuid()).optional(),
   })
   .refine(
     (data) =>
       data.sourceId !== undefined ||
       data.ageCategoryIds !== undefined ||
-      data.topicIds !== undefined,
+      data.topicIds !== undefined ||
+      data.methodIds !== undefined,
     { message: "Kamida bitta maydonni o'zgartiring" }
   );
 
