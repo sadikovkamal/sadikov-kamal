@@ -9,6 +9,7 @@ import {
   GraduationCap,
   FolderTree,
   FilePlus,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: "/admin/problems/new", label: "Masala yaratish", icon: FilePlus },
       { href: "/admin/topics", label: "Mavzular", icon: FolderTree, prefix: true },
+      { href: "/admin/methods", label: "Metodlar", icon: Wrench, prefix: true },
       { href: "/admin/sources", label: "Manbalar", icon: Library, prefix: true },
       {
         href: "/admin/age-categories",
