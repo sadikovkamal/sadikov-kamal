@@ -10,7 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./users";
-import { sources, topics, ageCategories } from "./taxonomy";
+import { sources, topics, ageCategories, methods } from "./taxonomy";
 
 export const problems = pgTable(
   "problems",
@@ -113,9 +113,36 @@ export const problemAgeCategories = pgTable(
   ]
 );
 
+/**
+ * Junction table linking problems to methods. Same shape and FK semantics
+ * as `problemTopics`: `ON DELETE CASCADE` on the problem side so deleting
+ * a problem drops its method links automatically; `ON DELETE RESTRICT` on
+ * the method side so an admin can't delete a method that's still in use
+ * (the action layer surfaces that as a friendly error).
+ *
+ * Methods are optional per problem — empty set is valid, unlike topics
+ * which require ≥ 1.
+ */
+export const problemMethods = pgTable(
+  "problem_methods",
+  {
+    problemId: uuid("problem_id")
+      .notNull()
+      .references(() => problems.id, { onDelete: "cascade" }),
+    methodId: uuid("method_id")
+      .notNull()
+      .references(() => methods.id, { onDelete: "restrict" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.problemId, t.methodId] }),
+    index("problem_methods_method_id_idx").on(t.methodId),
+  ]
+);
+
 export type Problem = typeof problems.$inferSelect;
 export type NewProblem = typeof problems.$inferInsert;
 export type Image = typeof images.$inferSelect;
 export type NewImage = typeof images.$inferInsert;
 export type ProblemTopic = typeof problemTopics.$inferSelect;
 export type ProblemAgeCategory = typeof problemAgeCategories.$inferSelect;
+export type ProblemMethod = typeof problemMethods.$inferSelect;

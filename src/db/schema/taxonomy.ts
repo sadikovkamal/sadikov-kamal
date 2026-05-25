@@ -40,6 +40,30 @@ export const topics = pgTable(
 );
 
 /**
+ * Methods — `yechish metodi`. Parallel of `topics`: stable `M######` code,
+ * display name, optional self-referencing parent for grouping. A problem
+ * has zero or more methods (vs. topics which require ≥ 1); the metadata
+ * is added later by the admin, not at import time.
+ */
+export const methods = pgTable(
+  "methods",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    parentId: uuid("parent_id").references((): AnyPgColumn => methods.id, {
+      onDelete: "set null",
+    }),
+    description: text("description"),
+  },
+  (t) => [
+    index("methods_code_idx").on(t.code),
+    index("methods_parent_id_idx").on(t.parentId),
+    index("methods_name_lower_idx").on(sql`lower(${t.name})`),
+  ]
+);
+
+/**
  * Sources — olympiads, books, courses, etc. Same nested taxonomy shape
  * as `topics`: stable `S######` code + display `name` + self-referencing
  * `parent_id` so admins can group like
@@ -112,3 +136,5 @@ export type Source = typeof sources.$inferSelect;
 export type NewSource = typeof sources.$inferInsert;
 export type AgeCategory = typeof ageCategories.$inferSelect;
 export type NewAgeCategory = typeof ageCategories.$inferInsert;
+export type Method = typeof methods.$inferSelect;
+export type NewMethod = typeof methods.$inferInsert;
