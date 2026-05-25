@@ -8,6 +8,7 @@ import {
   Library,
   Pencil,
   Tags,
+  Wrench,
 } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemByCode } from "@/lib/problems/queries";
@@ -205,6 +206,23 @@ export default async function ProblemDetailPage({
                         className="inline-flex items-center gap-1 rounded-md ring-1 ring-foreground/10 bg-muted/30 hover:bg-muted hover:ring-foreground/25 px-1.5 py-0.5 text-[11px] text-foreground/85 transition-colors"
                       >
                         <span className="truncate">{t.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </MetaRow>
+              )}
+
+              {p.methods.length > 0 && (
+                <MetaRow label="Metodlar" icon={Wrench}>
+                  <div className="flex flex-wrap gap-1">
+                    {p.methods.map((m) => (
+                      <Link
+                        key={m.id}
+                        href={`/admin/problems?method=${m.code}`}
+                        title={`Faqat ${m.name} metodi`}
+                        className="inline-flex items-center gap-1 rounded-md ring-1 ring-foreground/10 bg-muted/30 hover:bg-muted hover:ring-foreground/25 px-1.5 py-0.5 text-[11px] text-foreground/85 transition-colors"
+                      >
+                        <span className="truncate">{m.name}</span>
                       </Link>
                     ))}
                   </div>
