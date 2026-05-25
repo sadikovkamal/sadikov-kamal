@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemByCode } from "@/lib/problems/queries";
+import { getPublicUrl } from "@/lib/storage/r2";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { Button } from "@/components/ui/button";
 import { DeleteProblemButton } from "./delete-button";
@@ -38,6 +39,15 @@ export default async function ProblemDetailPage({
   const { id: code } = await params;
   const p = await getProblemByCode(code);
   if (!p) notFound();
+
+  // Images uploaded via the form's "Rasm yuklash" button are saved as a
+  // separate `images` row without touching bodyMd, so they wouldn't render
+  // through MarkdownPreview. Import-pipeline images, by contrast, already
+  // have their absolute URL inlined inside bodyMd — render those only once
+  // by filtering out any image whose URL is already present in the markdown.
+  const standaloneImages = p.images
+    .map((img) => ({ ...img, publicUrl: getPublicUrl(img.storageKey) }))
+    .filter((img) => !p.bodyMd.includes(img.publicUrl));
 
   return (
     <div className="space-y-5">
@@ -97,14 +107,35 @@ export default async function ProblemDetailPage({
               padded panel with no header label (the breadcrumb already
               names the section as "shart"). Images inside the markdown
               are capped at ~640px and centered so a 1200×800 photo
-              doesn't dominate the column; the executor already inlined
-              every ![](images/foo.png) reference as an absolute R2 URL,
-              so MarkdownPreview is the only image surface. */}
+              doesn't dominate the column. Two image surfaces coexist:
+              import-pipeline images are inlined inside bodyMd and render
+              through MarkdownPreview; form-uploaded images live only in
+              the `images` row and render below as standalone figures. */}
           <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm px-6 py-6 md:px-8 md:py-7">
             <MarkdownPreview
               source={p.bodyMd}
               className="[&_img]:max-w-[640px] [&_img]:mx-auto [&_img]:block [&_img]:my-6"
             />
+            {standaloneImages.length > 0 && (
+              <div className="mt-6 space-y-6">
+                {standaloneImages.map((img) => (
+                  <a
+                    key={img.id}
+                    href={img.publicUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block max-w-[640px] mx-auto"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.publicUrl}
+                      alt={img.altText ?? img.originalFilename}
+                      className="block max-w-full rounded-md border"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </article>
 
