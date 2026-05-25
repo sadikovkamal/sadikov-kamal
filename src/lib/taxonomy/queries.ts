@@ -6,9 +6,11 @@ import {
   topics,
   sources,
   ageCategories,
+  methods,
   problems,
   problemTopics,
   problemAgeCategories,
+  problemMethods,
 } from "@/db/schema";
 import { rollupCounts } from "./hierarchy";
 
@@ -187,6 +189,60 @@ export async function listAgeCategoriesWithCounts(): Promise<
 
   const byId = new Map(directCounts.map((r) => [r.ageCategoryId, r.count]));
   return rows.map((r) => ({ ...r, problemCount: byId.get(r.id) ?? 0 }));
+}
+
+export interface MethodWithCount {
+  id: string;
+  code: string;
+  name: string;
+  parentId: string | null;
+  description: string | null;
+  problemCount: number;
+}
+
+/**
+ * Mirror of `listTopicsWithCounts`. Two parallel queries + JS merge so
+ * we never rely on Drizzle's outer-scope column resolution inside a
+ * correlated subquery (see the long comment on `listSourcesWithCounts`
+ * for the historical reason).
+ *
+ * Counts are rolled up the tree so a parent method shows the sum of
+ * problems sitting under its descendants — same convention as topics.
+ */
+export async function listMethodsWithCounts(): Promise<MethodWithCount[]> {
+  const [rows, directCounts] = await Promise.all([
+    db
+      .select({
+        id: methods.id,
+        code: methods.code,
+        name: methods.name,
+        parentId: methods.parentId,
+        description: methods.description,
+      })
+      .from(methods)
+      .orderBy(methods.code),
+    db
+      .select({
+        methodId: problemMethods.methodId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(problemMethods)
+      .groupBy(problemMethods.methodId),
+  ]);
+
+  const directByMethodId = new Map(
+    directCounts.map((r) => [r.methodId, r.count])
+  );
+  const rowsWithDirect = rows.map((r) => ({
+    ...r,
+    problemCount: directByMethodId.get(r.id) ?? 0,
+  }));
+
+  const rollup = rollupCounts(rowsWithDirect);
+  return rowsWithDirect.map((r) => ({
+    ...r,
+    problemCount: rollup.get(r.id) ?? 0,
+  }));
 }
 
 /**

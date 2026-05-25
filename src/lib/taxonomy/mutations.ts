@@ -2,10 +2,11 @@ import "server-only";
 
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { topics, sources, ageCategories } from "@/db/schema";
+import { topics, sources, ageCategories, methods } from "@/db/schema";
 import { nextTopicCode } from "./topic-codes";
 import { nextAgeCategoryCode } from "./age-category-codes";
 import { nextSourceCode } from "./source-codes";
+import { nextMethodCode } from "./method-codes";
 
 // --- Topics -----------------------------------------------------------------
 
@@ -170,4 +171,45 @@ export async function updateAgeCategory(
  */
 export async function deleteAgeCategory(id: string): Promise<void> {
   await db.delete(ageCategories).where(eq(ageCategories.id, id));
+}
+
+// --- Methods ----------------------------------------------------------------
+
+export interface MethodInput {
+  name: string;
+  parentId: string | null;
+  description: string | null;
+}
+
+export async function createMethod(input: MethodInput): Promise<string> {
+  // Same `select max(code)` + sequential mint pattern as topics — UNIQUE
+  // on `code` turns parallel-creator races into clean constraint errors.
+  const [maxRow] = await db
+    .select({ maxCode: sql<string | null>`max(${methods.code})` })
+    .from(methods);
+  const code = nextMethodCode(maxRow?.maxCode ? [maxRow.maxCode] : []);
+
+  const [created] = await db
+    .insert(methods)
+    .values({ ...input, code })
+    .returning({ id: methods.id });
+  if (!created) throw new Error("Insert returned no rows");
+  return created.id;
+}
+
+export async function updateMethod(
+  id: string,
+  input: MethodInput
+): Promise<void> {
+  await db.update(methods).set(input).where(eq(methods.id, id));
+}
+
+/**
+ * Delete a method. Schema sets `methods.parentId` ON DELETE SET NULL so
+ * children survive as roots; `problem_methods` is ON DELETE RESTRICT so
+ * Postgres throws if any problem still uses it and the action layer
+ * surfaces that as a friendly error (mirror of `deleteTopic`).
+ */
+export async function deleteMethod(id: string): Promise<void> {
+  await db.delete(methods).where(eq(methods.id, id));
 }
