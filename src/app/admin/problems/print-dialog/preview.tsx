@@ -1,6 +1,13 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
@@ -135,6 +142,17 @@ const REMARK_PLUGINS = [remarkMath, remarkGfm];
 const REHYPE_PLUGINS = [rehypeKatex];
 const MD_COMPONENTS = { img: MarkdownImage };
 
+/**
+ * A4-shaped page frame that scales down to fit the available width.
+ *
+ * The inner page is always 794 px wide so the layout/typography looks
+ * the same as the .docx output regardless of the modal size. We wrap it
+ * in a container that measures itself with a `ResizeObserver` and
+ * applies a `transform: scale(…)` to the inner frame, with the wrapper's
+ * own width/height set to the *scaled* dimensions so it occupies the
+ * right amount of layout space. This keeps the preview pane vertical-
+ * scroll-only — no horizontal scrollbar even on a narrow preview pane.
+ */
 function PageFrame({
   marginPx,
   config,
@@ -144,20 +162,74 @@ function PageFrame({
   config: PrintConfig;
   children: React.ReactNode;
 }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [innerHeight, setInnerHeight] = useState(A4_MIN_HEIGHT_PX);
+
+  // Recompute the scale whenever the outer scroll container resizes.
+  // The wrapper itself is what we measure; its parent is the scroller
+  // and provides the width budget after its own padding is applied.
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const parent = wrapper.parentElement;
+    if (!parent) return;
+    const recompute = () => {
+      // `clientWidth` already excludes the scroller's vertical
+      // scrollbar so we end up with the actual content area.
+      const available = parent.clientWidth;
+      const next = Math.min(1, available / A4_WIDTH_PX);
+      // Avoid a degenerate 0 if the container starts at zero width
+      // during the first paint.
+      setScale(next > 0 ? next : 1);
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, []);
+
+  // Observe the inner (un-scaled) content so the wrapper's reserved
+  // space tracks content growth. Transforms don't affect layout, so we
+  // mirror the inner's pixel height into the wrapper, scaled.
+  useEffect(() => {
+    const inner = innerRef.current;
+    if (!inner) return;
+    const recompute = () => {
+      setInnerHeight(Math.max(A4_MIN_HEIGHT_PX, inner.offsetHeight));
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(inner);
+    return () => ro.disconnect();
+  }, []);
+
   return (
     <div
-      className="bg-white shadow-lg ring-1 ring-foreground/10 rounded-sm"
+      ref={wrapperRef}
       style={{
-        width: `${A4_WIDTH_PX}px`,
-        minHeight: `${A4_MIN_HEIGHT_PX}px`,
-        padding: `${marginPx}px`,
-        fontFamily: "'Times New Roman', Times, serif",
-        fontSize: `${config.fontSize}pt`,
-        lineHeight: config.lineHeight,
-        color: "#111",
+        width: `${A4_WIDTH_PX * scale}px`,
+        height: `${innerHeight * scale}px`,
       }}
     >
-      {children}
+      <div
+        ref={innerRef}
+        className="bg-white shadow-lg ring-1 ring-foreground/10 rounded-sm"
+        style={{
+          width: `${A4_WIDTH_PX}px`,
+          minHeight: `${A4_MIN_HEIGHT_PX}px`,
+          padding: `${marginPx}px`,
+          fontFamily: "'Times New Roman', Times, serif",
+          fontSize: `${config.fontSize}pt`,
+          lineHeight: config.lineHeight,
+          color: "#111",
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -202,7 +274,7 @@ export function PrintPreview({
   // Loading and error branches don't touch the heavy markdown pipeline.
   if (problems === "loading") {
     return (
-      <div className="h-full overflow-y-auto bg-muted/20 p-8 flex flex-col items-center gap-4">
+      <div className="h-full overflow-y-auto overflow-x-hidden bg-muted/20 p-4 flex flex-col items-center gap-4">
         <PageFrame marginPx={marginPx} config={deferredConfig}>
           <div className="flex flex-col gap-3">
             <div
@@ -227,7 +299,7 @@ export function PrintPreview({
   if (!Array.isArray(problems)) {
     // `{ error: string }` branch.
     return (
-      <div className="h-full overflow-y-auto bg-muted/20 p-8 flex flex-col items-center gap-4">
+      <div className="h-full overflow-y-auto overflow-x-hidden bg-muted/20 p-4 flex flex-col items-center gap-4">
         <div
           className="w-full max-w-[794px] rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
           role="alert"

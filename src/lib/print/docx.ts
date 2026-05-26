@@ -55,8 +55,14 @@ export function buildDocx(
   images: Map<string, { bytes: Uint8Array; mime: string }>,
 ): Document {
   const marginTwips = MARGIN_TWIPS[config.margins];
-  const maxImageWidthEmu =
-    (A4_WIDTH_TWIPS - 2 * marginTwips) * EMU_PER_TWIP;
+  const contentWidthEmu = (A4_WIDTH_TWIPS - 2 * marginTwips) * EMU_PER_TWIP;
+  // Cap diagram images at ~60 % of the content width. Source images often
+  // come from olympiad-PDF crops at 1000+ px — at native 96 dpi that
+  // covers the entire page and dwarfs the rest of the problem. 60 % gives
+  // diagrams a comfortable reading size while leaving margin around them.
+  // Smaller images keep their natural dimensions; the walker only caps,
+  // it never enlarges.
+  const maxImageWidthEmu = Math.round(contentWidthEmu * 0.6);
 
   const halfPointSize = config.fontSize * 2;
   // `line` is in twentieths-of-a-point; lineHeight = multiplier × 240 (12pt baseline).
@@ -117,9 +123,13 @@ export function buildDocx(
       );
     }
 
-    // Body via the markdown walker. The walker reports back which image
-    // URLs the markdown already embedded, so any unreferenced images on
-    // the problem can be appended as trailing paragraphs.
+    // Body via the markdown walker. Pass `keepWithNext: true` so every
+    // paragraph the walker produces is glued to the next via Word's
+    // `keepNext` flag — Word then refuses to split the chain across a
+    // page break and moves the whole problem to the next page when it
+    // doesn't fit. The empty spacer paragraph at the end of the problem
+    // has no `keepNext`, which releases the chain so the *next* problem
+    // can start on a fresh page if needed.
     const usedImageUrls = new Set<string>();
     const ctx: RenderContext = {
       numberPrefix,
@@ -127,6 +137,7 @@ export function buildDocx(
       maxImageWidthEmu,
       fontSize: config.fontSize,
       usedImageUrls,
+      keepWithNext: true,
     };
     const bodyBlocks = renderProblemBodyToParagraphs(problem.bodyMd, ctx);
     for (const block of bodyBlocks) body.push(block);
@@ -138,6 +149,7 @@ export function buildDocx(
       if (!entry) {
         body.push(
           new Paragraph({
+            keepNext: true,
             children: [
               new TextRun({
                 text: "[rasm yuklanmadi]",
@@ -157,11 +169,15 @@ export function buildDocx(
         maxImageWidthEmu,
         fontSize: config.fontSize,
         usedImageUrls,
+        keepWithNext: true,
       });
       for (const block of trailing) body.push(block);
     }
 
-    // 12pt after-spacing between problems via a small spacer paragraph.
+    // 12pt after-spacing between problems via a small spacer paragraph
+    // that explicitly does NOT carry `keepNext`, breaking the chain that
+    // the body paragraphs above built up and letting Word start a new
+    // page here when the next problem doesn't fit.
     body.push(
       new Paragraph({
         spacing: { after: 240 },

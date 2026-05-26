@@ -345,6 +345,18 @@ async function checkEndToEndDocx() {
   );
   console.log("    ok: word/document.xml contains <m:oMath");
 
+  // Regression guard for the docx@9.7 bug where ImportedXmlComponent
+  // .fromXmlString wraps namespaced roots in a literal `<undefined>`
+  // element. Word refuses to open files that contain that tag — the
+  // user-visible symptom is "Word experienced an error trying to open
+  // the file". Our `importOmathXml` helper unwraps the bogus parent;
+  // catching any `<undefined` literal here keeps that fix honest.
+  assert(
+    !documentXml.includes("<undefined"),
+    "word/document.xml contains an <undefined> element — Word will reject this docx",
+  );
+  console.log("    ok: word/document.xml has no <undefined> tags");
+
   // Image embedded: jszip exposes a `files` record where folder entries
   // appear as keys ending in "/" alongside any contained files.
   const mediaEntries = Object.keys(zip.files).filter((path) =>

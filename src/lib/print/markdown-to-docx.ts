@@ -83,6 +83,38 @@ export interface RenderContext {
    * paragraph appended (none of the body markdown referenced them).
    */
   usedImageUrls?: Set<string>;
+  /**
+   * When true, every top-level Paragraph the walker produces is created
+   * with `keepNext: true`. The caller (buildDocx) uses this to glue all
+   * paragraphs of a single problem together — Word then refuses to
+   * split them across a page break, moving the whole problem to the
+   * next page if it doesn't fit. The spacer paragraph the caller
+   * appends *between* problems has no keepNext, which is what releases
+   * the chain so the next problem can start on a new page.
+   *
+   * Explicit `keepNext` already on the Paragraph options wins over this
+   * default — most call sites don't set it, so the override does what
+   * you'd expect.
+   */
+  keepWithNext?: boolean;
+}
+
+/**
+ * Construct a `Paragraph` that honours `ctx.keepWithNext` unless the
+ * caller explicitly set `keepNext` themselves. Centralising the merge
+ * here keeps every `new Paragraph(...)` site uniform without each one
+ * having to remember the flag.
+ */
+type ParagraphInit = Extract<
+  ConstructorParameters<typeof Paragraph>[0],
+  object
+>;
+
+function makeParagraph(opts: ParagraphInit, ctx: RenderContext): Paragraph {
+  if (ctx.keepWithNext && opts.keepNext === undefined) {
+    return new Paragraph({ ...opts, keepNext: true });
+  }
+  return new Paragraph(opts);
 }
 
 /**
@@ -117,11 +149,14 @@ export function renderProblemBodyToParagraphs(
   // — emit a paragraph that still carries the number prefix.
   if (!firstTopLevelParagraphSeen && ctx.numberPrefix.length > 0) {
     blocks.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: ctx.numberPrefix, size: ctx.fontSize * 2 }),
-        ],
-      }),
+      makeParagraph(
+        {
+          children: [
+            new TextRun({ text: ctx.numberPrefix, size: ctx.fontSize * 2 }),
+          ],
+        },
+        ctx,
+      ),
     );
   }
 
@@ -153,7 +188,7 @@ function renderTopLevel(
     case "blockquote":
       return renderBlockquote(node, ctx);
     case "thematicBreak":
-      return [renderThematicBreak(node)];
+      return [renderThematicBreak(node, ctx)];
     case "table":
       return [renderTable(node, ctx)];
     case "html":
@@ -183,7 +218,7 @@ function renderParagraph(
   for (const child of node.children) {
     appendInlineChildren(child, ctx, {}, children);
   }
-  return new Paragraph({ children });
+  return makeParagraph({ children }, ctx);
 }
 
 function renderHeading(
@@ -198,10 +233,13 @@ function renderHeading(
   for (const child of node.children) {
     appendInlineChildren(child, ctx, { bold: true }, children);
   }
-  return new Paragraph({
-    heading: HEADING_LEVEL_BY_DEPTH[node.depth],
-    children,
-  });
+  return makeParagraph(
+    {
+      heading: HEADING_LEVEL_BY_DEPTH[node.depth],
+      children,
+    },
+    ctx,
+  );
 }
 
 const HEADING_LEVEL_BY_DEPTH: Record<
@@ -221,6 +259,45 @@ const HEADING_LEVEL_BY_DEPTH: Record<
 // ---------------------------------------------------------------------------
 
 type ParagraphChild = TextRun | ImageRun | ImportedXmlComponent;
+
+/**
+ * Wrapper around `ImportedXmlComponent.fromXmlString` that works around a
+ * bug in `docx@9.7.x`.
+ *
+ * Internally the library does roughly:
+ *
+ *   convertToXmlComponent(xml2js(content, { compact: false }))
+ *
+ * `xml2js` returns the *document* node — an object with no `type` and an
+ * `elements` array holding the real root. `convertToXmlComponent` hits the
+ * `case undefined` branch, constructs `new ImportedXmlComponent(undefined,
+ * undefined)` for that document node, and pushes the actual root in as a
+ * CHILD. The resulting tree serialises to `<undefined><m:oMath>…</m:oMath>
+ * </undefined>` in `word/document.xml`, which Word refuses to open
+ * ("Word experienced an error trying to open the file").
+ *
+ * We can't reach `convertToXmlComponent` directly (it isn't re-exported
+ * from the package's barrel), so we use the broken `fromXmlString`,
+ * walk its internal `root` array, and return the first real child — the
+ * actual `<m:oMath>` component with the correct tag name.
+ */
+function importOmathXml(xml: string): ImportedXmlComponent {
+  const wrapper = ImportedXmlComponent.fromXmlString(xml);
+  // The wrapper is an ImportedXmlComponent whose internal `root` array
+  // holds an attribute component (if any) plus the parsed child elements.
+  // The first ImportedXmlComponent inside is our actual root.
+  const root = (wrapper as unknown as { root: unknown[] }).root;
+  for (const child of root) {
+    if (child instanceof ImportedXmlComponent) {
+      return child;
+    }
+  }
+  // Defensive: shouldn't happen for well-formed input, but if the XML
+  // didn't yield any element child, hand back the wrapper so callers
+  // still receive a value of the expected type. It will serialise as
+  // `<undefined/>` and downstream tests should catch it.
+  return wrapper;
+}
 
 interface InlineStyle {
   bold?: boolean;
@@ -275,7 +352,7 @@ function appendInlineChildren(
     }
     case "inlineMath": {
       const omml = mathToOmml((node as InlineMath).value);
-      out.push(ImportedXmlComponent.fromXmlString(omml));
+      out.push(importOmathXml(omml));
       return;
     }
     case "break":
@@ -361,12 +438,15 @@ function renderListItem(
         appendInlineChildren(c, ctx, {}, children);
       }
       out.push(
-        new Paragraph({
-          children,
-          ...(ordered
-            ? { numbering: { reference: ORDERED_LIST_REFERENCE, level } }
-            : { bullet: { level } }),
-        }),
+        makeParagraph(
+          {
+            children,
+            ...(ordered
+              ? { numbering: { reference: ORDERED_LIST_REFERENCE, level } }
+              : { bullet: { level } }),
+          },
+          ctx,
+        ),
       );
     } else if (child.type === "list") {
       // Nested list.
@@ -403,16 +483,18 @@ function renderCodeBlock(node: Code, ctx: RenderContext): Paragraph[] {
       }),
     );
   });
-  return [new Paragraph({ children })];
+  return [makeParagraph({ children }, ctx)];
 }
 
 function renderBlockMath(node: BlockMath, ctx: RenderContext): Paragraph {
   const omml = mathToOmml(node.value, { display: true });
-  void ctx;
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [ImportedXmlComponent.fromXmlString(omml)],
-  });
+  return makeParagraph(
+    {
+      alignment: AlignmentType.CENTER,
+      children: [importOmathXml(omml)],
+    },
+    ctx,
+  );
 }
 
 function renderImageParagraph(
@@ -421,17 +503,20 @@ function renderImageParagraph(
 ): Paragraph {
   const run = makeImageRunIfAvailable(node, ctx);
   if (!run) {
-    return new Paragraph({
-      children: [
-        new TextRun({
-          text: "[rasm yuklanmadi]",
-          italics: true,
-          size: ctx.fontSize * 2,
-        }),
-      ],
-    });
+    return makeParagraph(
+      {
+        children: [
+          new TextRun({
+            text: "[rasm yuklanmadi]",
+            italics: true,
+            size: ctx.fontSize * 2,
+          }),
+        ],
+      },
+      ctx,
+    );
   }
-  return new Paragraph({ children: [run] });
+  return makeParagraph({ children: [run] }, ctx);
 }
 
 const EMU_PER_PIXEL = 9525;
@@ -502,33 +587,40 @@ function renderBlockquote(
       const text = toString(child as BlockContent | DefinitionContent).trim();
       if (!text) continue;
       out.push(
-        new Paragraph({
-          indent: { left: 720 },
-          children: [
-            makeStyledText(text, { italics: true }, ctx),
-          ],
-        }),
+        makeParagraph(
+          {
+            indent: { left: 720 },
+            children: [makeStyledText(text, { italics: true }, ctx)],
+          },
+          ctx,
+        ),
       );
     }
   }
   return out;
 }
 
-function renderThematicBreak(_node: ThematicBreak): Paragraph {
+function renderThematicBreak(
+  _node: ThematicBreak,
+  ctx: RenderContext,
+): Paragraph {
   // eslint warns on the param even with the underscore; we keep the
   // signature uniform with the other `render*` helpers so the dispatcher
   // stays readable.
   void _node;
-  return new Paragraph({
-    border: {
-      bottom: {
-        color: "auto",
-        space: 1,
-        style: BorderStyle.SINGLE,
-        size: 6,
+  return makeParagraph(
+    {
+      border: {
+        bottom: {
+          color: "auto",
+          space: 1,
+          style: BorderStyle.SINGLE,
+          size: 6,
+        },
       },
     },
-  });
+    ctx,
+  );
 }
 
 function renderTable(node: MdTable, ctx: RenderContext): Table {
@@ -575,7 +667,7 @@ function renderFallback(
   if (text) {
     children.push(makeStyledText(text, {}, ctx));
   }
-  return new Paragraph({ children });
+  return makeParagraph({ children }, ctx);
 }
 
 // ---------------------------------------------------------------------------
