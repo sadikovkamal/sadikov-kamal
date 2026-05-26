@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { requireAdmin } from "@/lib/auth";
 import { buildDocx } from "@/lib/print/docx";
+import { normalizeImageForDocx } from "@/lib/print/image-normalize";
 import { fetchImageBytesBatch } from "@/lib/print/r2-fetch";
 import {
   printConfigSchema,
@@ -71,31 +72,6 @@ export async function loadProblemsForPrintAction(
 // generatePrintDocxAction
 // ---------------------------------------------------------------------------
 
-/**
- * Map a storage-key file extension to its likely MIME. Used to populate
- * the `mime` field of the images map that `buildDocx` consumes — the
- * docx walker forwards this verbatim to `ImageRun`'s `type` option. PNG
- * is a safe default because the `docx` library happily accepts a
- * mislabelled PNG type for most browsers' embedded images.
- */
-function inferMimeFromKey(storageKey: string): string {
-  const lower = storageKey.toLowerCase();
-  const dot = lower.lastIndexOf(".");
-  const ext = dot >= 0 ? lower.slice(dot + 1) : "";
-  switch (ext) {
-    case "png":
-      return "image/png";
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "gif":
-      return "image/gif";
-    case "webp":
-      return "image/webp";
-    default:
-      return "image/png";
-  }
-}
 
 /**
  * Server-side .docx generator. Validates the payload, re-fetches the
@@ -151,19 +127,30 @@ export async function generatePrintDocxAction(input: {
     // reference images by their public URL (`![](url)`), so the walker
     // looks up by `url` — not `storageKey`. We carry both on the
     // `PrintProblem`, fetch by `storageKey`, and re-key here.
+    //
+    // Every byte buffer goes through `normalizeImageForDocx` first.
+    // `docx@9.7` only embeds `jpg/png/gif/bmp` cleanly; if a problem
+    // uses a WEBP (or AVIF/HEIC) the function pipes the bytes through
+    // sharp and emits PNG. Skip the image entirely if sharp can't
+    // decode it — substituting placeholder text in `buildDocx` (via
+    // the walker's `[rasm yuklanmadi]` path) is safer than embedding
+    // bytes that would make Word refuse to open the document.
     const imagesByUrl = new Map<string, { bytes: Uint8Array; mime: string }>();
+    let conversionFailures = 0;
     for (const problem of problems) {
       for (const img of problem.images) {
-        const bytes = batchResult.results.get(img.storageKey);
-        if (!bytes) continue;
-        imagesByUrl.set(img.url, {
-          bytes,
-          mime: inferMimeFromKey(img.storageKey),
-        });
+        const rawBytes = batchResult.results.get(img.storageKey);
+        if (!rawBytes) continue;
+        const normalised = await normalizeImageForDocx(rawBytes);
+        if (!normalised) {
+          conversionFailures += 1;
+          continue;
+        }
+        imagesByUrl.set(img.url, normalised);
       }
     }
 
-    const failedImages = batchResult.failures.size;
+    const failedImages = batchResult.failures.size + conversionFailures;
 
     const doc = buildDocx(problems, parsed.data.config, imagesByUrl);
     const buffer = await Packer.toBuffer(doc);

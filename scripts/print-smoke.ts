@@ -359,13 +359,41 @@ async function checkEndToEndDocx() {
 
   // Image embedded: jszip exposes a `files` record where folder entries
   // appear as keys ending in "/" alongside any contained files.
-  const mediaEntries = Object.keys(zip.files).filter((path) =>
-    path.startsWith("word/media/"),
+  // Filter out the directory entries so `zip.file(path)` is non-null.
+  const mediaEntries = Object.keys(zip.files).filter(
+    (path) => path.startsWith("word/media/") && !zip.files[path]?.dir,
   );
   assert(
     mediaEntries.length > 0,
     `expected at least one word/media/* entry in docx zip, got: ${Object.keys(zip.files).join(", ")}`,
   );
+
+  // Regression guard for the WEBP-mislabelled-as-PNG bug. docx@9.7 only
+  // embeds `jpg/png/gif/bmp` cleanly; if WEBP bytes ride along under a
+  // `.png` extension, Word rejects the whole file with "Word experienced
+  // an error trying to open the file". `normalizeImageForDocx` in
+  // `_print-actions.ts` runs sharp to convert WEBP→PNG before assembly.
+  // The smoke covers the docx-builder layer (no action involved), so we
+  // assert the embedded bytes start with the PNG signature.
+  for (const path of mediaEntries) {
+    const data = await zip.file(path)!.async("uint8array");
+    const isSupportedSignature =
+      // PNG: 89 50 4E 47
+      (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) ||
+      // JPEG: FF D8 FF
+      (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) ||
+      // GIF: 47 49 46 38
+      (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x38) ||
+      // BMP: 42 4D
+      (data[0] === 0x42 && data[1] === 0x4d);
+    const sig = Array.from(data.slice(0, 4))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join(" ");
+    assert(
+      isSupportedSignature,
+      `${path}: leading bytes "${sig}" don't match any docx-native image format — Word will reject this docx`,
+    );
+  }
   console.log(
     `    ok: docx package contains ${mediaEntries.length} word/media/* entr${mediaEntries.length === 1 ? "y" : "ies"}`,
   );

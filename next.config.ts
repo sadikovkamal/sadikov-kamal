@@ -33,8 +33,10 @@ const nextConfig: NextConfig = {
 
   // These packages use Node.js-native APIs (native bindings / C++ addons) and
   // must not be bundled by the App Router RSC bundler. postgres uses a custom
-  // native TLS path; bcryptjs ships a native binding via node-pre-gyp.
-  serverExternalPackages: ["postgres", "bcryptjs"],
+  // native TLS path; bcryptjs ships a native binding via node-pre-gyp; sharp
+  // ships platform-specific libvips binaries that Webpack would otherwise
+  // try (and fail) to bundle.
+  serverExternalPackages: ["postgres", "bcryptjs", "sharp"],
 
   // Security headers applied at the Next.js layer so they are present for
   // ALL runtimes (next start, Docker, Vercel). The vercel.json headers
