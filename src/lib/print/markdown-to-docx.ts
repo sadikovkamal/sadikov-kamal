@@ -73,11 +73,19 @@ export interface RenderContext {
    * the server action which fetches R2 bytes ahead of time.
    */
   images: Map<string, { bytes: Uint8Array; mime: string }>;
-  /** Width cap on rendered images, in EMU (1 inch = 914400 EMU). */
-  maxImageWidthEmu: number;
-  /** Height cap on rendered images, in EMU. Optional — when omitted the
-   * image is constrained by width alone. */
-  maxImageHeightEmu?: number;
+  /**
+   * Width cap on rendered images, in "docx pixels" (= inches × 96).
+   *
+   * The `docx` library's `ImageRun.transformation.width` is documented
+   * as "EMU" in some places but the implementation multiplies the value
+   * by 9525 internally to produce the final `cx` attribute on
+   * `<wp:extent>`. Passing real EMU here is a 9525× error that makes
+   * Word reject the file. We use the same unit the library expects:
+   * screen pixels at 96 DPI.
+   */
+  maxImageWidthPx: number;
+  /** Optional height cap in the same docx-pixel unit as `maxImageWidthPx`. */
+  maxImageHeightPx?: number;
   /** Body font size in pt (half-pt size = fontSize * 2 on every TextRun). */
   fontSize: number;
   /**
@@ -522,31 +530,35 @@ function renderImageParagraph(
   return makeParagraph({ children: [run] }, ctx);
 }
 
-const EMU_PER_INCH = 914400;
-const EMU_PER_PIXEL_AT_96_DPI = 9525;
-
 /**
  * Translate a source image's pixel dimensions into an on-page rendering
- * size. The naive "1 px = 1/96 inch" rule worked for screen photos but
- * turned olympiad-diagram crops (often 1000–2000 px square) into images
- * that filled the entire A4 page. We instead pick a target DPI bucketed
- * by total pixel area:
+ * size, returned in **docx-pixel** units (the `docx` library multiplies
+ * these by 9525 to produce EMU in the final `<wp:extent>`).
  *
- *   - Small thumbnails (<500 K px²): high DPI → small on-page size
+ * The naive "1 src px = 1 display px" rule turned olympiad-diagram crops
+ * (often 1000–2000 px square) into images that filled the entire A4
+ * page. We pick a display DPI bucketed by total pixel area instead:
+ *
+ *   - Small thumbnails (<500 K px²): 250 DPI → small on-page size
  *     (matches their information density).
- *   - Typical diagrams (500 K – 2 M px²): mid DPI → ~10 cm wide.
- *   - Large/detailed scans (>2 M px²): lower DPI → big enough to read
+ *   - Typical diagrams (500 K – 2 M px²): 200 DPI → ~10 cm wide.
+ *   - Large/detailed scans (>2 M px²): 150 DPI → big enough to read
  *     every label, then clipped by the width/height caps below.
+ *
+ * The "display DPI" is the resolution at which the source's pixels will
+ * render on paper. Higher DPI ⇒ smaller printed image; lower DPI ⇒
+ * larger. We translate to docx's screen-pixel unit (96 DPI) by
+ * `srcPx × 96 / targetDpi`.
  *
  * After translation we apply width + height caps proportionally so the
  * aspect ratio is preserved and no image dominates the page.
  */
-function computeImageEmuDimensions(
+function computeImageRenderPixels(
   pxW: number,
   pxH: number,
-  maxWidthEmu: number,
-  maxHeightEmu: number | undefined,
-): { widthEmu: number; heightEmu: number } {
+  maxWidthPx: number,
+  maxHeightPx: number | undefined,
+): { width: number; height: number } {
   const area = pxW * pxH;
   let targetDpi: number;
   if (area < 500_000) {
@@ -556,40 +568,32 @@ function computeImageEmuDimensions(
   } else {
     targetDpi = 150;
   }
-  // Floor at 96 — never enlarge images beyond their natural screen size,
-  // even if our heuristic would want to. Floor sanity-checks the DPI
-  // bucket against the source's intrinsic resolution.
-  if (targetDpi > 96) {
-    // pxW / targetDpi inches, so larger DPI → fewer inches → smaller emu.
-  }
 
-  let widthEmu = Math.round((pxW / targetDpi) * EMU_PER_INCH);
-  let heightEmu = Math.round((pxH / targetDpi) * EMU_PER_INCH);
+  let width = Math.round((pxW * 96) / targetDpi);
+  let height = Math.round((pxH * 96) / targetDpi);
 
-  // Sanity cap: an image should never come out larger than its native
-  // 96-dpi size. Without this, tiny icons could be enlarged by the DPI
-  // heuristic since the bucket only knows pixel area.
-  const nativeWidthEmu = pxW * EMU_PER_PIXEL_AT_96_DPI;
-  if (widthEmu > nativeWidthEmu) {
-    widthEmu = nativeWidthEmu;
-    heightEmu = pxH * EMU_PER_PIXEL_AT_96_DPI;
+  // Floor: never display larger than the source's intrinsic 96-DPI size.
+  // Tiny icons stay tiny even if the DPI bucket would enlarge them.
+  if (width > pxW) {
+    width = pxW;
+    height = pxH;
   }
 
   // Width cap.
-  if (widthEmu > maxWidthEmu) {
-    const ratio = maxWidthEmu / widthEmu;
-    widthEmu = maxWidthEmu;
-    heightEmu = Math.max(1, Math.round(heightEmu * ratio));
+  if (width > maxWidthPx) {
+    const ratio = maxWidthPx / width;
+    width = maxWidthPx;
+    height = Math.max(1, Math.round(height * ratio));
   }
 
   // Height cap — preserves aspect by scaling both dimensions equally.
-  if (maxHeightEmu !== undefined && heightEmu > maxHeightEmu) {
-    const ratio = maxHeightEmu / heightEmu;
-    heightEmu = maxHeightEmu;
-    widthEmu = Math.max(1, Math.round(widthEmu * ratio));
+  if (maxHeightPx !== undefined && height > maxHeightPx) {
+    const ratio = maxHeightPx / height;
+    height = maxHeightPx;
+    width = Math.max(1, Math.round(width * ratio));
   }
 
-  return { widthEmu, heightEmu };
+  return { width, height };
 }
 
 function makeImageRunIfAvailable(
@@ -602,20 +606,25 @@ function makeImageRunIfAvailable(
 
   const { bytes, mime } = entry;
   const { width: pxW, height: pxH } = getImageDimensions(bytes, mime);
-  const { widthEmu, heightEmu } = computeImageEmuDimensions(
+  const { width, height } = computeImageRenderPixels(
     pxW,
     pxH,
-    ctx.maxImageWidthEmu,
-    ctx.maxImageHeightEmu,
+    ctx.maxImageWidthPx,
+    ctx.maxImageHeightPx,
   );
 
   const type = imageRunTypeFor(mime);
 
-  // ImageRun expects width/height in EMU when sized through transformation.
+  // `transformation` is in docx-pixels — the library multiplies by 9525
+  // to emit the `cx` / `cy` EMU attributes. Passing EMU here would
+  // produce values in the billions and Word would refuse to open the
+  // file. The unit is documented as "EMU" in some places but the
+  // implementation (see docx@9 internals: `Math.round(width * 9525)`)
+  // makes the contract clear.
   return new ImageRun({
     type,
     data: bytes,
-    transformation: { width: widthEmu, height: heightEmu },
+    transformation: { width, height },
     altText: node.alt
       ? { name: node.alt, title: node.alt, description: node.alt }
       : undefined,

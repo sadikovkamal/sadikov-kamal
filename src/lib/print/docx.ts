@@ -37,8 +37,8 @@ import type { PrintConfig, PrintProblem } from "@/lib/print/types";
 // 1 inch = 1440 twips. A4 = 8.27" x 11.69" = 11906 x 16838 twips.
 const A4_WIDTH_TWIPS = 11906;
 const A4_HEIGHT_TWIPS = 16838;
-// 1 twip = 635 EMU (1 inch = 914400 EMU / 1440 twips).
-const EMU_PER_TWIP = 635;
+// 96 px (at the canonical 96 DPI display) per inch ⇒ 15 twips per px.
+const TWIPS_PER_PX = 15;
 
 const MARGIN_TWIPS: Record<PrintConfig["margins"], number> = {
   narrow: 720,
@@ -56,17 +56,18 @@ export function buildDocx(
   images: Map<string, { bytes: Uint8Array; mime: string }>,
 ): Document {
   const marginTwips = MARGIN_TWIPS[config.margins];
-  const contentWidthEmu = (A4_WIDTH_TWIPS - 2 * marginTwips) * EMU_PER_TWIP;
-  const contentHeightEmu = (A4_HEIGHT_TWIPS - 2 * marginTwips) * EMU_PER_TWIP;
-  // Width and height caps for images — combined with the DPI-bucketed
-  // natural-size heuristic in `computeImageEmuDimensions` (markdown-to-docx)
-  // these keep diagrams readable without letting a single image dominate
-  // the page. The walker preserves aspect ratio; whichever cap binds first
-  // determines the final size. 50 % on each axis matches the preview's
-  // IMAGE_*_FRACTION constants, so what the user sees lines up with the
-  // .docx output.
-  const maxImageWidthEmu = Math.round(contentWidthEmu * 0.5);
-  const maxImageHeightEmu = Math.round(contentHeightEmu * 0.5);
+  // Image caps in **docx-pixels** (= inches × 96). `docx@9` multiplies
+  // `ImageRun.transformation.width/height` by 9525 internally to produce
+  // the `cx`/`cy` EMU attributes; passing EMU here would yield values in
+  // the billions (~9525×) and Word would refuse to open the file. This
+  // contract is documented in the comment near `computeImageRenderPixels`
+  // in markdown-to-docx.ts.
+  const contentWidthPx = Math.round((A4_WIDTH_TWIPS - 2 * marginTwips) / TWIPS_PER_PX);
+  const contentHeightPx = Math.round((A4_HEIGHT_TWIPS - 2 * marginTwips) / TWIPS_PER_PX);
+  // 50 % on each axis matches the preview's IMAGE_*_FRACTION constants,
+  // so what the teacher sees lines up with the .docx output.
+  const maxImageWidthPx = Math.round(contentWidthPx * 0.5);
+  const maxImageHeightPx = Math.round(contentHeightPx * 0.5);
 
   const halfPointSize = config.fontSize * 2;
   // `line` is in twentieths-of-a-point; lineHeight = multiplier × 240 (12pt baseline).
@@ -138,8 +139,8 @@ export function buildDocx(
     const ctx: RenderContext = {
       numberPrefix,
       images,
-      maxImageWidthEmu,
-      maxImageHeightEmu,
+      maxImageWidthPx,
+      maxImageHeightPx,
       fontSize: config.fontSize,
       usedImageUrls,
       keepWithNext: true,
@@ -171,8 +172,8 @@ export function buildDocx(
       const trailing = renderProblemBodyToParagraphs(`![](${image.url})`, {
         numberPrefix: "",
         images,
-        maxImageWidthEmu,
-        maxImageHeightEmu,
+        maxImageWidthPx,
+        maxImageHeightPx,
         fontSize: config.fontSize,
         usedImageUrls,
         keepWithNext: true,

@@ -320,7 +320,7 @@ async function checkEndToEndDocx() {
   renderProblemBodyToParagraphs(problems[2]!.bodyMd, {
     numberPrefix: "3. ",
     images: imagesMap,
-    maxImageWidthEmu: 5_000_000,
+    maxImageWidthPx: 500,
     fontSize: 12,
     usedImageUrls,
   });
@@ -366,6 +366,33 @@ async function checkEndToEndDocx() {
   assert(
     mediaEntries.length > 0,
     `expected at least one word/media/* entry in docx zip, got: ${Object.keys(zip.files).join(", ")}`,
+  );
+
+  // Regression guard for the EMU/px unit confusion in
+  // `ImageRun.transformation`. `docx@9` multiplies the supplied width
+  // and height by 9525 internally to produce the `cx`/`cy` attributes on
+  // `<wp:extent>`. We were passing real EMU there for a couple of
+  // commits, producing values around 27 billion that Word rejected.
+  // A sane image fits inside A4 — assert every `cx` stays well under
+  // the EMU value of A4's width (`11906 twips × 635 EMU/twip` =
+  // 7,560,310 EMU). The cap our generator applies is half that, so a
+  // 10 M EMU upper bound is a comfortable headroom.
+  const MAX_REASONABLE_CX_EMU = 10_000_000;
+  const extentMatches = documentXml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"/g);
+  for (const m of extentMatches) {
+    const cx = Number.parseInt(m[1]!, 10);
+    const cy = Number.parseInt(m[2]!, 10);
+    assert(
+      cx > 0 && cx < MAX_REASONABLE_CX_EMU,
+      `<wp:extent cx="${cx}"> is out of plausible EMU range — likely a px↔EMU unit confusion`,
+    );
+    assert(
+      cy > 0 && cy < MAX_REASONABLE_CX_EMU,
+      `<wp:extent cy="${cy}"> is out of plausible EMU range`,
+    );
+  }
+  console.log(
+    `    ok: all <wp:extent> cx/cy values stay within the EMU sanity bound (< ${MAX_REASONABLE_CX_EMU.toLocaleString()})`,
   );
 
   // Regression guard for the WEBP-mislabelled-as-PNG bug. docx@9.7 only
