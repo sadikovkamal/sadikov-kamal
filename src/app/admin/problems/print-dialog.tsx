@@ -9,10 +9,7 @@ import {
   type PrintConfig,
   type PrintProblem,
 } from "@/lib/print/types";
-import {
-  generatePrintDocxAction,
-  loadProblemsForPrintAction,
-} from "./_print-actions";
+import { loadProblemsForPrintAction } from "./_print-actions";
 import { useSelection } from "./_selection-context";
 import { ConfigPanel } from "./print-dialog/config-panel";
 import { PrintPreview } from "./print-dialog/preview";
@@ -43,6 +40,19 @@ import { PrintPreview } from "./print-dialog/preview";
 interface PrintDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+/**
+ * Minimal Content-Disposition parser: pulls the `filename=` token, with
+ * or without surrounding quotes. We only ever read headers our own route
+ * emits, so we don't need to handle RFC 6266 `filename*` (UTF-8 ext-value)
+ * — the route uses `X-Print-Filename` as the canonical channel and this
+ * is just a fallback in case a proxy strips custom headers.
+ */
+function extractFilenameFromHeader(header: string | null): string | null {
+  if (!header) return null;
+  const match = /filename="?([^"]+)"?/i.exec(header);
+  return match?.[1] ?? null;
 }
 
 type ProblemsState =
@@ -176,37 +186,61 @@ export function PrintDialog({ open, onOpenChange }: PrintDialogProps) {
     setDownloadError(null);
     startGeneration(async () => {
       try {
-        const res = await generatePrintDocxAction({ orderedIds, config });
-        if (!res.ok) {
-          setDownloadError(res.error);
+        // POST to the route handler instead of a server action — Vercel
+        // caps server-action responses at ~4.5 MB, which a 25-problem
+        // worksheet with images blows through. The route handler has
+        // no such cap and can stream the binary back cleanly.
+        const response = await fetch("/api/admin/problems/print-docx", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderedIds, config }),
+        });
+
+        if (!response.ok) {
+          // Server returned a JSON error envelope. Read it carefully —
+          // if the body isn't valid JSON (e.g. an HTML error page from
+          // the platform), fall through to a generic message.
+          let serverError = "Hujjat tayyorlashda xatolik. Qaytadan urinib ko'ring.";
+          try {
+            const data = (await response.json()) as { error?: unknown };
+            if (typeof data.error === "string" && data.error.length > 0) {
+              serverError = data.error;
+            }
+          } catch {
+            /* ignore — we'll use the fallback message */
+          }
+          setDownloadError(serverError);
           return;
         }
-        // Wrap the raw bytes into a Blob. `bytes` is an ArrayBuffer
-        // from the server; we copy into a `Uint8Array` view for the
-        // Blob constructor to be explicit about the byte layout.
-        const blob = new Blob([new Uint8Array(res.bytes)], {
-          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        });
+
+        const blob = await response.blob();
+
+        // Pull the suggested filename out of Content-Disposition, with
+        // an `X-Print-Filename` shortcut so we don't have to parse the
+        // RFC 6266 header (which gets gnarly with UTF-8 filenames).
+        const filename =
+          response.headers.get("x-print-filename") ??
+          extractFilenameFromHeader(response.headers.get("content-disposition")) ??
+          `masalalar-${new Date().toISOString().slice(0, 10)}.docx`;
+
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = res.filename;
-        // Some browsers require the anchor to be in the DOM for the
-        // synthetic click to dispatch correctly.
+        anchor.download = filename;
         document.body.appendChild(anchor);
         anchor.click();
         document.body.removeChild(anchor);
-        // Revoke after a microtask — the click has already started the
-        // download, the blob URL is no longer needed.
         queueMicrotask(() => URL.revokeObjectURL(url));
 
-        if (res.partial && res.partial.failedImages > 0) {
-          setPartial({ failedImages: res.partial.failedImages });
+        const failedHeader = response.headers.get("x-print-failed-images");
+        const failedImages = failedHeader ? Number.parseInt(failedHeader, 10) : 0;
+        if (Number.isFinite(failedImages) && failedImages > 0) {
+          setPartial({ failedImages });
         } else {
           setPartial(null);
         }
       } catch (e) {
-        console.error("[PrintDialog] generatePrintDocxAction failed", e);
+        console.error("[PrintDialog] print-docx fetch failed", e);
         setDownloadError("Hujjat tayyorlashda xatolik. Qaytadan urinib ko'ring.");
       }
     });
