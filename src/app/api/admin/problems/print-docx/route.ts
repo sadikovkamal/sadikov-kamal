@@ -8,7 +8,7 @@ import { fetchImageBytesBatch } from "@/lib/print/r2-fetch";
 import { printConfigSchema } from "@/lib/print/types";
 import { getProblemsForPrint } from "@/lib/problems/queries";
 
-import { BULK_OP_LIMIT } from "@/app/admin/problems/_constants";
+import { PRINT_LIMIT } from "@/app/admin/problems/_constants";
 
 /**
  * POST /api/admin/problems/print-docx
@@ -41,10 +41,12 @@ export const runtime = "nodejs";
 // clients (cached JS) don't quietly send a body the server can't read.
 // ---------------------------------------------------------------------------
 
+// Print is the heaviest bulk action — see `_constants.ts` for why this
+// is intentionally lower than `BULK_OP_LIMIT`.
 const idsSchema = z
   .array(z.string().uuid())
   .min(1)
-  .max(BULK_OP_LIMIT);
+  .max(PRINT_LIMIT);
 
 const bodySchema = z
   .object({

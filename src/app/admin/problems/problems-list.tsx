@@ -31,7 +31,7 @@ import { bulkDeleteProblemsAction } from "./_actions";
 import { BulkEditDialog } from "./bulk-edit-dialog";
 import { PrintDialog } from "./print-dialog";
 import { useSelection } from "./_selection-context";
-import { BULK_OP_LIMIT } from "./_constants";
+import { BULK_OP_LIMIT, PRINT_LIMIT } from "./_constants";
 import { PAGE_SIZE_OPTIONS } from "./_url-state";
 import type { FilterOption } from "./filters";
 import type { ProblemListResult } from "@/lib/problems/queries";
@@ -156,6 +156,11 @@ export function ProblemsList({
   // this limit takes deliberate cross-page clicking — but we still
   // gate the bulk action buttons to keep the contract honest.
   const overBulkLimit = selected.size > BULK_OP_LIMIT;
+  // Print has a stricter cap because the .docx pipeline is the
+  // most expensive bulk action (R2 fetches + sharp + MathJax + docx
+  // serialisation) and we have to stay inside Vercel's maxDuration.
+  // See `_constants.ts` for the full rationale.
+  const overPrintLimit = selected.size > PRINT_LIMIT;
 
   if (rows.length === 0) {
     return (
@@ -207,6 +212,21 @@ export function ProblemsList({
               olib tashlang.
             </span>
           )}
+          {/* Print is capped lower than the other bulk actions — show a
+              dedicated chip only when print is blocked but delete/edit
+              are still possible. When BOTH limits are exceeded, the
+              `overBulkLimit` chip above already covers the situation. */}
+          {!overBulkLimit && overPrintLimit && (
+            <span
+              role="alert"
+              className="inline-flex items-center gap-1.5 rounded-md ring-1 ring-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-500"
+            >
+              <AlertTriangle className="size-3" aria-hidden />
+              Chop etish uchun maks {PRINT_LIMIT} ta.{" "}
+              {selected.size - PRINT_LIMIT} ta masalani tanlovdan olib
+              tashlang.
+            </span>
+          )}
         </div>
 
         {selected.size > 0 && (
@@ -222,11 +242,13 @@ export function ProblemsList({
               variant="outline"
               size="xs"
               onClick={() => setPrintOpen(true)}
-              disabled={isPending || overBulkLimit}
+              disabled={isPending || overPrintLimit}
               title={
                 overBulkLimit
                   ? `Bir vaqtda eng ko'pi bilan ${BULK_OP_LIMIT} ta masala`
-                  : undefined
+                  : overPrintLimit
+                    ? `Chop etish uchun bir vaqtda eng ko'pi bilan ${PRINT_LIMIT} ta masala`
+                    : undefined
               }
             >
               <Printer data-icon="inline-start" />

@@ -6,16 +6,19 @@ import { requireAdmin } from "@/lib/auth";
 import { type PrintProblem } from "@/lib/print/types";
 import { getProblemsForPrint } from "@/lib/problems/queries";
 
-import { BULK_OP_LIMIT } from "./_constants";
+import { PRINT_LIMIT } from "./_constants";
 
 // ---------------------------------------------------------------------------
 // Shared validation
 // ---------------------------------------------------------------------------
 
+// Print uses a tighter cap than BULK_OP_LIMIT — the docx pipeline is the
+// most expensive bulk action and the route handler has a fixed 30s
+// budget. See `_constants.ts` for the rationale.
 const idsSchema = z
   .array(z.string().uuid())
   .min(1)
-  .max(BULK_OP_LIMIT);
+  .max(PRINT_LIMIT);
 
 // ---------------------------------------------------------------------------
 // loadProblemsForPrintAction
