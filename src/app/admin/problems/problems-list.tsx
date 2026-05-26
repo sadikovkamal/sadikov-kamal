@@ -14,6 +14,7 @@ import {
   Settings2,
   Printer,
   Trash2,
+  Wrench,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -465,11 +466,17 @@ function ProblemCard({
           )}
         </Link>
 
-        {/* Footer — every topic + age category is a chip-shaped link
-            that drills into the matching filter. Topics use a colour
-            dot derived from the topic name (same hue family as the
-            left stripe); age categories stay neutral. */}
-        {(row.topics.length > 0 || row.ageCategories.length > 0) && (
+        {/* Footer — chip-shaped links that drill into the matching filter.
+            Three visual families so the chips don't blur into one another:
+              - Topics: small color dot (hue derived from name, same
+                family as the left stripe).
+              - Methods: amber tint + Wrench icon — the same icon the
+                filter bar uses for the "Metodlar" popover, so the
+                association reads at a glance.
+              - Age categories: small neutral text chip, right-aligned. */}
+        {(row.topics.length > 0 ||
+          row.methods.length > 0 ||
+          row.ageCategories.length > 0) && (
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-1 flex-wrap">
               {row.topics.map((t) => (
@@ -485,6 +492,20 @@ function ProblemCard({
                     aria-hidden
                   />
                   <span className="truncate">{t.name}</span>
+                </Link>
+              ))}
+              {row.methods.map((m) => (
+                <Link
+                  key={m.id}
+                  href={`/admin/problems?method=${m.code}`}
+                  title={`Faqat ${m.name} metodi`}
+                  className="inline-flex items-center gap-1 rounded-md ring-1 ring-amber-500/30 bg-amber-500/10 hover:bg-amber-500/15 hover:ring-amber-500/50 px-1.5 py-0.5 text-[11px] text-amber-900 dark:text-amber-200 transition-colors"
+                >
+                  <Wrench
+                    className="size-3 shrink-0 opacity-70"
+                    aria-hidden
+                  />
+                  <span className="truncate">{m.name}</span>
                 </Link>
               ))}
             </div>
