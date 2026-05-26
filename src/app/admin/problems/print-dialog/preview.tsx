@@ -2,7 +2,6 @@
 
 import {
   useDeferredValue,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -18,17 +17,24 @@ import type { PrintConfig, PrintProblem } from "@/lib/print/types";
 /**
  * Right-pane live HTML preview for the print dialog.
  *
- * Renders the selected problems inside a single A4-shaped "page frame"
- * with the active {@link PrintConfig} applied via inline styles, so the
- * teacher can see — in real time — roughly what the generated `.docx`
- * will look like.
+ * Three responsibilities, in order:
  *
- * Pagination dividers: dropped from v1. The spec calls them "guide-rails,
- * best-effort"; the centered muted disclaimer ("Taxminiy ko'rinish — …")
- * is the primary signal that Word's pagination will differ. Adding the
- * dividers requires a ResizeObserver-driven layout pass that fights React
- * commit cycles and KaTeX's async render; the design explicitly permits
- * shipping without them when fiddly.
+ *   1. Render every selected problem into a hidden measurement column
+ *      so we know each problem's natural pixel height after markdown +
+ *      KaTeX layout.
+ *   2. Pack problems greedily into A4-sized pages — when adding the
+ *      next problem would exceed the page's content height, start a new
+ *      page. Mirrors Word's `keepNext` chain (which keeps every
+ *      paragraph of a problem together on a single page) without
+ *      trying to be byte-accurate to Word's typesetting.
+ *   3. Render each page as its own A4 frame in the visible pane,
+ *      stacked vertically with a clear gap so the teacher sees the
+ *      page boundaries. A small "N ta sahifa" footer reports the total.
+ *
+ * The frame itself uses CSS `zoom` to scale-to-fit the preview pane.
+ * `zoom` (unlike `transform: scale`) participates in layout so the
+ * parent's content area shrinks with the page and the horizontal
+ * scrollbar never appears.
  */
 export interface PrintPreviewProps {
   config: PrintConfig;
@@ -38,18 +44,15 @@ export interface PrintPreviewProps {
 
 /** A4 (210mm × 297mm) at 96 dpi → 794 × 1123 px. */
 const A4_WIDTH_PX = 794;
-const A4_MIN_HEIGHT_PX = 1123;
+const A4_HEIGHT_PX = 1123;
 
-/** Hard cap before we collapse to "first 50 + reveal" mode. */
+/** Hard cap before we collapse to "first N + reveal" mode. */
 const PERF_THRESHOLD = 200;
-/** Initial render cap when over PERF_THRESHOLD. */
 const PERF_INITIAL_VISIBLE = 50;
 
-/**
- * Map `config.margins` to a pixel padding inside the A4 frame.
- * narrow = 1.27cm ≈ 48px, normal = 2.54cm ≈ 96px, wide = 3.18cm ≈ 120px
- * (at 96 dpi). The docx generator uses the same logical buckets in twips.
- */
+/** Spacing between problems inside a page, in px — matches docx 12pt. */
+const PROBLEM_SPACING_PX = 16;
+
 function marginsToPx(margins: PrintConfig["margins"]): number {
   switch (margins) {
     case "narrow":
@@ -62,11 +65,6 @@ function marginsToPx(margins: PrintConfig["margins"]): number {
   }
 }
 
-/**
- * Build the per-problem number prefix that the docx generator will also
- * emit. Trailing space matters — it separates the number from the first
- * markdown token when we splice it into `bodyMd`.
- */
 function buildNumberPrefix(
   index: number,
   style: PrintConfig["numberStyle"],
@@ -82,26 +80,17 @@ function buildNumberPrefix(
   }
 }
 
-/**
- * Assemble the small grey metadata line above a problem when any of the
- * `showFields.*` toggles is on. Uses `·` middle dots as separators to
- * keep the line scannable.
- */
 function buildMetaLine(
   problem: PrintProblem,
   showFields: PrintConfig["showFields"],
 ): string | null {
   const parts: string[] = [];
-  if (showFields.code) {
-    parts.push(`Kod: ${problem.code}`);
-  }
+  if (showFields.code) parts.push(`Kod: ${problem.code}`);
   if (showFields.source && problem.source) {
     parts.push(`Manba: ${problem.source.name}`);
   }
   if (showFields.ageCategories && problem.ageCategories.length > 0) {
-    parts.push(
-      `Yosh: ${problem.ageCategories.map((c) => c.code).join(", ")}`,
-    );
+    parts.push(`Yosh: ${problem.ageCategories.map((c) => c.code).join(", ")}`);
   }
   if (showFields.topics && problem.topics.length > 0) {
     parts.push(`Mavzu: ${problem.topics.map((t) => t.name).join(", ")}`);
@@ -112,15 +101,31 @@ function buildMetaLine(
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-// ReactMarkdown's `components.img` typing requires `src` to be a string but
-// the underlying mdast emits `string | Blob | undefined`. Define a narrow
-// component locally so we can render images as their own block.
+// ---------------------------------------------------------------------------
+// Markdown image rendering — mirror the docx generator's size heuristic so
+// the preview looks like the .docx output.
+// ---------------------------------------------------------------------------
+
+/**
+ * Soft cap on the rendered image width inside an A4 page, expressed as a
+ * fraction of the content area. The docx generator caps at the same
+ * fraction; keeping the two in lock-step avoids "preview looked smaller
+ * than the actual print" surprises.
+ */
+const IMAGE_WIDTH_FRACTION = 0.5;
+/** Soft cap on rendered image height as a fraction of the content area. */
+const IMAGE_HEIGHT_FRACTION = 0.5;
+
 function MarkdownImage({
   src,
   alt,
+  contentWidthPx,
+  contentHeightPx,
 }: {
   src?: string | Blob;
   alt?: string;
+  contentWidthPx: number;
+  contentHeightPx: number;
 }) {
   if (typeof src !== "string" || src.length === 0) {
     return null;
@@ -132,7 +137,14 @@ function MarkdownImage({
         src={src}
         alt={alt ?? ""}
         loading="lazy"
-        style={{ maxWidth: "100%", display: "block" }}
+        style={{
+          maxWidth: `${contentWidthPx * IMAGE_WIDTH_FRACTION}px`,
+          maxHeight: `${contentHeightPx * IMAGE_HEIGHT_FRACTION}px`,
+          width: "auto",
+          height: "auto",
+          objectFit: "contain",
+          display: "block",
+        }}
       />
     </p>
   );
@@ -140,49 +152,104 @@ function MarkdownImage({
 
 const REMARK_PLUGINS = [remarkMath, remarkGfm];
 const REHYPE_PLUGINS = [rehypeKatex];
-const MD_COMPONENTS = { img: MarkdownImage };
 
-/**
- * A4-shaped page frame that scales down to fit the available width.
- *
- * The inner page is always 794 px wide so the layout/typography looks
- * the same as the .docx output regardless of the modal size. We wrap it
- * in a container that measures itself with a `ResizeObserver` and
- * applies a `transform: scale(…)` to the inner frame, with the wrapper's
- * own width/height set to the *scaled* dimensions so it occupies the
- * right amount of layout space. This keeps the preview pane vertical-
- * scroll-only — no horizontal scrollbar even on a narrow preview pane.
- */
+// ---------------------------------------------------------------------------
+// Single-problem renderer (shared between measurement column + page frames)
+// ---------------------------------------------------------------------------
+
+function ProblemBlock({
+  problem,
+  index,
+  config,
+  contentWidthPx,
+  contentHeightPx,
+}: {
+  problem: PrintProblem;
+  index: number;
+  config: PrintConfig;
+  contentWidthPx: number;
+  contentHeightPx: number;
+}) {
+  const meta = buildMetaLine(problem, config.showFields);
+  const prefix = buildNumberPrefix(index, config.numberStyle);
+  // Splice the number prefix into the markdown source so it lands inline
+  // with the first paragraph's first sentence — same trick the docx
+  // walker uses to keep the prefix visually attached to the body.
+  const bodyWithNumber = `${prefix}${problem.bodyMd}`;
+  const components = useMemo(
+    () => ({
+      img: (props: { src?: string | Blob; alt?: string }) => (
+        <MarkdownImage
+          src={props.src}
+          alt={props.alt}
+          contentWidthPx={contentWidthPx}
+          contentHeightPx={contentHeightPx}
+        />
+      ),
+    }),
+    [contentWidthPx, contentHeightPx],
+  );
+  return (
+    <div
+      style={{ marginBottom: `${PROBLEM_SPACING_PX}px` }}
+      data-problem-id={problem.id}
+    >
+      {meta !== null ? (
+        <div
+          style={{
+            fontSize: "10px",
+            color: "#888",
+            marginBottom: "4px",
+          }}
+        >
+          {meta}
+        </div>
+      ) : null}
+      <ReactMarkdown
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={REHYPE_PLUGINS}
+        components={components}
+      >
+        {bodyWithNumber}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// A4 page frame — uses CSS `zoom` so it scales to fit the parent and
+// participates in layout (no horizontal scrollbar). The frame itself
+// stays at the canonical 794 px so typography matches the docx output.
+// ---------------------------------------------------------------------------
+
 function PageFrame({
   marginPx,
   config,
+  pageNumber,
+  totalPages,
   children,
 }: {
   marginPx: number;
   config: PrintConfig;
+  pageNumber: number;
+  totalPages: number;
   children: React.ReactNode;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [innerHeight, setInnerHeight] = useState(A4_MIN_HEIGHT_PX);
+  const [zoom, setZoom] = useState(1);
 
-  // Recompute the scale whenever the outer scroll container resizes.
-  // The wrapper itself is what we measure; its parent is the scroller
-  // and provides the width budget after its own padding is applied.
   useLayoutEffect(() => {
     const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    const parent = wrapper.parentElement;
-    if (!parent) return;
+    const parent = wrapper?.parentElement;
+    if (!wrapper || !parent) return;
     const recompute = () => {
-      // `clientWidth` already excludes the scroller's vertical
-      // scrollbar so we end up with the actual content area.
-      const available = parent.clientWidth;
+      const cs = window.getComputedStyle(parent);
+      const padL = Number.parseFloat(cs.paddingLeft) || 0;
+      const padR = Number.parseFloat(cs.paddingRight) || 0;
+      const available = parent.clientWidth - padL - padR;
+      if (available <= 0) return;
       const next = Math.min(1, available / A4_WIDTH_PX);
-      // Avoid a degenerate 0 if the container starts at zero width
-      // during the first paint.
-      setScale(next > 0 ? next : 1);
+      setZoom(next > 0.1 ? next : 0.1);
     };
     recompute();
     const ro = new ResizeObserver(recompute);
@@ -190,75 +257,56 @@ function PageFrame({
     return () => ro.disconnect();
   }, []);
 
-  // Observe the inner (un-scaled) content so the wrapper's reserved
-  // space tracks content growth. Transforms don't affect layout, so we
-  // mirror the inner's pixel height into the wrapper, scaled.
-  useEffect(() => {
-    const inner = innerRef.current;
-    if (!inner) return;
-    const recompute = () => {
-      setInnerHeight(Math.max(A4_MIN_HEIGHT_PX, inner.offsetHeight));
-    };
-    recompute();
-    const ro = new ResizeObserver(recompute);
-    ro.observe(inner);
-    return () => ro.disconnect();
-  }, []);
-
   return (
-    <div
-      ref={wrapperRef}
-      style={{
-        width: `${A4_WIDTH_PX * scale}px`,
-        height: `${innerHeight * scale}px`,
-      }}
-    >
+    <div className="flex flex-col items-center gap-1">
       <div
-        ref={innerRef}
+        ref={wrapperRef}
         className="bg-white shadow-lg ring-1 ring-foreground/10 rounded-sm"
         style={{
           width: `${A4_WIDTH_PX}px`,
-          minHeight: `${A4_MIN_HEIGHT_PX}px`,
+          minHeight: `${A4_HEIGHT_PX}px`,
           padding: `${marginPx}px`,
           fontFamily: "'Times New Roman', Times, serif",
           fontSize: `${config.fontSize}pt`,
           lineHeight: config.lineHeight,
           color: "#111",
-          transform: `scale(${scale})`,
-          transformOrigin: "top left",
+          boxSizing: "border-box",
+          // `zoom` scales the rendered output AND its laid-out size, so
+          // the parent's flex children flow correctly and no horizontal
+          // scrollbar appears. Modern Chromium / WebKit and Firefox ≥ 126
+          // support this; the admin tool only targets desktop.
+          zoom,
         }}
       >
         {children}
       </div>
+      <div className="text-[10px] tabular-nums text-muted-foreground">
+        Sahifa {pageNumber} / {totalPages}
+      </div>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Main preview
+// ---------------------------------------------------------------------------
 
 export function PrintPreview({
   config,
   problems,
   orderedIds,
 }: PrintPreviewProps) {
-  // useDeferredValue gives the rest of the dialog (config knobs, selected
-  // list) priority while the markdown + KaTeX trees re-render. This is
-  // the React 19-native equivalent of the 150 ms debounce in the spec.
   const deferredConfig = useDeferredValue(config);
   const marginPx = marginsToPx(deferredConfig.margins);
+  const contentWidthPx = A4_WIDTH_PX - 2 * marginPx;
+  const contentHeightPx = A4_HEIGHT_PX - 2 * marginPx;
 
-  // Perf cap: when the user prints hundreds of problems the first paint
-  // can stall on KaTeX. Show the first 50 and let them opt in to "all".
   const [showAll, setShowAll] = useState(false);
 
-  // Resolve `orderedIds` against the loaded problems via a Map lookup —
-  // declared before any early return so hook order stays stable. The
-  // non-array branches short-circuit on `problems` directly below; the
-  // map ends up empty in those cases and is never consumed.
   const byId = useMemo(() => {
     const m = new Map<string, PrintProblem>();
     if (Array.isArray(problems)) {
-      for (const p of problems) {
-        m.set(p.id, p);
-      }
+      for (const p of problems) m.set(p.id, p);
     }
     return m;
   }, [problems]);
@@ -271,11 +319,96 @@ export function PrintPreview({
     [orderedIds, byId],
   );
 
-  // Loading and error branches don't touch the heavy markdown pipeline.
+  const overThreshold = resolved.length > PERF_THRESHOLD;
+  const visible =
+    overThreshold && !showAll
+      ? resolved.slice(0, PERF_INITIAL_VISIBLE)
+      : resolved;
+  const hiddenCount = resolved.length - visible.length;
+
+  // Measurement pass: render every visible problem in a hidden column at
+  // A4 content width, observe each `[data-problem-id]` block, and pack
+  // them greedily into pages. Re-runs whenever the inputs or the typography
+  // controls change — anything that could change a problem's height.
+  const measureContainerRef = useRef<HTMLDivElement>(null);
+  const [pages, setPages] = useState<PrintProblem[][]>([]);
+
+  useLayoutEffect(() => {
+    const container = measureContainerRef.current;
+
+    // Greedy pagination by measured offsetHeight. The title block on
+    // page 1 takes a bit of space — we subtract a small overhead from
+    // page 1's budget so the title + first problem fit comfortably.
+    const TITLE_OVERHEAD_PX =
+      deferredConfig.title.trim().length > 0 ? 64 : 0;
+    const DISCLAIMER_OVERHEAD_PX = 28; // small grey "Taxminiy ko'rinish…" note
+
+    const computeLayout = () => {
+      if (!container || visible.length === 0) {
+        setPages([]);
+        return;
+      }
+      const blocks =
+        container.querySelectorAll<HTMLDivElement>("[data-problem-id]");
+      if (blocks.length !== visible.length) {
+        // Measurement column hasn't caught up with the latest `visible`
+        // list yet; bail and wait for the next observer firing rather
+        // than committing a half-built layout.
+        return;
+      }
+      const heights: number[] = [];
+      blocks.forEach((b) => heights.push(b.offsetHeight));
+
+      const computedPages: PrintProblem[][] = [];
+      let currentPage: PrintProblem[] = [];
+      let currentHeight = TITLE_OVERHEAD_PX + DISCLAIMER_OVERHEAD_PX;
+      const pageBudget = contentHeightPx;
+
+      visible.forEach((problem, i) => {
+        const h = (heights[i] ?? 0) + PROBLEM_SPACING_PX;
+        if (currentHeight + h > pageBudget && currentPage.length > 0) {
+          computedPages.push(currentPage);
+          currentPage = [];
+          currentHeight = 0;
+        }
+        currentPage.push(problem);
+        currentHeight += h;
+      });
+      if (currentPage.length > 0) computedPages.push(currentPage);
+      setPages(computedPages);
+    };
+
+    computeLayout();
+    if (!container) return;
+    // Images, KaTeX, and webfont swaps all change heights after the
+    // initial layout pass. Observe the measurement container and re-pack
+    // whenever any child resizes.
+    const ro = new ResizeObserver(() => computeLayout());
+    container
+      .querySelectorAll<HTMLDivElement>("[data-problem-id]")
+      .forEach((el) => ro.observe(el));
+    return () => ro.disconnect();
+  }, [
+    visible,
+    contentHeightPx,
+    deferredConfig.fontSize,
+    deferredConfig.lineHeight,
+    deferredConfig.margins,
+    deferredConfig.numberStyle,
+    deferredConfig.showFields,
+    deferredConfig.title,
+  ]);
+
+  // Loading / error branches.
   if (problems === "loading") {
     return (
       <div className="h-full overflow-y-auto overflow-x-hidden bg-muted/20 p-4 flex flex-col items-center gap-4">
-        <PageFrame marginPx={marginPx} config={deferredConfig}>
+        <PageFrame
+          marginPx={marginPx}
+          config={deferredConfig}
+          pageNumber={1}
+          totalPages={1}
+        >
           <div className="flex flex-col gap-3">
             <div
               className="h-4 w-2/3 rounded bg-muted-foreground/15 animate-pulse"
@@ -297,7 +430,6 @@ export function PrintPreview({
   }
 
   if (!Array.isArray(problems)) {
-    // `{ error: string }` branch.
     return (
       <div className="h-full overflow-y-auto overflow-x-hidden bg-muted/20 p-4 flex flex-col items-center gap-4">
         <div
@@ -310,44 +442,52 @@ export function PrintPreview({
     );
   }
 
-  const overThreshold = resolved.length > PERF_THRESHOLD;
-  const visible =
-    overThreshold && !showAll ? resolved.slice(0, PERF_INITIAL_VISIBLE) : resolved;
-  const hiddenCount = resolved.length - visible.length;
-
   const titleTrimmed = deferredConfig.title.trim();
 
+  // The visible layout is page-by-page. The hidden measurement column
+  // renders the same problems off-screen at the canonical content width
+  // (no zoom, no styling beyond what affects height) so the layout
+  // useLayoutEffect can pack them.
   return (
-    <div className="h-full overflow-y-auto bg-muted/20 p-8 flex flex-col items-center gap-4">
-      <PageFrame marginPx={marginPx} config={deferredConfig}>
-        {titleTrimmed.length > 0 ? (
-          <h2
-            style={{
-              fontSize: `${deferredConfig.fontSize * 1.5}pt`,
-              fontWeight: 700,
-              textAlign: "center",
-              margin: 0,
-              marginBottom: "24px",
-            }}
-          >
-            {titleTrimmed}
-          </h2>
-        ) : null}
+    <div className="h-full overflow-y-auto overflow-x-hidden bg-muted/20 p-4 flex flex-col items-stretch gap-4">
+      {/* Hidden measurement column. position:absolute + visibility:hidden
+          keeps it out of the visual flow and out of the accessibility
+          tree, while still allowing offsetHeight reads. */}
+      <div
+        ref={measureContainerRef}
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: "-99999px",
+          top: 0,
+          width: `${contentWidthPx}px`,
+          fontFamily: "'Times New Roman', Times, serif",
+          fontSize: `${deferredConfig.fontSize}pt`,
+          lineHeight: deferredConfig.lineHeight,
+          visibility: "hidden",
+          pointerEvents: "none",
+        }}
+      >
+        {visible.map((problem, index) => (
+          <ProblemBlock
+            key={problem.id}
+            problem={problem}
+            index={index}
+            config={deferredConfig}
+            contentWidthPx={contentWidthPx}
+            contentHeightPx={contentHeightPx}
+          />
+        ))}
+      </div>
 
-        <p
-          style={{
-            fontSize: "10px",
-            color: "#888",
-            textAlign: "center",
-            margin: 0,
-            marginBottom: "16px",
-          }}
+      {/* Visible paginated render. */}
+      {resolved.length === 0 ? (
+        <PageFrame
+          marginPx={marginPx}
+          config={deferredConfig}
+          pageNumber={1}
+          totalPages={1}
         >
-          Taxminiy ko&apos;rinish — Word&apos;da sahifa chegaralari biroz farq
-          qilishi mumkin.
-        </p>
-
-        {resolved.length === 0 ? (
           <p
             style={{
               textAlign: "center",
@@ -358,56 +498,88 @@ export function PrintPreview({
           >
             Tanlangan masalalar yo&apos;q.
           </p>
-        ) : (
-          visible.map((problem, index) => {
-            const meta = buildMetaLine(problem, deferredConfig.showFields);
-            const prefix = buildNumberPrefix(index, deferredConfig.numberStyle);
-            // Splice the number prefix into the markdown source so it
-            // appears inline with the first paragraph's first sentence.
-            // Edge case (numbered list / fenced block as the very first
-            // token) is rare in problem bodies — spec accepts this.
-            const bodyWithNumber = `${prefix}${problem.bodyMd}`;
-            return (
-              <div
-                key={problem.id}
-                style={{ marginBottom: "1em" }}
-                data-problem-id={problem.id}
-              >
-                {meta !== null ? (
-                  <div
-                    style={{
-                      fontSize: "10px",
-                      color: "#888",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    {meta}
-                  </div>
-                ) : null}
-                <ReactMarkdown
-                  remarkPlugins={REMARK_PLUGINS}
-                  rehypePlugins={REHYPE_PLUGINS}
-                  components={MD_COMPONENTS}
-                >
-                  {bodyWithNumber}
-                </ReactMarkdown>
-              </div>
-            );
-          })
-        )}
-
-        {hiddenCount > 0 ? (
-          <div style={{ textAlign: "center", marginTop: "16px" }}>
-            <button
-              type="button"
-              onClick={() => setShowAll(true)}
-              className="text-sm underline text-muted-foreground hover:text-foreground"
+        </PageFrame>
+      ) : (
+        pages.map((page, pageIdx) => {
+          // Each problem's global index across all pages — needed so the
+          // visible render uses the same numbers as the .docx would.
+          const indexOffset = pages
+            .slice(0, pageIdx)
+            .reduce((sum, p) => sum + p.length, 0);
+          return (
+            <PageFrame
+              key={pageIdx}
+              marginPx={marginPx}
+              config={deferredConfig}
+              pageNumber={pageIdx + 1}
+              totalPages={pages.length}
             >
-              Yana {hiddenCount} ta masala — to&apos;liq ko&apos;rsatish
-            </button>
-          </div>
+              {pageIdx === 0 && titleTrimmed.length > 0 ? (
+                <h2
+                  style={{
+                    fontSize: `${deferredConfig.fontSize * 1.5}pt`,
+                    fontWeight: 700,
+                    textAlign: "center",
+                    margin: 0,
+                    marginBottom: "24px",
+                  }}
+                >
+                  {titleTrimmed}
+                </h2>
+              ) : null}
+              {pageIdx === 0 ? (
+                <p
+                  style={{
+                    fontSize: "10px",
+                    color: "#888",
+                    textAlign: "center",
+                    margin: 0,
+                    marginBottom: "16px",
+                  }}
+                >
+                  Taxminiy ko&apos;rinish — Word&apos;da sahifa chegaralari
+                  biroz farq qilishi mumkin.
+                </p>
+              ) : null}
+              {page.map((problem, i) => (
+                <ProblemBlock
+                  key={problem.id}
+                  problem={problem}
+                  index={indexOffset + i}
+                  config={deferredConfig}
+                  contentWidthPx={contentWidthPx}
+                  contentHeightPx={contentHeightPx}
+                />
+              ))}
+            </PageFrame>
+          );
+        })
+      )}
+
+      {/* Page-count footer and (when appropriate) "show all" affordance. */}
+      <div className="flex flex-col items-center gap-1 text-xs text-muted-foreground py-2">
+        {pages.length > 0 ? (
+          <span>
+            <span className="tabular-nums font-medium text-foreground">
+              {pages.length}
+            </span>{" "}
+            ta sahifa, jami{" "}
+            <span className="tabular-nums font-medium text-foreground">
+              {visible.length}
+            </span>{" "}
+            ta masala
+          </span>
         ) : null}
-      </PageFrame>
+        {hiddenCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="underline hover:text-foreground"
+          >
+            Yana {hiddenCount} ta masala — to&apos;liq ko&apos;rsatish
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

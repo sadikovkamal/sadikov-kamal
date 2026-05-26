@@ -73,8 +73,11 @@ export interface RenderContext {
    * the server action which fetches R2 bytes ahead of time.
    */
   images: Map<string, { bytes: Uint8Array; mime: string }>;
-  /** Page width minus margins, in EMU (1 inch = 914400 EMU). */
+  /** Width cap on rendered images, in EMU (1 inch = 914400 EMU). */
   maxImageWidthEmu: number;
+  /** Height cap on rendered images, in EMU. Optional — when omitted the
+   * image is constrained by width alone. */
+  maxImageHeightEmu?: number;
   /** Body font size in pt (half-pt size = fontSize * 2 on every TextRun). */
   fontSize: number;
   /**
@@ -519,7 +522,75 @@ function renderImageParagraph(
   return makeParagraph({ children: [run] }, ctx);
 }
 
-const EMU_PER_PIXEL = 9525;
+const EMU_PER_INCH = 914400;
+const EMU_PER_PIXEL_AT_96_DPI = 9525;
+
+/**
+ * Translate a source image's pixel dimensions into an on-page rendering
+ * size. The naive "1 px = 1/96 inch" rule worked for screen photos but
+ * turned olympiad-diagram crops (often 1000–2000 px square) into images
+ * that filled the entire A4 page. We instead pick a target DPI bucketed
+ * by total pixel area:
+ *
+ *   - Small thumbnails (<500 K px²): high DPI → small on-page size
+ *     (matches their information density).
+ *   - Typical diagrams (500 K – 2 M px²): mid DPI → ~10 cm wide.
+ *   - Large/detailed scans (>2 M px²): lower DPI → big enough to read
+ *     every label, then clipped by the width/height caps below.
+ *
+ * After translation we apply width + height caps proportionally so the
+ * aspect ratio is preserved and no image dominates the page.
+ */
+function computeImageEmuDimensions(
+  pxW: number,
+  pxH: number,
+  maxWidthEmu: number,
+  maxHeightEmu: number | undefined,
+): { widthEmu: number; heightEmu: number } {
+  const area = pxW * pxH;
+  let targetDpi: number;
+  if (area < 500_000) {
+    targetDpi = 250;
+  } else if (area < 2_000_000) {
+    targetDpi = 200;
+  } else {
+    targetDpi = 150;
+  }
+  // Floor at 96 — never enlarge images beyond their natural screen size,
+  // even if our heuristic would want to. Floor sanity-checks the DPI
+  // bucket against the source's intrinsic resolution.
+  if (targetDpi > 96) {
+    // pxW / targetDpi inches, so larger DPI → fewer inches → smaller emu.
+  }
+
+  let widthEmu = Math.round((pxW / targetDpi) * EMU_PER_INCH);
+  let heightEmu = Math.round((pxH / targetDpi) * EMU_PER_INCH);
+
+  // Sanity cap: an image should never come out larger than its native
+  // 96-dpi size. Without this, tiny icons could be enlarged by the DPI
+  // heuristic since the bucket only knows pixel area.
+  const nativeWidthEmu = pxW * EMU_PER_PIXEL_AT_96_DPI;
+  if (widthEmu > nativeWidthEmu) {
+    widthEmu = nativeWidthEmu;
+    heightEmu = pxH * EMU_PER_PIXEL_AT_96_DPI;
+  }
+
+  // Width cap.
+  if (widthEmu > maxWidthEmu) {
+    const ratio = maxWidthEmu / widthEmu;
+    widthEmu = maxWidthEmu;
+    heightEmu = Math.max(1, Math.round(heightEmu * ratio));
+  }
+
+  // Height cap — preserves aspect by scaling both dimensions equally.
+  if (maxHeightEmu !== undefined && heightEmu > maxHeightEmu) {
+    const ratio = maxHeightEmu / heightEmu;
+    heightEmu = maxHeightEmu;
+    widthEmu = Math.max(1, Math.round(widthEmu * ratio));
+  }
+
+  return { widthEmu, heightEmu };
+}
 
 function makeImageRunIfAvailable(
   node: MdImage,
@@ -531,14 +602,12 @@ function makeImageRunIfAvailable(
 
   const { bytes, mime } = entry;
   const { width: pxW, height: pxH } = getImageDimensions(bytes, mime);
-
-  let widthEmu = pxW * EMU_PER_PIXEL;
-  let heightEmu = pxH * EMU_PER_PIXEL;
-  if (widthEmu > ctx.maxImageWidthEmu) {
-    const ratio = ctx.maxImageWidthEmu / widthEmu;
-    widthEmu = ctx.maxImageWidthEmu;
-    heightEmu = Math.max(1, Math.round(heightEmu * ratio));
-  }
+  const { widthEmu, heightEmu } = computeImageEmuDimensions(
+    pxW,
+    pxH,
+    ctx.maxImageWidthEmu,
+    ctx.maxImageHeightEmu,
+  );
 
   const type = imageRunTypeFor(mime);
 

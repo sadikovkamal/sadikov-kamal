@@ -36,6 +36,7 @@ import type { PrintConfig, PrintProblem } from "@/lib/print/types";
 
 // 1 inch = 1440 twips. A4 = 8.27" x 11.69" = 11906 x 16838 twips.
 const A4_WIDTH_TWIPS = 11906;
+const A4_HEIGHT_TWIPS = 16838;
 // 1 twip = 635 EMU (1 inch = 914400 EMU / 1440 twips).
 const EMU_PER_TWIP = 635;
 
@@ -56,13 +57,16 @@ export function buildDocx(
 ): Document {
   const marginTwips = MARGIN_TWIPS[config.margins];
   const contentWidthEmu = (A4_WIDTH_TWIPS - 2 * marginTwips) * EMU_PER_TWIP;
-  // Cap diagram images at ~60 % of the content width. Source images often
-  // come from olympiad-PDF crops at 1000+ px — at native 96 dpi that
-  // covers the entire page and dwarfs the rest of the problem. 60 % gives
-  // diagrams a comfortable reading size while leaving margin around them.
-  // Smaller images keep their natural dimensions; the walker only caps,
-  // it never enlarges.
-  const maxImageWidthEmu = Math.round(contentWidthEmu * 0.6);
+  const contentHeightEmu = (A4_HEIGHT_TWIPS - 2 * marginTwips) * EMU_PER_TWIP;
+  // Width and height caps for images — combined with the DPI-bucketed
+  // natural-size heuristic in `computeImageEmuDimensions` (markdown-to-docx)
+  // these keep diagrams readable without letting a single image dominate
+  // the page. The walker preserves aspect ratio; whichever cap binds first
+  // determines the final size. 50 % on each axis matches the preview's
+  // IMAGE_*_FRACTION constants, so what the user sees lines up with the
+  // .docx output.
+  const maxImageWidthEmu = Math.round(contentWidthEmu * 0.5);
+  const maxImageHeightEmu = Math.round(contentHeightEmu * 0.5);
 
   const halfPointSize = config.fontSize * 2;
   // `line` is in twentieths-of-a-point; lineHeight = multiplier × 240 (12pt baseline).
@@ -135,6 +139,7 @@ export function buildDocx(
       numberPrefix,
       images,
       maxImageWidthEmu,
+      maxImageHeightEmu,
       fontSize: config.fontSize,
       usedImageUrls,
       keepWithNext: true,
@@ -167,6 +172,7 @@ export function buildDocx(
         numberPrefix: "",
         images,
         maxImageWidthEmu,
+        maxImageHeightEmu,
         fontSize: config.fontSize,
         usedImageUrls,
         keepWithNext: true,
