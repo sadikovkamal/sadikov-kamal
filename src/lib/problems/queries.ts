@@ -24,6 +24,8 @@ import {
   sources,
 } from "@/db/schema";
 import { withDescendants } from "@/lib/taxonomy/hierarchy";
+import { getPublicUrl } from "@/lib/storage/r2";
+import type { PrintProblem } from "@/lib/print/types";
 
 /**
  * Hydrate a single problem with its junction rows + source + images.
@@ -102,6 +104,167 @@ export async function getProblemByCode(code: string) {
 export type ProblemWithRelations = NonNullable<
   Awaited<ReturnType<typeof getProblemById>>
 >;
+
+// --- Print feature query ----------------------------------------------------
+
+/**
+ * Batch-load the full data the print feature needs for a list of problem
+ * UUIDs: full `bodyMd` (no truncation), every image with both `storageKey`
+ * (server-side R2 fetch) and `url` (browser-side preview), source as a
+ * `{ code, name } | null`, plus the three taxonomy junctions.
+ *
+ * The result is **reordered to match the input `ids`** so the dialog's
+ * selection order is honoured deterministically. IDs that don't resolve
+ * to a row (deleted, never existed, etc.) are silently dropped — the
+ * caller compares `result.length` to `ids.length` and reconciles the
+ * client's `selected` Set accordingly.
+ *
+ * Uses the same batched hydration pattern as `listProblems`: one
+ * `inArray` over the requested IDs for problems + a parallel four-way
+ * `Promise.all` for sources + images + topics + age categories +
+ * methods. No N+1 — total query count is O(1) regardless of `ids.length`.
+ */
+export async function getProblemsForPrint(
+  ids: string[],
+): Promise<PrintProblem[]> {
+  if (ids.length === 0) return [];
+
+  // Fetch the problems themselves (id + code + bodyMd + sourceId) in one
+  // shot. We join sources here as a left-join so a problem with a stale
+  // sourceId still surfaces (matches `listProblems` resilience).
+  const rows = await db
+    .select({
+      id: problems.id,
+      code: problems.code,
+      bodyMd: problems.bodyMd,
+      sourceCode: sources.code,
+      sourceName: sources.name,
+    })
+    .from(problems)
+    .leftJoin(sources, eq(sources.id, problems.sourceId))
+    .where(inArray(problems.id, ids));
+
+  if (rows.length === 0) return [];
+
+  const foundIds = rows.map((r) => r.id);
+
+  // Hydrate junctions + images in parallel, all bounded by `inArray` so
+  // the query count stays at 4 no matter how big the input.
+  const [imageRows, topicRows, ageCategoryRows, methodRows] = await Promise.all(
+    [
+      db
+        .select({
+          problemId: images.problemId,
+          storageKey: images.storageKey,
+          altText: images.altText,
+        })
+        .from(images)
+        .where(inArray(images.problemId, foundIds))
+        .orderBy(images.createdAt),
+      db
+        .select({
+          problemId: problemTopics.problemId,
+          code: topics.code,
+          name: topics.name,
+        })
+        .from(problemTopics)
+        .innerJoin(topics, eq(topics.id, problemTopics.topicId))
+        .where(inArray(problemTopics.problemId, foundIds)),
+      db
+        .select({
+          problemId: problemAgeCategories.problemId,
+          code: ageCategories.code,
+          name: ageCategories.name,
+        })
+        .from(problemAgeCategories)
+        .innerJoin(
+          ageCategories,
+          eq(ageCategories.id, problemAgeCategories.ageCategoryId),
+        )
+        .where(inArray(problemAgeCategories.problemId, foundIds)),
+      db
+        .select({
+          problemId: problemMethods.problemId,
+          code: methods.code,
+          name: methods.name,
+        })
+        .from(problemMethods)
+        .innerJoin(methods, eq(methods.id, problemMethods.methodId))
+        .where(inArray(problemMethods.problemId, foundIds)),
+    ],
+  );
+
+  // Bucket each junction by problemId for O(1) hydration below.
+  const imagesByProblem = new Map<
+    string,
+    PrintProblem["images"]
+  >();
+  for (const r of imageRows) {
+    const arr = imagesByProblem.get(r.problemId) ?? [];
+    arr.push({
+      storageKey: r.storageKey,
+      url: getPublicUrl(r.storageKey),
+      altText: r.altText,
+    });
+    imagesByProblem.set(r.problemId, arr);
+  }
+
+  const topicsByProblem = new Map<string, PrintProblem["topics"]>();
+  for (const r of topicRows) {
+    const arr = topicsByProblem.get(r.problemId) ?? [];
+    arr.push({ code: r.code, name: r.name });
+    topicsByProblem.set(r.problemId, arr);
+  }
+
+  const ageCategoriesByProblem = new Map<
+    string,
+    PrintProblem["ageCategories"]
+  >();
+  for (const r of ageCategoryRows) {
+    const arr = ageCategoriesByProblem.get(r.problemId) ?? [];
+    arr.push({ code: r.code, name: r.name });
+    ageCategoriesByProblem.set(r.problemId, arr);
+  }
+
+  const methodsByProblem = new Map<string, PrintProblem["methods"]>();
+  for (const r of methodRows) {
+    const arr = methodsByProblem.get(r.problemId) ?? [];
+    arr.push({ code: r.code, name: r.name });
+    methodsByProblem.set(r.problemId, arr);
+  }
+
+  // Assemble PrintProblem objects, indexed by id for the reorder step.
+  const byId = new Map<string, PrintProblem>();
+  for (const r of rows) {
+    byId.set(r.id, {
+      id: r.id,
+      code: r.code,
+      bodyMd: r.bodyMd,
+      images: imagesByProblem.get(r.id) ?? [],
+      source:
+        r.sourceCode != null && r.sourceName != null
+          ? { code: r.sourceCode, name: r.sourceName }
+          : null,
+      topics: topicsByProblem.get(r.id) ?? [],
+      ageCategories: (ageCategoriesByProblem.get(r.id) ?? []).sort((a, b) =>
+        a.code.localeCompare(b.code),
+      ),
+      methods: (methodsByProblem.get(r.id) ?? []).sort((a, b) =>
+        a.code.localeCompare(b.code),
+      ),
+    });
+  }
+
+  // Reorder to match the caller's input. Missing IDs (deleted rows,
+  // garbage UUIDs) are silently skipped — the caller compares lengths
+  // and reconciles its selection state on the client.
+  const out: PrintProblem[] = [];
+  for (const id of ids) {
+    const p = byId.get(id);
+    if (p) out.push(p);
+  }
+  return out;
+}
 
 // --- List page query --------------------------------------------------------
 
