@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { FilterPopover, type FilterOption } from "./filters";
 import { bulkUpdateProblemsAction } from "./_actions";
+import { useSelection } from "./_selection-context";
 
 /**
  * Bulk edit modal — applies one or more shared field updates across the
@@ -31,7 +32,6 @@ import { bulkUpdateProblemsAction } from "./_actions";
 export function BulkEditDialog({
   open,
   onOpenChange,
-  problemIds,
   sourcesAvailable,
   ageCategoriesAvailable,
   topicsAvailable,
@@ -40,13 +40,18 @@ export function BulkEditDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  problemIds: string[];
   sourcesAvailable: FilterOption[];
   ageCategoriesAvailable: FilterOption[];
   topicsAvailable: FilterOption[];
   methodsAvailable: FilterOption[];
   onSuccess: () => void;
 }) {
+  // Selection comes from the layout-scoped context so we don't have to
+  // thread `problemIds` from every call-site. On save we clear the
+  // selection via the same hook — the parent's `onSuccess` only needs
+  // to handle the data refresh.
+  const { selected, clear } = useSelection();
+  const problemIds = Array.from(selected);
   const [sourceId, setSourceId] = useState<string | undefined>(undefined);
   const [ageCategoryIds, setAgeCategoryIds] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<string[]>([]);
@@ -107,6 +112,10 @@ export function BulkEditDialog({
       }
       reset();
       onOpenChange(false);
+      // The bulk-edit targets still exist; we just clear the ticks so
+      // the toolbar collapses and the user starts the next operation
+      // from a clean slate (matches the pre-context behaviour).
+      clear();
       onSuccess();
     });
   }

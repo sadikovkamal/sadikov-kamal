@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { bulkDeleteProblemsAction } from "./_actions";
 import { BulkEditDialog } from "./bulk-edit-dialog";
+import { useSelection } from "./_selection-context";
 import { BULK_OP_LIMIT } from "./_constants";
 import { PAGE_SIZE_OPTIONS } from "./_url-state";
 import type { FilterOption } from "./filters";
@@ -72,7 +73,11 @@ export function ProblemsList({
   const pathname = usePathname();
   const params = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Selection lives in a layout-scoped React context (backed by
+  // localStorage) so it survives filter URL changes, route navigation
+  // away to a detail page, and full page reloads. See
+  // `_selection-context.tsx` + `layout.tsx`.
+  const { selected, selectMany, deselectMany, toggle, clear } = useSelection();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -107,16 +112,17 @@ export function ProblemsList({
     });
   }
 
+  // The select-all checkbox toggles the current page only. With cross-page
+  // selection now persisted in context, "all" means "every row visible
+  // right now" — un-checking deselects only those visible rows, leaving
+  // previously selected rows on other pages untouched.
   function toggleAll(checked: boolean) {
-    setSelected(checked ? new Set(rows.map((r) => r.id)) : new Set());
+    const pageIds = rows.map((r) => r.id);
+    if (checked) selectMany(pageIds);
+    else deselectMany(pageIds);
   }
   function toggleOne(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    toggle(id);
   }
 
   async function bulkDelete() {
@@ -124,11 +130,13 @@ export function ProblemsList({
     setDeleteError(null);
     try {
       const result = await bulkDeleteProblemsAction(Array.from(selected));
-      if (result && "error" in result) {
+      if ("error" in result) {
         setDeleteError(result.error);
         return;
       }
-      setSelected(new Set());
+      // Drop just the deleted IDs from the selection — anything ticked
+      // on other pages that wasn't part of this delete stays selected.
+      deselectMany(result.deletedIds);
       setConfirmOpen(false);
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : "Delete failed");
@@ -202,7 +210,7 @@ export function ProblemsList({
             <Button
               variant="ghost"
               size="xs"
-              onClick={() => setSelected(new Set())}
+              onClick={() => clear()}
             >
               Bekor qilish
             </Button>
@@ -297,15 +305,14 @@ export function ProblemsList({
       <BulkEditDialog
         open={bulkEditOpen}
         onOpenChange={setBulkEditOpen}
-        problemIds={Array.from(selected)}
         sourcesAvailable={sourcesAvailable}
         ageCategoriesAvailable={ageCategoriesAvailable}
         topicsAvailable={topicsAvailable}
         methodsAvailable={methodsAvailable}
         onSuccess={() => {
-          // Clear the selection and refresh server data so the list
-          // reflects the bulk update without a full reload.
-          setSelected(new Set());
+          // Refresh server data so the list reflects the bulk update
+          // without a full reload. The dialog clears its own selection
+          // via the context (see bulk-edit-dialog.tsx).
           router.refresh();
         }}
       />

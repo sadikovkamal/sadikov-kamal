@@ -8,7 +8,7 @@ The work has four interlocking parts:
 
 1. **Selection state lifted to a layout-scoped React context backed by `localStorage`** — survives filter changes, route changes, and page reloads.
 2. **Print dialog** — modal with config panel + selected-problems list + live HTML preview, opens from a new toolbar button next to "O'zgartirish" / "O'chirish".
-3. **Server-side .docx generation** — markdown bodies parsed via `remark`, math converted via `MathJax` (LaTeX → MathML) + an XSLT transform (MathML → OMath), images embedded from R2, document built with the `docx` library, returned as an `ArrayBuffer`.
+3. **Server-side .docx generation** — markdown bodies parsed via `remark`, math converted via `MathJax` (LaTeX → MathML) + `mathml2omml` (MathML → OMath), images embedded from R2, document built with the `docx` library, returned as an `ArrayBuffer`.
 4. **Preview** — HTML/CSS A4 mimic in the modal, sharing the same configuration object as the docx generator, so what the user sees closely matches what they get.
 
 ## Non-goals
@@ -304,7 +304,7 @@ This is the highest-risk technical piece. The plan:
 LaTeX string ("\frac{a}{b}")
   ↓ MathJax (mathjax-full, TeX input + MathML output)
 MathML string
-  ↓ XSLT (Microsoft's official MML2OMML.XSL, ships with Office)
+  ↓ mathml2omml (pure-JS MathML AST walker)
 OMath XML string ("<m:oMath>…</m:oMath>")
   ↓ docx custom XML insert
 Word document with native, editable formulas
@@ -313,11 +313,9 @@ Word document with native, editable formulas
 ### Library choices
 
 - **`mathjax-full`** (npm) — well-maintained, runs server-side under Node, supports TeX → MathML conversion. We initialise a single `MathJax` instance per module (heavy startup ~150 ms) and reuse for every formula in the batch.
-- **`xslt-processor`** (npm) — pure-JS XSLT processor that runs Node-side without native deps. Saxon-JS is faster but is a 4 MB dependency; xslt-processor is small enough to acceptable for our batch sizes. If we hit perf issues later we can switch.
+- **`mathml2omml`** (npm) — small pure-JS library by the FidusWriter team that walks the MathML AST and emits a Word-native OMath fragment. No XSLT engine, no native deps.
 
-### MML2OMML.XSL provenance
-
-Microsoft published this stylesheet alongside Office; many open-source projects (e.g. `pandoc`, `OOXML-cmds`) ship it. We commit a vetted copy to `src/lib/print/mml2omml.xsl` (it's a ~50 KB XSLT file, well-tested, license-compatible). A comment at the top of the file records the source commit and license.
+**Why not the Microsoft MML2OMML.XSL stylesheet:** the obvious "use the official transform" approach turns out not to work in pure JS. The XSLT relies on namespace-aware XPath template matching; the only no-native-dep XSLT processor on npm (`xslt-processor`) does not match templates by namespace URI, only by literal qualified name. Every structural template (`mfrac`, `msqrt`, `msup`, …) collapses to the catch-all and the result is flat text-only OMath that Word renders as plain characters instead of an equation. Saxon-JS works but ships 4 MB of runtime. `mathml2omml` is a dedicated port of the same transform to native JS — small, correct, and matches Word's output structurally.
 
 ### `mathToOmml(latex: string): string`
 
@@ -377,14 +375,13 @@ If `mathToOmml(latex)` throws for one formula in one problem, the failure is con
 | `src/lib/print/types.ts` | **New.** `PrintConfig`, `PrintProblem`, `DEFAULT_PRINT_CONFIG`, Zod schemas. |
 | `src/lib/print/docx.ts` | **New.** `buildDocx(problems, config, imageBlobs)` returns a `docx.Document` ready to pack. |
 | `src/lib/print/markdown-to-docx.ts` | **New.** Walks a `mdast` tree and emits docx elements; consults `mathToOmml` for math nodes. |
-| `src/lib/print/math-omml.ts` | **New.** LaTeX → OMath conversion with cached MathJax + XSLT instances and a graceful-fallback wrapper. |
-| `src/lib/print/mml2omml.xsl` | **New.** Vendored Microsoft XSLT, with license header. |
+| `src/lib/print/math-omml.ts` | **New.** LaTeX → OMath conversion via cached MathJax + `mathml2omml`, with a graceful-fallback wrapper. |
 | `src/lib/print/r2-fetch.ts` | **New.** `fetchImageBytes(storageKey): Promise<Uint8Array>` using the existing R2 client. |
 | `src/lib/problems/queries.ts` | Add `getProblemsForPrint(ids)` — co-located with the existing hydration helpers. Same shape as the list query but with full `bodyMd` and ordered to match input. |
 | `src/app/admin/problems/_constants.ts` | No change — `BULK_OP_LIMIT` already covers print. |
 | `scripts/print-smoke.ts` | **New.** Smoke test: seed N problems with math + images, generate a docx, assert non-zero size, parse the XML inside, assert at least one `<m:oMath>` exists. |
 | `scripts/run-all-smokes.sh` | Register `print-smoke.ts`. |
-| `package.json` | Add `docx`, `mathjax-full`, `xslt-processor`. |
+| `package.json` | Add `docx`, `mathjax-full`, `mathml2omml`. |
 
 ## Part 7 — Error handling and edge cases
 
@@ -425,7 +422,7 @@ Foundations (parallelisable):
 
 - **F1.** Selection context + layout wrap + migrate existing list/bulk-edit consumers.
 - **F2.** Print types + Zod schemas + default config (no React).
-- **F3.** LaTeX → OMath module (math-omml.ts + mml2omml.xsl + cached pipeline + tests against canonical formulas).
+- **F3.** LaTeX → OMath module (math-omml.ts + cached MathJax/mathml2omml pipeline + tests against canonical formulas).
 - **F4.** Markdown → docx walker, paired with `buildDocx()` and `getProblemsForPrint()` query.
 - **F5.** R2 image fetcher (small wrapper over the existing client).
 

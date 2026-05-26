@@ -178,7 +178,16 @@ const bulkDeleteSchema = z
     `Bir vaqtda ${BULK_OP_LIMIT} dan ortiq masala o'chirib bo'lmaydi`
   );
 
-export async function bulkDeleteProblemsAction(ids: string[]) {
+/**
+ * Bulk-delete returns `deletedIds` on success so the caller can drop
+ * those entries from any client-side selection state without re-querying
+ * (today: the layout-scoped selection context — see
+ * `_selection-context.tsx`). The transaction is all-or-nothing, so on
+ * the success branch the parsed input IS the set that got deleted.
+ */
+export async function bulkDeleteProblemsAction(
+  ids: string[],
+): Promise<{ error: string } | { deletedIds: string[] }> {
   await requireAdmin();
   const parsed = bulkDeleteSchema.safeParse(ids);
   if (!parsed.success) {
@@ -186,7 +195,7 @@ export async function bulkDeleteProblemsAction(ids: string[]) {
       error: parsed.error.issues[0]?.message ?? "Invalid ids",
     };
   }
-  if (parsed.data.length === 0) return;
+  if (parsed.data.length === 0) return { deletedIds: [] };
 
   let orphans: string[] = [];
   try {
@@ -200,7 +209,7 @@ export async function bulkDeleteProblemsAction(ids: string[]) {
 
   await cleanupOrphans(orphans);
   revalidateProblemSurfaces();
-  return;
+  return { deletedIds: parsed.data };
 }
 
 /**

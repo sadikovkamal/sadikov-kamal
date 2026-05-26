@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { nanoid } from "nanoid";
 
@@ -197,6 +198,33 @@ export async function fileExists(storageKey: string): Promise<boolean> {
 export function getPublicUrl(storageKey: string): string {
   const cfg = loadConfig();
   return `${cfg.publicUrl}/${storageKey}`;
+}
+
+/**
+ * Download the raw bytes of an R2 object by storage key.
+ *
+ * Used by server-side flows that need to embed binary content (e.g. the
+ * print/docx generator embedding image bytes). Goes through the S3 client
+ * — not the public CDN — so it works for private buckets and avoids an
+ * extra HTTP hop. Throws if the key is empty or the object is missing.
+ */
+export async function getObjectBytes(
+  storageKey: string
+): Promise<Uint8Array> {
+  if (!storageKey || typeof storageKey !== "string") {
+    throw new Error("getObjectBytes: storageKey must be a non-empty string");
+  }
+  const { s3, cfg } = getClient();
+  const response = await s3.send(
+    new GetObjectCommand({ Bucket: cfg.bucket, Key: storageKey })
+  );
+  if (!response.Body) {
+    throw new Error(`getObjectBytes: empty body for key ${storageKey}`);
+  }
+  // The modern AWS SDK v3 wraps the Body in a SmithyStream that exposes
+  // `transformToByteArray()` — uniform across Node streams and web
+  // ReadableStreams.
+  return await response.Body.transformToByteArray();
 }
 
 /**

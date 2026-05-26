@@ -6,9 +6,9 @@
 
 **Goal:** Ship a "Chop etish" action on `/admin/problems` that lets a teacher select problems across filter/page boundaries and download them as a Word `.docx` worksheet (native OMath math, embedded images, configurable layout) via a Chrome-print-style modal.
 
-**Architecture summary:** layout-scoped React-Context + localStorage selection state; new modal with config panel + ordered selected list + live A4 HTML preview; server action that fetches full problem data, converts markdown to docx, converts LaTeX to OMath via MathJax + Microsoft's MML2OMML XSLT, embeds R2-fetched images, returns bytes.
+**Architecture summary:** layout-scoped React-Context + localStorage selection state; new modal with config panel + ordered selected list + live A4 HTML preview; server action that fetches full problem data, converts markdown to docx, converts LaTeX to OMath via MathJax + `mathml2omml`, embeds R2-fetched images, returns bytes.
 
-**Tech stack additions:** `docx` (dolanmiu) for OOXML; `mathjax-full` for TeX → MathML; `xslt-processor` for MML → OMath; XSLT file (`mml2omml.xsl`) vendored from Microsoft Office.
+**Tech stack additions:** `docx` (dolanmiu) for OOXML; `mathjax-full` for TeX → MathML; `mathml2omml` for MathML → OMath.
 
 ---
 
@@ -27,7 +27,6 @@
 - `src/lib/print/markdown-to-docx.ts`
 - `src/lib/print/math-omml.ts`
 - `src/lib/print/r2-fetch.ts`
-- `src/lib/print/mml2omml.xsl`
 - `scripts/print-smoke.ts`
 
 **Modify:**
@@ -55,7 +54,7 @@ A trivial setup task that every other phase needs. Run this first, alone.
 - [ ] Add to `package.json` `dependencies`:
   - `"docx": "^9.0.0"` (or the latest 9.x — pin minor)
   - `"mathjax-full": "^3.2.2"`
-  - `"xslt-processor": "^4.0.0"`
+  - `"mathml2omml": "^0.5.0"`
   - `"unified": "^11.0.5"` (transitively present via `react-markdown` today, but the docx walker imports it directly — make the dependency explicit)
   - `"remark-parse": "^11.0.0"` (same reasoning)
   - `"mdast-util-to-string"` (latest) — text fallback for unknown nodes in the docx walker
@@ -127,14 +126,13 @@ These tasks have **no inter-dependencies**. Dispatch as four parallel subagents.
 
 **Files:**
 - Create: `src/lib/print/math-omml.ts`
-- Create: `src/lib/print/mml2omml.xsl`
 
-- [ ] **Step 1: Vendor the XSLT.** Download Microsoft's `MML2OMML.XSL` (ships with Office; also found in `pandoc`'s repo). Save to `src/lib/print/mml2omml.xsl`. Prepend a top-of-file comment that records: original source URL, commit SHA, retrieval date (2026-05-25), license, and a note that we never modify the file.
+- [ ] **Step 1: ~~Vendor the XSLT~~.** Superseded by the `mathml2omml` library — no XSLT file is needed. The library walks the MathML AST directly. (Historical note: the original plan used the Microsoft MML2OMML.XSL with `xslt-processor`, but the latter's XPath engine matches templates by literal QName not namespace URI, collapsing every structural template to the catch-all. See the design spec, Part 5, "Why not the Microsoft MML2OMML.XSL stylesheet" for details.)
 
 - [ ] **Step 2: Build the cached pipeline.** In `math-omml.ts`:
   - Lazy-initialise a MathJax instance: `tex.input`, `mml.output`, no PostHTML, no SVG (we want serialised MathML output as XML string). Cache the instance in a module-level `let`.
   - Lazy-load the XSLT once via `fs.readFileSync` of the vendored file (server-only — module is marked `import "server-only"` at the top).
-  - Lazy-initialise an `xslt-processor` `Xslt` instance and cache.
+  - No XSLT engine needed — `mathml2omml`'s `mml2omml(mathmlString)` is synchronous and stateless. Just import and call.
 
 - [ ] **Step 3: Expose `mathToOmml(latex: string, opts?: { display?: boolean }): string`.**
   - `display: true` → MathJax `displayMath`, output wrapped in `<math display="block">` → XSLT → block-style OMath.
@@ -382,7 +380,7 @@ Total work content: ~13 task-hours.
 | `docx` library version doesn't expose `ImportedXmlComponent.fromXmlString` (API drift). | Low (v9 has it, v8 had it) | Pin to `^9.0.0`. If broken in a later patch, fall back to extending `XmlComponent` directly — `docx` allows raw XML via subclassing. |
 | MML2OMML XSLT output rejected by Word. | Low (Microsoft uses it themselves) | Smoke unzips the docx and validates `word/document.xml` contains `<m:oMath>` *and* opens in LibreOffice (manual). |
 | MathJax SSR startup adds >500 ms to action latency. | Medium | Cache the instance module-wide (already in spec). Cold-start hit is one-time per Vercel function instance. |
-| `xslt-processor` library is dead / buggy. | Medium | If it errors on the vendored XSLT, swap to `saxon-js` (4 MB but more battle-tested). Both APIs are similar. |
+| ~~`xslt-processor` library is dead / buggy~~. | (mitigated) | Switched to `mathml2omml` during Task 1.3 implementation — see design spec Part 5. |
 | 500-problem print blows past Vercel 30s. | Medium-low (typical print ≤ 50) | Action returns a clear error; UI suggests splitting. Future: stream-to-blob with progress. |
 | LocalStorage corruption breaks selection. | Low | `try/catch` around parse; corrupt data is overwritten on next change. |
 | Image dimension parser fails on an exotic format. | Low | Fallback to a square at max width. |
