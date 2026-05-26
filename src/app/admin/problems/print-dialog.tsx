@@ -15,6 +15,7 @@ import {
 } from "./_print-actions";
 import { useSelection } from "./_selection-context";
 import { ConfigPanel } from "./print-dialog/config-panel";
+import { PrintPreview } from "./print-dialog/preview";
 
 /**
  * Top-level shell for the "Chop etish" modal. Owns four pieces of
@@ -239,8 +240,8 @@ export function PrintDialog({ open, onOpenChange }: PrintDialogProps) {
 
         {/* Two-column body. Each pane scrolls independently — the left
             via `overflow-y-auto` inside ConfigPanel, the right via the
-            preview placeholder's own scroll. `min-h-0` is essential so
-            the flex child collapses correctly inside `h-[85vh]`. */}
+            preview's own scroll. `min-h-0` is essential so the flex
+            child collapses correctly inside `h-[85vh]`. */}
         <div className="grid min-h-0 flex-1 grid-cols-[20rem_1fr]">
           <aside className="min-h-0 overflow-hidden border-r">
             <ConfigPanel
@@ -252,8 +253,12 @@ export function PrintDialog({ open, onOpenChange }: PrintDialogProps) {
               onRemove={handleRemove}
             />
           </aside>
-          <section className="min-h-0 overflow-y-auto bg-muted/30 grid place-items-center text-muted-foreground">
-            Preview
+          <section className="min-h-0 overflow-hidden">
+            <PrintPreview
+              config={config}
+              problems={problems}
+              orderedIds={orderedIds}
+            />
           </section>
         </div>
 

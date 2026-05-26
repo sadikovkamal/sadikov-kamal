@@ -12,6 +12,7 @@ import {
   Library,
   Pencil,
   Settings2,
+  Printer,
   Trash2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { bulkDeleteProblemsAction } from "./_actions";
 import { BulkEditDialog } from "./bulk-edit-dialog";
+import { PrintDialog } from "./print-dialog";
 import { useSelection } from "./_selection-context";
 import { BULK_OP_LIMIT } from "./_constants";
 import { PAGE_SIZE_OPTIONS } from "./_url-state";
@@ -79,6 +81,7 @@ export function ProblemsList({
   // `_selection-context.tsx` + `layout.tsx`.
   const { selected, selectMany, deselectMany, toggle, clear } = useSelection();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -217,6 +220,20 @@ export function ProblemsList({
             <Button
               variant="outline"
               size="xs"
+              onClick={() => setPrintOpen(true)}
+              disabled={isPending || overBulkLimit}
+              title={
+                overBulkLimit
+                  ? `Bir vaqtda eng ko'pi bilan ${BULK_OP_LIMIT} ta masala`
+                  : undefined
+              }
+            >
+              <Printer data-icon="inline-start" />
+              Chop etish
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
               onClick={() => setBulkEditOpen(true)}
               disabled={isPending || overBulkLimit}
               title={
@@ -301,6 +318,8 @@ export function ProblemsList({
           </div>
         )}
       </div>
+
+      <PrintDialog open={printOpen} onOpenChange={setPrintOpen} />
 
       <BulkEditDialog
         open={bulkEditOpen}

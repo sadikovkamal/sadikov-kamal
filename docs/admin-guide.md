@@ -126,6 +126,64 @@ Every problem must have a `# Shart` heading. `# Yechim` is optional.
 
 ---
 
+## Masalalarni chop etish
+
+Talabalarga tarqatma material tayyorlash uchun bir nechta masalani Word
+hujjati (`.docx`) sifatida yuklab olish mumkin.
+
+### Tanlash
+
+1. `/admin/problems` ga o'ting.
+2. Kerakli filtrlarni qo'ying — manba, yosh, mavzu, metod, qidiruv. Filtr
+   o'zgarganda **tanlanganlar saqlanib qoladi**, shuning uchun:
+   - bitta mavzudan 10 ta belgilab,
+   - filtrni boshqa mavzuga o'tkazib,
+   - yana 5 ta belgilash mumkin — modal'da hammasi (15 tasi) ko'rinadi.
+3. Tanlash sahifa qayta yuklansa ham (`Ctrl+R`) saqlanadi (lokalStorage).
+   Ikki tab ochiq bo'lsa, tablar mustaqil ishlaydi.
+4. Tanlanganlar soni `BULK_OP_LIMIT` (hozircha 500) dan oshmasligi kerak —
+   aks holda barcha bulk amallar tugmalari nofaol bo'ladi.
+
+### Chop etish modali
+
+Yuqori panelda "**Chop etish**" tugmasi bosilsa, ikki panelli modal
+ochiladi:
+
+- **Chap panel — sozlamalar**:
+  - **Hujjat**: sarlavha, shrift o'lchami (10–14pt), qator oralig'i
+    (1.0 / 1.15 / 1.5), sahifa chegarasi (tor / oddiy / keng), raqamlash
+    uslubi (`1.` / `1)` / `Masala 1.`).
+  - **Har masala ma'lumoti**: har bir masala ostida qo'shimcha qatorda
+    qaysi metadatani ko'rsatish — kod, manba, mavzular, yosh toifalari,
+    metodlar. Default'da hammasi o'chiq — faqat masala matni.
+  - **Tanlanganlar (N ta)**: ro'yxat. Har qator yonida `↑ ↓` tugmalari
+    bilan tartibni o'zgartirish, `×` bilan tanlovdan chiqarish.
+- **O'ng panel — preview**: A4 o'lchamli oq sahifa, Times New Roman,
+  taxminiy Word ko'rinishi. Matematik formulalar KaTeX bilan
+  ko'rsatiladi. Eslatma: Word'da sahifa chegaralari biroz farq qilishi
+  mumkin — preview taxminiy.
+
+Pastdagi "**Yuklab olish .docx**" tugmasi bosilsa, server faylni tayyorlab
+yuklab olishni boshlaydi. Fayl nomi: `masalalar-YYYY-MM-DD.docx`.
+
+### Word'da nima ko'rinadi
+
+- Matematik formulalar **native Office Math** (OMath) sifatida chiqadi —
+  Word'da formula sifatida tahrirlanishi mumkin, plain text emas.
+- Masala rasmlari masala matnidan keyin alohida qatorda joylashadi.
+- Sahifalar tabiiy ravishda to'ladi — masala sig'maydigan bo'lsa
+  avtomatik keyingi sahifaga o'tadi.
+
+### Cheklovlar (v1)
+
+- Hozircha faqat masala matni chop etiladi — yechim/javob bo'limi yo'q.
+- PDF emas, faqat `.docx`. Agar PDF kerak bo'lsa, Word'da "Save As PDF"
+  qiling.
+- Shablon (template) saqlash imkoniyati yo'q — har safar parametrlarni
+  qayta sozlash kerak.
+
+---
+
 ## Managing taxonomy
 
 ### Topics (`/admin/topics`)
