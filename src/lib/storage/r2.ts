@@ -74,6 +74,15 @@ function getClient(): { s3: S3Client; cfg: R2Config } {
         accessKeyId: cfg.accessKeyId,
         secretAccessKey: cfg.secretAccessKey,
       },
+      // Don't auto-add CRC32 checksums (SDK default since v3.729 is
+      // "WHEN_SUPPORTED"). For presigned PUTs that default signs an
+      // `x-amz-sdk-checksum-algorithm` header; the browser's CORS
+      // preflight then asks R2 to allow that header, which our bucket
+      // CORS (content-type only) rejects — so the upload fails with a
+      // generic "CORS/network error". R2 doesn't need these checksums;
+      // WHEN_REQUIRED reverts to the pre-3.729 behavior that just works.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     });
   }
   return { s3: cachedClient, cfg };
