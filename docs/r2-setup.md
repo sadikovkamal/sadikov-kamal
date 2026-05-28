@@ -105,3 +105,49 @@ After adding, trigger a redeploy (push a commit, or **Deployments**
 app's R2 helpers throw a clear "R2 storage is not configured" error
 on first call (module load still succeeds — see
 `src/lib/storage/r2.ts`'s lazy validation).
+
+## 8. Enable browser-direct import uploads (CORS + lifecycle)
+
+Problem-import ZIPs can be larger than Vercel's ~4.5 MB request-body
+limit, so the browser uploads them **straight to R2** via a presigned
+PUT. For that the bucket needs a CORS policy allowing cross-origin PUT;
+without it the browser blocks the upload and the import fails with a
+"Yuklab bo'lmadi — CORS xatosi" message.
+
+This is a **bucket-level** change. The app's "Object Read & Write" token
+can't make it, so use the dashboard (recommended) or an Admin token.
+
+### Option A — Cloudflare dashboard (recommended, no admin token)
+
+1. **CORS** — Bucket → **Settings** → **CORS Policy** → **Edit** → paste:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": [
+         "https://sadikov-kamal.uz",
+         "https://www.sadikov-kamal.uz",
+         "http://localhost:3000"
+       ],
+       "AllowedMethods": ["PUT"],
+       "AllowedHeaders": ["content-type"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+2. **Lifecycle** — Bucket → **Settings** → **Object lifecycle rules** →
+   **Add rule**: prefix `imports/`, action "Delete objects 1 day after
+   upload". This reclaims ZIPs uploaded for preview but never imported
+   (successful imports delete their own staging object).
+
+### Option B — script (needs an "Admin Read & Write" R2 token)
+
+```bash
+npx tsx scripts/setup-r2-cors.ts
+```
+
+Applies the same CORS + lifecycle via the S3 API. If the token lacks
+bucket-admin permission it fails and prints the dashboard JSON to paste
+instead. Idempotent — re-run after adding a deploy domain (edit
+`ALLOWED_ORIGINS` in the script first).

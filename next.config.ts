@@ -66,7 +66,11 @@ const nextConfig: NextConfig = {
             // - style-src 'self' 'unsafe-inline': Tailwind/inline styles
             // - img-src 'self' data: blob: https:: local images + R2
             // - font-src 'self': Next.js font optimization serves from origin
-            // - connect-src 'self': API routes only
+            // - connect-src 'self' + R2 S3 endpoint: API routes, plus the
+            //   browser's direct presigned-PUT upload of large import ZIPs
+            //   to Cloudflare R2 (bypasses Vercel's 4.5 MB body limit).
+            //   The wildcard is safe — presigned URLs are signature-gated;
+            //   CSP only governs which origins the page may talk to.
             // - frame-ancestors 'none': belt-and-suspenders with X-Frame-Options
             key: "Content-Security-Policy",
             value: [
@@ -75,7 +79,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self'",
-              "connect-src 'self'",
+              "connect-src 'self' https://*.r2.cloudflarestorage.com",
               "frame-ancestors 'none'",
             ].join("; "),
           },

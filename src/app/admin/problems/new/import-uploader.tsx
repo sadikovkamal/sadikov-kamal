@@ -21,11 +21,50 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  createImportUploadUrlAction,
   previewImportAction,
   executeImportAction,
   type PreviewSuccess,
   type ExecuteSuccess,
 } from "./_actions";
+
+/** Mirror of the server-side import cap in `lib/storage/r2.ts`. */
+const MAX_IMPORT_MB = 50;
+
+/**
+ * PUT a file straight to R2 via a presigned URL, reporting upload
+ * progress. Uses XMLHttpRequest because `fetch` can't observe upload
+ * progress. The `Content-Type` must match what the URL was signed with,
+ * or R2 rejects the signature.
+ */
+function uploadToR2(
+  url: string,
+  file: File,
+  contentType: string,
+  onProgress: (pct: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Yuklab bo'lmadi (HTTP ${xhr.status})`));
+    };
+    xhr.onerror = () =>
+      reject(
+        new Error(
+          "Yuklab bo'lmadi — tarmoq yoki CORS xatosi. R2 sozlamalarini tekshiring."
+        )
+      );
+    xhr.send(file);
+  });
+}
 
 /**
  * Two-stage import flow:
@@ -42,6 +81,11 @@ export function ImportUploader() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  // Key of the ZIP staged in R2. Set after a successful upload + preview,
+  // reused for execute so the file is uploaded only once.
+  const [storageKey, setStorageKey] = useState<string | null>(null);
+  // Direct-to-R2 upload progress (0-100), or null when not uploading.
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [preview, setPreview] = useState<PreviewSuccess | null>(null);
   const [success, setSuccess] = useState<ExecuteSuccess | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +95,8 @@ export function ImportUploader() {
 
   function reset() {
     setFile(null);
+    setStorageKey(null);
+    setUploadPct(null);
     setPreview(null);
     setSuccess(null);
     setError(null);
@@ -60,28 +106,52 @@ export function ImportUploader() {
 
   function onPreview() {
     if (!file) return;
+    if (file.size > MAX_IMPORT_MB * 1024 * 1024) {
+      setError(`Arxiv juda katta (maksimum ${MAX_IMPORT_MB} MB).`);
+      return;
+    }
     setError(null);
     setPreview(null);
     setSuccess(null);
+    setStorageKey(null);
     startPreview(async () => {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await previewImportAction(fd);
+      // 1. Ask the server for a short-lived presigned PUT.
+      const urlRes = await createImportUploadUrlAction();
+      if ("error" in urlRes) {
+        setError(urlRes.error);
+        return;
+      }
+      // 2. Upload the ZIP straight to R2 (never touches Vercel).
+      setUploadPct(0);
+      try {
+        await uploadToR2(
+          urlRes.uploadUrl,
+          file,
+          urlRes.contentType,
+          setUploadPct
+        );
+      } catch (e) {
+        setUploadPct(null);
+        setError(e instanceof Error ? e.message : "Yuklab bo'lmadi");
+        return;
+      }
+      setUploadPct(null);
+      // 3. Parse + validate from the staged object.
+      const res = await previewImportAction(urlRes.storageKey);
       if ("error" in res) {
         setError(res.error);
       } else {
+        setStorageKey(urlRes.storageKey);
         setPreview(res);
       }
     });
   }
 
   function onExecute() {
-    if (!file) return;
+    if (!storageKey) return;
     setError(null);
     startImport(async () => {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await executeImportAction(fd);
+      const res = await executeImportAction(storageKey);
       if ("error" in res) {
         setError(res.error);
         setConfirmOpen(false);
@@ -111,6 +181,7 @@ export function ImportUploader() {
         disabled={isPreviewing || isImporting}
         onChange={(e) => {
           setFile(e.target.files?.[0] ?? null);
+          setStorageKey(null);
           setPreview(null);
           setSuccess(null);
           setError(null);
@@ -162,7 +233,7 @@ export function ImportUploader() {
         {isPreviewing ? (
           <>
             <Loader2 data-icon="inline-start" className="animate-spin" />
-            Tekshirilmoqda…
+            {uploadPct !== null ? `Yuklanmoqda… ${uploadPct}%` : "Tekshirilmoqda…"}
           </>
         ) : (
           "Tekshirish"

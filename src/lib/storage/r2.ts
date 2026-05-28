@@ -1,10 +1,11 @@
 import {
   S3Client,
   PutObjectCommand,
+  GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
-  GetObjectCommand,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { nanoid } from "nanoid";
 
 /**
@@ -105,6 +106,15 @@ export const ALLOWED_MIME_TYPES = new Set([
  */
 export const MAX_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
 
+/**
+ * Hard cap for import ZIP staging objects. Bundles are uploaded straight
+ * to R2 via a presigned PUT (bypassing Vercel's ~4.5 MB body limit), so
+ * the framework never gets a chance to bound them. The presigned URL
+ * can't cheaply enforce a max either, so we enforce it server-side after
+ * download — before handing the bytes to the parser.
+ */
+export const MAX_IMPORT_BYTES = 50 * 1024 * 1024; // 50 MB
+
 export interface UploadResult {
   storageKey: string;
   publicUrl: string;
@@ -176,6 +186,31 @@ export async function deleteFile(storageKey: string): Promise<void> {
   await s3.send(
     new DeleteObjectCommand({ Bucket: cfg.bucket, Key: storageKey })
   );
+}
+
+/**
+ * Presign a PUT so the browser can upload a large object straight to R2,
+ * bypassing the serverless request-body limit. Signing `contentType`
+ * binds the URL to that exact `Content-Type` — the client must send the
+ * same header or the signature check fails. Short expiry: the URL only
+ * needs to live long enough to *start* the upload.
+ *
+ * Requires the bucket to allow cross-origin PUT (see
+ * `scripts/setup-r2-cors.ts`), otherwise the browser preflight is blocked.
+ */
+export async function createPresignedUploadUrl(params: {
+  storageKey: string;
+  contentType: string;
+  expiresIn?: number; // seconds; default 10 minutes
+}): Promise<string> {
+  const { storageKey, contentType, expiresIn = 600 } = params;
+  const { s3, cfg } = getClient();
+  const command = new PutObjectCommand({
+    Bucket: cfg.bucket,
+    Key: storageKey,
+    ContentType: contentType,
+  });
+  return getSignedUrl(s3, command, { expiresIn });
 }
 
 /**

@@ -38,10 +38,14 @@ async function noEnvAssertions() {
     throw new Error("ALLOWED_MIME_TYPES does not include image/png");
   }
   console.log(`pass: ALLOWED_MIME_TYPES exported (${r2.ALLOWED_MIME_TYPES.size} entries)`);
-  if (r2.MAX_SIZE_BYTES !== 5 * 1024 * 1024) {
+  if (r2.MAX_SIZE_BYTES !== 4 * 1024 * 1024) {
     throw new Error(`MAX_SIZE_BYTES wrong: ${r2.MAX_SIZE_BYTES}`);
   }
   console.log(`pass: MAX_SIZE_BYTES = ${r2.MAX_SIZE_BYTES}`);
+  if (r2.MAX_IMPORT_BYTES !== 50 * 1024 * 1024) {
+    throw new Error(`MAX_IMPORT_BYTES wrong: ${r2.MAX_IMPORT_BYTES}`);
+  }
+  console.log(`pass: MAX_IMPORT_BYTES = ${r2.MAX_IMPORT_BYTES}`);
 
   // Validation runs BEFORE config load, so non-image types/oversized files
   // are rejected with the right error message even without R2 env.
@@ -122,6 +126,42 @@ async function liveRoundtrip() {
   const stillExists = await r2.fileExists(upload.storageKey);
   if (stillExists) throw new Error(`fileExists still true after delete`);
   console.log(`pass: fileExists=false after delete`);
+
+  // --- Presigned PUT + getObjectBytes roundtrip -------------------------
+  // Mirrors the large-import path: presign a PUT, upload bytes directly to
+  // R2 (server-side fetch here — no CORS involved), then read them back
+  // with getObjectBytes. Content-Type must match what the URL was signed
+  // with, or R2 rejects the signature.
+  const importKey = `test/smoke/presigned-${Date.now()}.zip`;
+  const putUrl = await r2.createPresignedUploadUrl({
+    storageKey: importKey,
+    contentType: "application/zip",
+  });
+  if (!/X-Amz-Signature=/.test(putUrl)) {
+    throw new Error(`presigned URL missing signature: ${putUrl.slice(0, 80)}…`);
+  }
+  console.log(`pass: createPresignedUploadUrl returned a signed URL`);
+
+  const putRes = await fetch(putUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "application/zip" },
+    body: TINY_PNG,
+  });
+  if (!putRes.ok) {
+    throw new Error(`presigned PUT -> ${putRes.status} ${putRes.statusText}`);
+  }
+  console.log(`pass: presigned PUT uploaded ${importKey}`);
+
+  const round = await r2.getObjectBytes(importKey);
+  if (round.byteLength !== TINY_PNG.byteLength) {
+    throw new Error(
+      `getObjectBytes byte mismatch: ${round.byteLength} vs ${TINY_PNG.byteLength}`
+    );
+  }
+  console.log(`pass: getObjectBytes returned ${round.byteLength} bytes`);
+
+  await r2.deleteFile(importKey);
+  console.log(`pass: presigned roundtrip cleaned up`);
 }
 
 async function main() {
