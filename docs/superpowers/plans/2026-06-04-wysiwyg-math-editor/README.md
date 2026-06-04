@@ -1,6 +1,11 @@
 # WYSIWYG Math Editor — Implementation Plan (Overview)
 
-> **Status:** Planned — not started.
+> **Status:** Implemented (Phases 0–5) on branch `feat/wysiwyg-math-editor`.
+> Verified by typecheck + production build + the round-trip/render smoke
+> (66/66) + in-browser testing of the live editor (render, MathLive,
+> toolbar, source toggle). **Pending:** full manual matrix against real
+> imported problems with the local DB running, and the optional polish in
+> Phase 6 (a11y deep pass, perf profiling, admin-guide screenshots).
 > **Date:** 2026-06-04
 > **Owner area:** Single-problem create/edit form (`/admin/problems/new`, `/admin/problems/[code]/edit`).
 
