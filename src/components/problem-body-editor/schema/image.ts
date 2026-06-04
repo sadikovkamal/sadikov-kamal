@@ -2,11 +2,13 @@
  * ImageNode — block atom node with `src` and `alt` attributes.
  *
  * We author our own minimal image node (rather than `@tiptap/extension-image`)
- * to keep the schema closed and the markdown mapping explicit. Phase 1 is
- * schema only; the rendering node-view lands in a later phase.
+ * to keep the schema closed and the markdown mapping explicit. Phase 3 attaches
+ * the React node-view (ImageNodeView) for inline rendering + a remove control.
  */
 
 import { Node, mergeAttributes } from "@tiptap/core";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+import { ImageNodeView } from "../nodes/image-node-view";
 
 export const ImageNode = Node.create({
   name: "image",
@@ -37,5 +39,9 @@ export const ImageNode = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     return ["img", mergeAttributes(HTMLAttributes)];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ImageNodeView);
   },
 });
