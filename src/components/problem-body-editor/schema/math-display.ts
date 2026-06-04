@@ -1,12 +1,14 @@
 /**
  * MathDisplay — block atom node holding a LaTeX string in its `latex` attribute.
  *
- * Phase 1: schema only (no node-view yet — that lands in Phase 2). The DOM
- * representation carries the LaTeX in a `data-latex` attribute so ProseMirror's
- * own clipboard/DOM serialisation survives before a node-view exists.
+ * Phase 2: a React node-view (MathNodeView) renders KaTeX at rest and opens
+ * MathLive on click. The DOM representation still carries the LaTeX in a
+ * `data-latex` attribute so ProseMirror's clipboard/DOM serialisation survives.
  */
 
 import { Node, mergeAttributes } from "@tiptap/core";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+import { MathNodeView } from "../nodes/math-node-view";
 
 export const MathDisplay = Node.create({
   name: "mathDisplay",
@@ -24,6 +26,12 @@ export const MathDisplay = Node.create({
           "data-latex": (attributes as { latex: string }).latex,
         }),
       },
+      // Transient UI-only flag — see math-inline.ts. Default + rendered:false
+      // means it never reaches DOM/markdown serialization.
+      justInserted: {
+        default: false,
+        rendered: false,
+      },
     };
   },
 
@@ -33,5 +41,9 @@ export const MathDisplay = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     return ["div", mergeAttributes({ "data-math-display": "" }, HTMLAttributes)];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(MathNodeView);
   },
 });
