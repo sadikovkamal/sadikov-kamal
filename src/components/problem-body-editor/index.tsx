@@ -51,6 +51,16 @@ export interface ProblemBodyEditorProps {
    * Phase 4; this slot remains for any consumer-supplied header affordance.
    */
   sourceToggleSlot?: React.ReactNode;
+  /**
+   * When `false`, the editor's OWN image-insertion UI is hidden — the header
+   * "Rasm yuklash" button (both visual and source mode) and drag-drop upload.
+   * Inline image RENDERING (the image node-view) is unaffected and always on.
+   *
+   * The problem form sets this to `false` because it owns a separate standalone
+   * `image` field (ImageUploadField) and must not present two competing
+   * image-insert controls. Defaults to `true` for standalone/other consumers.
+   */
+  enableImageInsertion?: boolean;
 }
 
 export function ProblemBodyEditor({
@@ -59,6 +69,7 @@ export function ProblemBodyEditor({
   uploadPrefix,
   minHeight = "240px",
   sourceToggleSlot,
+  enableImageInsertion = true,
 }: ProblemBodyEditorProps) {
   // Whole-document mode. Both modes read/write the SAME `value`/`onChange` —
   // two views of one markdown string. Default visual for first-time users.
@@ -73,12 +84,15 @@ export function ProblemBodyEditor({
   const onChangeRef = useRef(onChange);
   // Stable ref to uploadPrefix for the drop handler (captured once in useEditor).
   const uploadPrefixRef = useRef(uploadPrefix);
+  // Stable ref so the config-time handleDrop closure can read the latest flag.
+  const enableImageInsertionRef = useRef(enableImageInsertion);
   // Stable ref to the editor itself, so config-time closures (handleDrop) can
   // reach the live instance once it's created.
   const editorRef = useRef<Editor | null>(null);
   useEffect(() => {
     onChangeRef.current = onChange;
     uploadPrefixRef.current = uploadPrefix;
+    enableImageInsertionRef.current = enableImageInsertion;
   });
 
   const editor = useEditor({
@@ -97,6 +111,10 @@ export function ProblemBodyEditor({
       // `image` node at the drop position. Returning true tells ProseMirror we
       // handled the drop (don't fall back to default file handling).
       handleDrop(view, event) {
+        // When the consumer owns image insertion elsewhere, let ProseMirror
+        // handle the drop as usual (no upload), so we don't expose a second
+        // image-insert path.
+        if (!enableImageInsertionRef.current) return false;
         const dt = (event as DragEvent).dataTransfer;
         const files = Array.from(dt?.files ?? []).filter((f) =>
           f.type.startsWith("image/")
@@ -197,15 +215,27 @@ export function ProblemBodyEditor({
         {mode === "visual" ? (
           <>
             <FormulaToolbar editor={editor} />
-            <span className="mx-1 h-5 w-px bg-foreground/10" aria-hidden />
-            <ImageUploadButton editor={editor} uploadPrefix={uploadPrefix} />
+            {enableImageInsertion && (
+              <>
+                <span
+                  className="mx-1 h-5 w-px bg-foreground/10"
+                  aria-hidden
+                />
+                <ImageUploadButton
+                  editor={editor}
+                  uploadPrefix={uploadPrefix}
+                />
+              </>
+            )}
           </>
         ) : (
-          <SourceImageUploadButton
-            value={value}
-            onChange={onChange}
-            uploadPrefix={uploadPrefix}
-          />
+          enableImageInsertion && (
+            <SourceImageUploadButton
+              value={value}
+              onChange={onChange}
+              uploadPrefix={uploadPrefix}
+            />
+          )
         )}
 
         {/* Right-aligned: optional consumer slot, then the source toggle. */}
