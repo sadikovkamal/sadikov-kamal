@@ -20,6 +20,7 @@ PLAIN=(
   "auth-smoke.ts"
   "auth-http-smoke.ts"
   "markdown-smoke.ts"
+  "wysiwyg-smoke.ts"
   "r2-smoke.ts"
   "taxonomy-pages-smoke.ts"
   "cron-smoke.ts"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -13,10 +13,9 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import dynamic from "next/dynamic";
-import { Eye, ImagePlus, Loader2, Pencil, X } from "lucide-react";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImageAction } from "@/app/admin/_actions/upload-image";
-import { MarkdownPreview } from "@/components/markdown-preview";
 import { MetadataForm } from "@/components/metadata-form";
 import type { Topic, AgeCategory, Method } from "@/db/schema";
 import type { SourcePickerNode } from "@/components/problem-form-pickers/source-picker";
@@ -25,9 +24,13 @@ import {
   updateProblemAction,
 } from "@/app/admin/problems/_actions";
 
-// CodeMirror is heavy and only matters in the browser, so lazy-load it.
-const MarkdownEditor = dynamic(
-  () => import("@/components/markdown-editor").then((m) => m.MarkdownEditor),
+// The WYSIWYG editor embeds MathLive/TipTap and only matters in the browser,
+// so lazy-load it with ssr:false (mirrors the previous MarkdownEditor import).
+const ProblemBodyEditor = dynamic(
+  () =>
+    import("@/components/problem-body-editor").then(
+      (m) => m.ProblemBodyEditor
+    ),
   {
     ssr: false,
     loading: () => (
@@ -320,101 +323,16 @@ function BodyEditor({
 
   return (
     <>
-      <SplitView
-        source={value}
-        onChange={(v) =>
-          setValue(fieldName, v, { shouldDirty: true })
-        }
+      <ProblemBodyEditor
+        value={value}
+        onChange={(v) => setValue(fieldName, v, { shouldDirty: true })}
         uploadPrefix={uploadPrefix}
+        minHeight="240px"
+        enableImageInsertion={false}
       />
       {showError && (
         <FieldHint message={formState.errors[fieldName]?.message} />
       )}
     </>
-  );
-}
-
-function SplitView({
-  source,
-  onChange,
-  uploadPrefix,
-}: {
-  source: string;
-  onChange: (v: string) => void;
-  uploadPrefix: string;
-}) {
-  // React 18+ idiom: keep the previous preview content rendered while the
-  // user is mid-keystroke, then catch up when typing pauses. The markdown
-  // pipeline (remark-math + rehype-katex + rehype-highlight + sanitize) is
-  // ~10-20ms per render — without this, every keystroke blocks the editor.
-  const deferredSource = useDeferredValue(source);
-  const isStale = source !== deferredSource;
-  const isEmpty = deferredSource.trim().length === 0;
-
-  return (
-    <div className="grid grid-cols-1 gap-3">
-      {/* Editor pane */}
-      <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card shadow-sm">
-        <header className="flex items-center justify-between px-3 h-9 border-b bg-muted/30">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            <Pencil className="size-3" aria-hidden />
-            <span>Tahrir</span>
-          </div>
-          <span className="text-[10px] text-muted-foreground/60 font-mono">
-            Markdown · LaTeX
-          </span>
-        </header>
-        <MarkdownEditor
-          value={source}
-          onChange={onChange}
-          uploadPrefix={uploadPrefix}
-          minHeight="240px"
-        />
-      </div>
-
-      {/* Preview pane */}
-      <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card shadow-sm">
-        <header className="flex items-center justify-between px-3 h-9 border-b bg-muted/30">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            <Eye className="size-3" aria-hidden />
-            <span>Ko&apos;rinish</span>
-          </div>
-          {isStale && (
-            <span
-              className="flex items-center gap-1 text-[10px] text-muted-foreground/70"
-              aria-live="polite"
-            >
-              <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Yangilanmoqda
-            </span>
-          )}
-        </header>
-        <div className="p-5 min-h-[200px] overflow-auto">
-          {isEmpty ? (
-            <EmptyPreview />
-          ) : (
-            <MarkdownPreview source={deferredSource} />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmptyPreview() {
-  return (
-    <div className="flex flex-col items-center justify-center text-center py-8 gap-2">
-      <Eye
-        className="size-5 text-muted-foreground/40"
-        aria-hidden
-        strokeWidth={1.5}
-      />
-      <p className="text-xs text-muted-foreground">
-        {"Yozayotgan matningiz bu yerda render bo'lib turadi"}
-      </p>
-      <p className="text-[10px] text-muted-foreground/60 font-mono">
-        $x^2 + y^2 = z^2$
-      </p>
-    </div>
   );
 }

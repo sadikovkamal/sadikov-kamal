@@ -55,7 +55,7 @@ typically taken on the dev machine).
 ### Smoke tests
 
 Each phase ships one or more `scripts/<area>-smoke.ts` that exercise
-the new surface end-to-end. Run the whole suite (14 scripts) with:
+the new surface end-to-end. Run the whole suite (15 scripts) with:
 
 ```bash
 npm run smoke
@@ -73,6 +73,7 @@ mutually exclusive).
 | `auth-smoke.ts` | 2 | sessions, bcrypt |
 | `auth-http-smoke.ts` | 2 | proxy guard + SSR |
 | `markdown-smoke.ts` | 3 | KaTeX + GFM + sanitize |
+| `wysiwyg-smoke.ts` | 11 | body_md ⇄ editor-doc round-trip + render-equivalence |
 | `r2-smoke.ts` | 4 | upload roundtrip (no-env mode also covered) |
 | `problems-smoke.ts` | 5 | problem CRUD + tag dedup |
 | `problems-page-smoke.ts` | 5 | pages + 404 |

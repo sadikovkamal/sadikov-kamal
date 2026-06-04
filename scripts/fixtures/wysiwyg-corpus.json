@@ -1,0 +1,266 @@
+[
+  {
+    "code": "part4-1",
+    "bodyMd": "$M$ to'plam berilgan bo'lsin. $M$ to'plamning almashtirishi — bu to'plamning o'ziga bir-bir akslantirishidir. Quyidagi tasdiqni isbotlang: $M$ to'plam bo'sh kesishmaydigan sinflarga shunday bo'linishi mumkin: bir sinfdagi har qanday ikki nuqta $G$ guruh almashtirishlari yordamida bir-biridan olinishi mumkin, turli sinfdagi har qanday ikki nuqta esa olinmaydi. Bu sinflar $G$ guruhining orbitalari deyiladi.\n\nEslatma: $M$ to'plamining almashtirishlarining bo'sh bo'lmagan $G$ to'plami har ikkita almashtirish bilan birga ularning kompozitsiyasini ham, har bir almashtirish bilan birga unga teskari almashtirishni ham o'z ichida saqlasa, guruh deyiladi."
+  },
+  {
+    "code": "part4-2",
+    "bodyMd": "Agar $G$ guruhdan birxil almashtirishdan tashqari barcha almashtirishlar qo'zg'almas nuqtalarga ega bo'lmasa, uning har bir orbitasi uzunligi $G$ guruhining tartibiga teng ekanligini isbotlang.\n\nEslatma: $x \\in M$ element $g \\in G$ almashtirishning qo'zg'almas nuqtasi deyiladi, agar $g$ $x$ ni o'ziga o'tkazsa. Almashtirish birxil deyiladi, agar uning barcha nuqtalari qo'zg'almas bo'lsa. Birxil almashtirish $I$ orqali belgilanadi."
+  },
+  {
+    "code": "part4-3",
+    "bodyMd": "$x$, $y$, $z$, $w$ nuqtalar $G$ guruhning bir orbitasida yotsin. U holda $G$ guruhda $x$ ni $y$ ga o'tkazadigan almashtirishlar soni $z$ ni $w$ ga o'tkazadigan almashtirishlar soniga teng ekanligini isbotlang."
+  },
+  {
+    "code": "part4-4",
+    "bodyMd": "Bir orbitadagi barcha nuqtalar stabilizatorlarining tartiblari teng va $G$ guruhining tartibi orbita uzunligiga nisbatiga teng ekanligini isbotlang.\n\nEslatma: $x$ ni o'ziga o'tkazadigan $G$ dagi barcha almashtirishlar to'plami bu elementning stabilizatori deyiladi va $St(x)$ orqali belgilanadi."
+  },
+  {
+    "code": "part4-5",
+    "bodyMd": "$g \\in G$ almashtirish uchun uning qo'zg'almas nuqtalari to'plamini $N(g)$ orqali belgilaymiz. U holda quyidagini isbotlang:\n\n$$\\sum_{g \\in G} |N(g)| = \\sum_{x \\in M} |St(x)|.$$"
+  },
+  {
+    "code": "part4-6",
+    "bodyMd": "Bernsayd formulasi. $G$ guruhning orbitalari soni bu guruhdan olingan almashtirishning qo'zg'almas nuqtalarining o'rtacha soniga teng:\n\n$$\\frac{1}{|G|} \\sum_{g \\in G} N(g).$$\n\nBuni isbotlang."
+  },
+  {
+    "code": "part4-7",
+    "bodyMd": "Vasiliy Petrovichning firmasi mozaika oynalar tayyorlaydi. Har bir oyna $4 \\times 4$ kvadrat shaklida bo'lib, har bir katagi yo ko'k, yo qizil shishadan tayyorlangan. Bu firma assortimentida nechta turdagi mahsulot bor?"
+  },
+  {
+    "code": "part4-8",
+    "bodyMd": "Natasha sovg'a sifatida 10 ta boncuk oldi — 5 ta oq, 2 ta qizil va 3 ta havorang. Hamma 10 ta boncuqdan foydalanib u qancha turli marjon yasashi mumkin? Burish yoki ag'darishda mos tushuvchi marjonlar bir xil hisoblanadi."
+  },
+  {
+    "code": "part4-9",
+    "bodyMd": "Aylanada 15 ta nuqta belgilangan, ular aylanani teng yoylarga bo'ladi. Belgilangan nuqtalarda uchlari bo'lgan nechta turli (juft-juft teng bo'lmagan) olti burchak mavjud?"
+  },
+  {
+    "code": "part4-10",
+    "bodyMd": "$n \\times n$ jadval berilgan. Uning katakchalarini ikki rangga bo'yashni naqsh deb ataymiz. Istalgan ustun yoki satrni tanlab, tanlangan qatorning barcha katakchalarini qarama-qarshi rangga qayta bo'yashga ruxsat. Agar B ni A dan shunday qayta bo'yashlar bilan olish mumkin bo'lsa, A naqsh B naqshga analogik deb ataymiz. Analogiklik ekvivalentlik munosabati ekanligini isbotlang. Ekvivalentlik sinflari sonini hisoblang."
+  },
+  {
+    "code": "part4-11",
+    "bodyMd": "To'g'ri uchburchakli prizma uchlarini beshta rangga necha xil usulda bo'yash mumkin?"
+  },
+  {
+    "code": "part4-12",
+    "bodyMd": "Berilgan 4 rangning istalganidan foydalanib, tetraedr yoqlarini necha turli usulda bo'yash mumkin?"
+  },
+  {
+    "code": "part4-13",
+    "bodyMd": "Agar 4 tasi qora, 4 tasi oq bo'lishi kerak bo'lsa, kub uchlarini necha turli usulda bo'yash mumkin?"
+  },
+  {
+    "code": "part4-14",
+    "bodyMd": "Matemax Shapkasi obod bo'ylab teng oraliqlarda joylashtirilgan bir nechta qimmatbaho tosh bilan bezatilishi kerak. Tayyorlovchining ixtiyorida $a$ ta ruxsat etilgan tur tosh cheksiz miqdorda bor.\n\nAgar obod bo'ylab $p$ ta tosh bo'lishi kerak bo'lsa ($p$ — tub son), nechta turli Shapka tayyorlash mumkin?"
+  },
+  {
+    "code": "part4-15",
+    "bodyMd": "Avvalgi masala natijasidan Ferma kichik teoremasini keltirib chiqaring: Agar $a$ son tub $p$ ga bo'linmasa, $a^{p-1} \\equiv 1 \\pmod{p}$."
+  },
+  {
+    "code": "part4-16",
+    "bodyMd": "Agar obod bo'ylab $pq$ ta tosh bo'lishi kerak bo'lsa, bunda $p$ va $q$ — turli tub sonlar, nechta turli Shapka tayyorlash mumkin?"
+  },
+  {
+    "code": "part4-17",
+    "bodyMd": "Agar obod bo'ylab $p^n$ ta tosh bo'lishi kerak bo'lsa, nechta turli Shapka tayyorlash mumkin? ($p$ avvalgicha — tub son.)"
+  },
+  {
+    "code": "part4-18",
+    "bodyMd": "Agar obod bo'ylab $k$ ta tosh bo'lishi kerak bo'lsa, nechta turli Shapka tayyorlash mumkin?"
+  },
+  {
+    "code": "part4-19",
+    "bodyMd": "Avvalgi masala natijasidan Gauss ayniyatini keltirib chiqaring: agar $d_1, d_2, \\ldots, d_m$ — $k$ sonining barcha natural bo'luvchilari (1 va $k$ ning o'zini ham qo'shganda) bo'lsa,\n\n$$\\varphi(d_1) + \\varphi(d_2) + \\ldots + \\varphi(d_m) = k.$$"
+  },
+  {
+    "code": "part4-20",
+    "bodyMd": "$\\sum_v f(s, v) = |f|$ ekanligini isbotlang.\n\nEslatma (Ford-Falkerson teoremasi konteksti): Mamlakatda bir tomonlama harakatli yo'llar bilan bog'langan bir nechta shaharlar bor. $s$ shaharda (manba deb ataymiz) qimmatbaho tovarning cheksiz miqdorda ishlab chiqarilishi yo'lga qo'yilgan, iste'molchilari $t$ shaharda (oqim deyiladi) yashaydi. Har bir yo'l cheklangan o'tkazish qobiliyatiga ega. $u$ va $v$ shaharlar uchun ulardagi yo'lning o'tkazish qobiliyatini $c(u, v) \\geq 0$ orqali, oqimni $f(u, v)$ orqali belgilaymiz. $f$ funksiya quyidagi xossalarni qanoatlantirishi kerak: $f(u, v) = -f(v, u)$; $f(u, v) \\leq c(u, v)$; $s$ va $t$ dan boshqa har qanday $x$ uch uchun $\\sum_y f(x, y) = 0$. Iste'molchilarga soatiga yetkazilayotgan umumiy tovar miqdori $|f| = \\sum_u f(u, t)$."
+  },
+  {
+    "code": "part4-21",
+    "bodyMd": "Mamlakatni $s \\in S$, $t \\in T$ shartni qanoatlantiruvchi $S$ va $T$ to'plamlarga bo'lish kesim deyiladi. Kesim orqali oqim:\n\n$$f(S|T) = \\sum_{u \\in S, v \\in T} f(u, v).$$\n\n$f(S|T) = |f|$ ekanligini isbotlang."
+  },
+  {
+    "code": "part4-22",
+    "bodyMd": "Kesimning o'tkazish qobiliyati quyidagi miqdor: $c(S|T) = \\sum_{u \\in S, v \\in T} c(u, v)$. $f(S|T) \\leq c(S|T)$ ekanligini isbotlang."
+  },
+  {
+    "code": "part4-23",
+    "bodyMd": "$s$ dan $t$ ga $e_1, e_2, \\ldots, e_n$ qirralari bo'yicha yo'l yaxshilovchi deyiladi, agar barcha $i = 1, 2, \\ldots, n$ uchun $f(e_i) < c(e_i)$ tengsizlik bajarilsa. Agar yaxshilovchi yo'l mavjud bo'lsa, transport kompaniyasi oqim miqdorini oshira olishini isbotlang."
+  },
+  {
+    "code": "part4-24",
+    "bodyMd": "Agar oqimni kuchaytirish mumkin bo'lsa, boshlang'ich oqim miqdori minimal kesimning o'tkazish qobiliyatidan kichik ekanligini isbotlang."
+  },
+  {
+    "code": "part4-25",
+    "bodyMd": "Agar oqim miqdori minimal kesimning o'tkazish qobiliyatidan kichik bo'lsa, yaxshilovchi yo'l mavjud ekanligini isbotlang."
+  },
+  {
+    "code": "part4-26",
+    "bodyMd": "Ford–Falkerson teoremasini isbotlang: Transport grafida oqimning maksimal miqdori kesimlarning minimal o'tkazish qobiliyatiga teng."
+  },
+  {
+    "code": "part4-27",
+    "bodyMd": "(Menger qirra teoremasi.) $G$ graf va uning $u$, $v$ uchlari berilgan. Ixtiyoriy $k - 1$ qirrani olib tashlasak, qolgan grafda $u$ va $v$ orasida yo'l mavjud bo'lsin. U holda $G$ da $u$ dan $v$ ga umumiy qirralari bo'lmagan $k$ ta yo'l mavjudligini isbotlang."
+  },
+  {
+    "code": "part4-28",
+    "bodyMd": "(Menger uch teoremasi yo'naltirilgan.) Yo'naltirilgan $G$ graf va uning qo'shni bo'lmagan $u$, $v$ uchlari berilgan. Ixtiyoriy $k - 1$ uchni olib tashlasak, qolgan grafda $u$ dan $v$ ga yo'naltirilgan yo'l mavjud bo'lsin. U holda $G$ da $u$ dan $v$ ga umumiy ichki uchlari bo'lmagan $k$ ta yo'naltirilgan yo'l mavjudligini isbotlang."
+  },
+  {
+    "code": "part4-29",
+    "bodyMd": "(Menger uch teoremasi yo'naltirilmagan.) $G$ graf va uning qo'shni bo'lmagan $u$, $v$ uchlari berilgan. Ixtiyoriy $k - 1$ uchni olib tashlasak, qolgan grafda $u$ va $v$ orasida yo'l mavjud bo'lsin. U holda $G$ da $u$ dan $v$ ga umumiy ichki uchlari bo'lmagan $k$ ta yo'l mavjudligini isbotlang."
+  },
+  {
+    "code": "part4-30",
+    "bodyMd": "(Holl lemmasi.) Ikki qismli grafda birinchi qismning ixtiyoriy $k$ uchi umumiy hisobda ikkinchi qismning kamida $k$ ta uchi bilan qo'shni bo'lsa, kuchi birinchi qism kuchiga teng bo'lgan juftlash mavjud ekanligini isbotlang."
+  },
+  {
+    "code": "part4-31",
+    "bodyMd": "(Arab davlatlari uchun Holl lemmasi.) Ikki qismli grafda birinchi qismning ixtiyoriy $k$ uchi umumiy hisobda ikkinchi qismning kamida $km$ uchi bilan qo'shni bo'lsa, har birining kuchi birinchi qism kuchiga teng bo'lgan $m$ ta juftlash mavjudligini va ikkinchi qismning har bir uchi ulardan ko'pi bilan bittasida qatnashishini isbotlang."
+  },
+  {
+    "code": "part4-32",
+    "bodyMd": "(Kenig teoremasi.) Har qanday ikki qismli graf uchun maksimal juftlash kuchi qirralarning minimal uchli qoplamasi kuchiga teng ekanligini isbotlang."
+  },
+  {
+    "code": "part4-33",
+    "bodyMd": "(Adyul'ter haqida teorema.) Ikki qismli graf berilgan. Birinchi qismning $k$ ta uchidan iborat $A$ to'plamni ko'rib chiqamiz. Ular umumiy hisobda ikkinchi qismning $k_1$ ta uchi bilan qo'shni, bu $k_1$ uch orasida $A$ dan ikkita uchi bilan bir vaqtda qo'shni bo'lgan $k_2$ ta uch bor. $A$ to'plamni yaxshi deb ataymiz, agar $k_1 + k_2 \\geqslant 2k$ bo'lsa. Agar $A$ ning har bir ostto'plami yaxshi bo'lsa, har birining kuchi birinchi qism kuchiga teng bo'lgan ikkita kesishmaydigan juftlash mavjudligini isbotlang."
+  },
+  {
+    "code": "part4-34",
+    "bodyMd": "Mashqlar. $1, 2, \\ldots, 3(k-1)$ to'plamidan $2k$ ta sonni shunday tanlash mumkinligini isbotlang: ulardan hech biri tanlangan boshqa ikkitasining o'rta arifmetigi bo'lmasin."
+  },
+  {
+    "code": "part4-35",
+    "bodyMd": "To'g'ri chiziqqa bir nechta kesma tashlangan. Ma'lumki, har qanday ikkita kesma kesishadi. Ularning umumiy nuqtasi mavjudligini isbotlang."
+  },
+  {
+    "code": "part4-36",
+    "bodyMd": "Xuddi shu shartlar. Lekin har bir kesma qolganlarning kamida yarmi bilan kesishishi ma'lum. Qolgan barcha kesmalar bilan kesishadigan kesma topilishini isbotlang."
+  },
+  {
+    "code": "part4-37",
+    "bodyMd": "To'g'ri chiziqning har bir nuqtasi $k$ tadan ortiq bo'lmagan kesmalar bilan qoplangan ekanligi ma'lum. Kesmalarni $k$ ta to'plamga shunday taqsimlash mumkinligini isbotlang: har bir to'plamda kesmalar kesishmasin."
+  },
+  {
+    "code": "part4-38",
+    "bodyMd": "Endi barcha kesmalar bir xil uzunlikka ega. To'g'ri chiziqda bir nechta nuqta qo'yish mumkinligini isbotlang: har bir kesma aniq bittasini saqlasin."
+  },
+  {
+    "code": "part4-39",
+    "bodyMd": "Endi bizda uzunligi $\\ell$ bo'lgan asosiy kesma va uni to'liq qoplaydigan ko'p sonli boshqa kesmalar bor. Qaysidir kesmalarni shunday olib tashlash mumkinligini isbotlang: qolganlari asosiy kesmani qoplasin va ularning umumiy uzunligi $2\\ell$ dan oshmasin."
+  },
+  {
+    "code": "part4-40",
+    "bodyMd": "Avvalgi masala sharoitida ba'zi kesmalarni shunday olib tashlash mumkinligini isbotlang: ular kesishmasin va ularning umumiy uzunligi $\\ell$ ning yarmidan kam bo'lmasin."
+  },
+  {
+    "code": "part4-41",
+    "bodyMd": "Kesma ichida bir nechta uni qoplaydigan kichikroq kesmalar yotadi.\n\n(a) Bu kesmalarning chap yarmlari boshlang'ich kesmaning kamida yarmini qoplashini isbotlang.\n\n(b) Har bir kesmadan yarmi (chap yoki o'ng) tashlandi. Qolgan yarmlar boshlang'ich kesmaning kamida uchdan birini qoplashini isbotlang."
+  },
+  {
+    "code": "part4-42",
+    "bodyMd": "Yetti bolaning har biri yakshanba kuni uch marta konkida uchdi. Ma'lumki, ularning har qanday ikkitasi qaysidir momentda muz ustida bir vaqtda bo'lishgan. Qaysidir momentda muz ustida uchta bola bir vaqtda bo'lganligini isbotlang."
+  },
+  {
+    "code": "part4-43",
+    "bodyMd": "Ma'lumki, har qanday ikkita karta kesishadi. U holda barcha kartalarni stolga bitta tugma bilan biriktirish mumkinligini isbotlang.\n\nEslatma: Bosh shtabning stolida tomonlari stol qirralariga parallel bo'lgan bir nechta to'g'ri to'rtburchak strategik karta yotibdi. Kartalar uchib ketmasligi uchun ularni tugmalar bilan biriktirish kerak, lekin tugmalar uchun byudjet cheklangan."
+  },
+  {
+    "code": "part4-44",
+    "bodyMd": "Ma'lumki, har bir karta qolganlarning $3/4$ idan kam bo'lmagan qismi bilan kesishadi. Qolgan barcha kartalar bilan kesishadigan karta mavjudligini isbotlang."
+  },
+  {
+    "code": "part4-45",
+    "bodyMd": "Agar barcha kartalar bir xil o'lchamda va stolning har bir nuqtasi $k$ tadan ortiq bo'lmagan kartalar bilan qoplangan bo'lsa, kartalar to'plamini $2k - 1$ ta ostto'plamga shunday bo'lish mumkinligini isbotlang: har bir ostto'plamda kartalar kesishmasin."
+  },
+  {
+    "code": "part4-46",
+    "bodyMd": "95-yil butun rossiyalik olimpiadasi analogi. Agar barcha kartalar teng kvadratlar bo'lsa, mixlarni shunday qoqish mumkinligini isbotlang: har bir karta aniq bitta mix bilan mixlansin."
+  },
+  {
+    "code": "part4-47",
+    "bodyMd": "Agar kartalar $1 \\times 1$ kvadratlar bo'lsa va istalgan ikkitasining markazlari orasidagi masofa 2 dan oshmasa, allaqachon stolda yotgan barcha kartalar bilan kesishadigan yana bitta shunday kartani qo'yish mumkinligini isbotlang."
+  },
+  {
+    "code": "part4-48",
+    "bodyMd": "Stol o'lchamlari $20 \\times 20$, bitta karta o'lchamlari $1 \\times 1$ va jami 90 ta karta bo'lsin. Yana bitta kartani yotqizish mumkinligini isbotlang: u allaqachon yotgan kartalarning birortasi bilan ham kesishmasin."
+  },
+  {
+    "code": "part4-49",
+    "bodyMd": "Endi kartalar ixtiyoriy holatda yotadi (tomonlari stol qirralariga parallel bo'lishi shart emas). Stol o'lchamlari $20 \\times 20$, bitta karta o'lchamlari $1 \\times 1$ va jami 95 ta karta. Stolga diametri 1 bo'lgan kostryulkani shunday qo'yish mumkinligini isbotlang: u kartalar bilan kesishmasin."
+  },
+  {
+    "code": "part4-50",
+    "bodyMd": "Yana kartalar ixtiyoriy holatda yotadi. Stol o'lchamlari $20 \\times 20$, kartalarning umumiy perimetri 200 dan katta. Bitta to'g'ri chiziq bilan kamida 6 ta salfetkani kesib o'tish mumkinligini isbotlang."
+  },
+  {
+    "code": "part4-51",
+    "bodyMd": "Avvalgi listiklardan masalalarning uch o'lchovli analoglarini shakllantiring va yeching."
+  },
+  {
+    "code": "part4-52",
+    "bodyMd": "Fazoda koordinata o'qlariga parallel qirralari bo'lgan 12 ta to'g'ri burchakli parallelepiped joylashtirilgan. Har bir parallelepipedga grafning bir uchini mos qo'yamiz. Agar mos parallelepipedlar kesishmasa, uchlar orasiga qirra o'tkaziladi. Graf 12 uzunlikdagi sikl bo'lishi mumkinmi? (A. Akopyan)"
+  },
+  {
+    "code": "part4-53",
+    "bodyMd": "Fazoda bir nechta qabariq ko'pyoqliklar shunday joylashtirilganki, ularning har qanday ikkitasi kesishadi. Ularning hammasini kesib o'tuvchi tekislik topilishini isbotlang."
+  },
+  {
+    "code": "part4-54",
+    "bodyMd": "Qirralari yig'indisi $d$ bo'lgan qaysidir to'g'ri burchakli parallelepiped ichida qirralari yig'indisi $d$ dan kattaroq bo'lgan to'g'ri burchakli parallelepipedni joylashtirish mumkinmi? (A. Shen)"
+  },
+  {
+    "code": "part4-55",
+    "bodyMd": "Qirralari yig'indisi $d$ bo'lgan qaysidir tetraedr ichida qirralari yig'indisi $d$ dan kattaroq bo'lgan tetraedrni joylashtirish mumkinmi? (A. Shen)"
+  },
+  {
+    "code": "part4-56",
+    "bodyMd": "Bir aylanaga tegishli va yarim aylanadan kichik yoylar sistemasi berilgan. Ma'lumki, bu sistemaning har qanday uchta yoyi kamida bitta umumiy nuqtaga ega. U holda bu sistemaning barcha yoylari kamida bitta umumiy nuqtaga ega ekanligini isbotlang.\n\nEslatma (Xelli teoremasi): $\\mathbb{R}^n$ da chekli qabariq to'plamlar oilasi berilgan va ulardan har qanday $n + 1$ tasi umumiy nuqtaga ega bo'lsa, hammasi umumiy nuqtaga ega."
+  },
+  {
+    "code": "part4-57",
+    "bodyMd": "Avvalgi masalada juftlik kesishish sharti barcha sistemaning umumiy nuqtasi mavjudligi uchun yetarli bo'ladigan yoylarning minimal uzunligi qancha?"
+  },
+  {
+    "code": "part4-58",
+    "bodyMd": "Agar tekislikning qaysidir ostto'plamining har qanday uchta nuqtasini radiusi $R$ bo'lgan doira bilan qoplash mumkin bo'lsa, butun to'plamning barcha nuqtalarini ham shu radiusli doira bilan qoplash mumkinligini isbotlang."
+  },
+  {
+    "code": "part4-59",
+    "bodyMd": "Xuddi shu masala, lekin \"to'g'ri chiziqlar\" va \"kesib o'tish\" so'zlari bilan."
+  },
+  {
+    "code": "part4-60",
+    "bodyMd": "Xelli teoremasini nuqtalar juftliklariga umumlashtirish mumkinmi? Ya'ni shunday $n$ mavjudmi: agar sistemaning har qanday $n$ ta qabariq to'plami uchun shunday ikkita nuqtani ko'rsatish mumkin bo'lsa, har biri kamida bittasini saqlasa, u holda butun sistemaning barcha to'plamlari uchun bunday ikkita nuqtani ko'rsatish mumkinmi?"
+  },
+  {
+    "code": "part4-61",
+    "bodyMd": "To'g'ri chiziqda 100 ta to'plam tanlangan, ularning har biri juft-juft kesishmaydigan 100 ta kesmaning birlashmasi. Bu to'plamlarning kesishishi juft-juft kesishmaydigan 9901 dan ortiq bo'lmagan kesmalarning birlashmasi ekanligini isbotlang (bu masalada nuqta ham kesma deb hisoblanadi)."
+  },
+  {
+    "code": "sample-1",
+    "bodyMd": "Barcha musbat butun sonlar $n$ ni toping, shunday qilib $n+1$ son\n$n^2 + 1$ ga qoldiqsiz bo'linsin."
+  },
+  {
+    "code": "sample-2",
+    "bodyMd": "$a, b, c$ musbat haqiqiy sonlar bo'lib, $abc = 1$ shartni qanoatlantiradi.\nIsbotlang:\n\n$$a + b + c \\geq 3$$\n\n![Diagram](images/sample-fig1.png)"
+  },
+  {
+    "code": "sample-3",
+    "bodyMd": "$n \\times n$ doskaning har bir katagiga $0$ yoki $1$ yoziladi. Doska\n\"yaxshi\" deyiladi, agar har bir satr va har bir ustundagi sonlarning\nyig'indisi juft son bo'lsa. $n \\geq 1$ uchun yaxshi doskalar sonini\ntoping.\n\n![Sample board](images/sample-fig2.png)"
+  },
+  {
+    "code": "synthetic-img-1",
+    "bodyMd": "$ABC$ uchburchakda $AB = AC$ va $\\angle A = 36°$ bo'lsin. Isbotlangki, $BC^2 = AB \\cdot (AB - BC)$.\n\n![Diagram](https://example.r2.dev/p1.png)"
+  },
+  {
+    "code": "synthetic-img-2",
+    "bodyMd": "Tenglikni isbotlang:\n\n$$\\sum_{k=1}^{n} k^2 = \\frac{n(n+1)(2n+1)}{6}$$\n\n![Yig'indini ko'rsatuvchi chizma](https://example.r2.dev/p2.png)"
+  }
+]
