@@ -55,6 +55,9 @@ function serializeBlock(node: JSONContent): string | null {
     }
     case "mathDisplay": {
       const latex = String(node.attrs?.latex ?? "");
+      // Never emit a bare `$$` for an empty formula — it would re-parse as a
+      // display delimiter and corrupt the surrounding text. Drop empties.
+      if (latex.trim() === "") return null;
       // Single-line form — see header note on render-equivalence.
       return `$$${latex}$$`;
     }
@@ -78,7 +81,8 @@ function serializeInline(nodes: JSONContent[]): string {
         break;
       case "mathInline": {
         const latex = String(node.attrs?.latex ?? "");
-        out += `$${latex}$`;
+        // Skip empty inline formulas — a bare `$$` would re-parse wrongly.
+        if (latex.trim() !== "") out += `$${latex}$`;
         break;
       }
       default:

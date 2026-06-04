@@ -28,7 +28,12 @@ import { renderKatex } from "./katex-render";
 
 type EditMode = "none" | "visual" | "raw";
 
-export function MathNodeView({ node, updateAttributes, editor }: NodeViewProps) {
+export function MathNodeView({
+  node,
+  updateAttributes,
+  deleteNode,
+  editor,
+}: NodeViewProps) {
   const display = node.type.name === "mathDisplay";
   const latex: string = node.attrs.latex ?? "";
   const justInserted: boolean = Boolean(node.attrs.justInserted);
@@ -58,6 +63,12 @@ export function MathNodeView({ node, updateAttributes, editor }: NodeViewProps) 
   }
 
   function commit() {
+    // An empty formula must never persist — it would serialize to a bare `$$`
+    // and corrupt the surrounding markdown on re-parse. Remove it instead.
+    if (draft.trim() === "") {
+      deleteNode();
+      return;
+    }
     if (draft !== latex) {
       updateAttributes({ latex: draft });
     }
@@ -65,6 +76,11 @@ export function MathNodeView({ node, updateAttributes, editor }: NodeViewProps) 
   }
 
   function cancel() {
+    // A freshly-inserted formula that was never filled → remove it entirely.
+    if (revertRef.current.trim() === "") {
+      deleteNode();
+      return;
+    }
     setDraft(revertRef.current);
     setMode("none");
     // Return focus to the editor surface after cancelling.
