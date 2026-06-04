@@ -32,10 +32,13 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { ImagePlus, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImageAction } from "@/app/admin/_actions/upload-image";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import { editorExtensions } from "./schema/extensions";
 import { markdownToDoc } from "./markdown/markdown-to-doc";
 import { docToMarkdown } from "./markdown/doc-to-markdown";
 import { FormulaToolbar } from "./toolbar/formula-toolbar";
+import { SourceToggle, type EditorMode } from "./source-mode/source-toggle";
+import { tryEnterVisual } from "./source-mode/guard";
 
 export interface ProblemBodyEditorProps {
   value: string; // body_md
@@ -43,8 +46,9 @@ export interface ProblemBodyEditorProps {
   uploadPrefix: string; // "problems/draft" | "problems/{id}"
   minHeight?: string;
   /**
-   * Reserved slot for the Phase 4 source ("Manba") toggle. Rendered
-   * right-aligned in the header. Left empty until Phase 4 wires it.
+   * Extra header content rendered right-aligned, to the LEFT of the built-in
+   * source ("Manba") toggle. The toggle itself is owned by this component as of
+   * Phase 4; this slot remains for any consumer-supplied header affordance.
    */
   sourceToggleSlot?: React.ReactNode;
 }
@@ -56,6 +60,11 @@ export function ProblemBodyEditor({
   minHeight = "240px",
   sourceToggleSlot,
 }: ProblemBodyEditorProps) {
+  // Whole-document mode. Both modes read/write the SAME `value`/`onChange` —
+  // two views of one markdown string. Default visual for first-time users.
+  const [mode, setMode] = useState<EditorMode>("visual");
+  // Inline error shown when a guarded source → visual switch is refused.
+  const [switchError, setSwitchError] = useState<string | null>(null);
   // Keep the latest serialized markdown the editor produced, so the external
   // reconciliation effect can tell a genuine outside change from an echo of our
   // own onChange.
@@ -133,6 +142,50 @@ export function ProblemBodyEditor({
     editor.commands.setContent(markdownToDoc(value), { emitUpdate: false });
   }, [editor, value]);
 
+  // Mode switch with the guarded source → visual sync.
+  const requestMode = useCallback(
+    (next: EditorMode) => {
+      if (next === mode) return;
+
+      // visual → source is always safe: `value` is already the serialized
+      // markdown the visual editor emitted. If a formula was mid-edit, clicking
+      // the toggle blurred the MathField first, firing its focusout → commit →
+      // onChange, so the latest latex is already captured in `value`.
+      if (next === "source") {
+        setSwitchError(null);
+        setMode("source");
+        return;
+      }
+
+      // source → visual is GUARDED: dry-run the conversion; never drop text.
+      const result = tryEnterVisual(value);
+      if (!result.ok) {
+        setSwitchError(
+          "Manba matnida xato bor — vizual rejimga o'tib bo'lmadi. Tuzating yoki manba rejimida saqlang."
+        );
+        return; // stay in source mode
+      }
+      setSwitchError(null);
+      // The editor re-inits from `value` via the reconciliation effect above
+      // (source edits may have changed `value` while it stayed mounted).
+      setMode("visual");
+    },
+    [mode, value]
+  );
+
+  // Source-mode onChange wrapper: as the user fixes the markdown, clear a stale
+  // switch error the moment the text would convert cleanly. Done here (not in an
+  // effect) so we never call setState synchronously inside an effect body.
+  const handleSourceChange = useCallback(
+    (next: string) => {
+      if (switchError && tryEnterVisual(next).ok) {
+        setSwitchError(null);
+      }
+      onChange(next);
+    },
+    [switchError, onChange]
+  );
+
   return (
     <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card shadow-sm">
       <header className="flex items-center gap-2 px-2 h-11 border-b bg-muted/30">
@@ -141,28 +194,142 @@ export function ProblemBodyEditor({
           <span className="hidden sm:inline">Tahrir</span>
         </div>
 
-        <FormulaToolbar editor={editor} />
+        {mode === "visual" ? (
+          <>
+            <FormulaToolbar editor={editor} />
+            <span className="mx-1 h-5 w-px bg-foreground/10" aria-hidden />
+            <ImageUploadButton editor={editor} uploadPrefix={uploadPrefix} />
+          </>
+        ) : (
+          <SourceImageUploadButton
+            value={value}
+            onChange={onChange}
+            uploadPrefix={uploadPrefix}
+          />
+        )}
 
-        <span className="mx-1 h-5 w-px bg-foreground/10" aria-hidden />
-
-        <ImageUploadButton editor={editor} uploadPrefix={uploadPrefix} />
-
-        {/* Right-aligned reserved slot for the Phase 4 source toggle. */}
-        <div className="ml-auto flex items-center">{sourceToggleSlot}</div>
+        {/* Right-aligned: optional consumer slot, then the source toggle. */}
+        <div className="ml-auto flex items-center gap-2">
+          {sourceToggleSlot}
+          <SourceToggle mode={mode} onChange={requestMode} />
+        </div>
       </header>
 
+      {switchError && (
+        <p
+          role="alert"
+          className="px-4 py-2 text-xs text-destructive border-b bg-destructive/5"
+        >
+          {switchError}
+        </p>
+      )}
+
       <div className="overflow-auto">
-        {editor ? (
-          <EditorContent editor={editor} />
-        ) : (
-          <div
-            className="px-4 py-3 text-sm text-muted-foreground"
-            style={{ minHeight }}
-          >
-            {"Muharrir yuklanmoqda…"}
-          </div>
+        {/* The visual editor stays mounted across modes (preserving undo
+            history); we only swap which view is shown. Source mode edits the
+            same `value`, and the reconciliation effect re-syncs the visual
+            document when we flip back. */}
+        <div hidden={mode !== "visual"}>
+          {editor ? (
+            <EditorContent editor={editor} />
+          ) : (
+            <div
+              className="px-4 py-3 text-sm text-muted-foreground"
+              style={{ minHeight }}
+            >
+              {"Muharrir yuklanmoqda…"}
+            </div>
+          )}
+        </div>
+        {mode === "source" && (
+          <MarkdownEditor
+            value={value}
+            onChange={handleSourceChange}
+            uploadPrefix={uploadPrefix}
+            minHeight={minHeight}
+          />
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Source-mode image upload. There is no ProseMirror document here, so we insert
+ * the literal `![alt](url)` markdown into `value` (appended on its own line) and
+ * call `onChange`. CodeMirror's own drag-drop already inserts at the cursor; this
+ * header button mirrors the visual mode's "Rasm yuklash" for feature parity.
+ */
+function SourceImageUploadButton({
+  value,
+  onChange,
+  uploadPrefix,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  uploadPrefix: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onFile = useCallback(
+    async (file: File) => {
+      setUploading(true);
+      setError(null);
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("prefix", uploadPrefix);
+        const res = await uploadImageAction(fd);
+        if (!("success" in res) || !res.success) {
+          setError(("error" in res && res.error) || "Yuklab bo'lmadi");
+          return;
+        }
+        const snippet = `![${file.name}](${res.publicUrl})`;
+        const sep = value.length === 0 || value.endsWith("\n") ? "" : "\n";
+        onChange(`${value}${sep}${snippet}\n`);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Yuklab bo'lmadi");
+      } finally {
+        setUploading(false);
+        if (inputRef.current) inputRef.current.value = "";
+      }
+    },
+    [value, onChange, uploadPrefix]
+  );
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        className="sr-only"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void onFile(f);
+        }}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        disabled={uploading}
+        title="Rasm yuklash"
+        aria-label="Rasm yuklash"
+        onClick={() => inputRef.current?.click()}
+      >
+        {uploading ? (
+          <Loader2 data-icon="inline-start" className="animate-spin" />
+        ) : (
+          <ImagePlus data-icon="inline-start" />
+        )}
+        <span className="hidden md:inline">
+          {uploading ? "Yuklanmoqda…" : "Rasm yuklash"}
+        </span>
+      </Button>
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </div>
   );
 }
