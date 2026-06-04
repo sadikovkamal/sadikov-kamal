@@ -131,6 +131,23 @@ we walk that small mdast into a ProseMirror document JSON.
       stays a paragraph, the image becomes a following `image` block.
       (Document this; it is the one structural normalization.)
 
+> **CRITICAL FINDING (Phase 0 spike, 2026-06-04):** remark-math v6 parses
+> a **single-line** `$$...$$` block (the common form in our corpus — 6 of
+> 81 expressions) as an **`inlineMath`** node, NOT a block `math` node.
+> Therefore **inline-vs-display MUST be decided by the source delimiter
+> (`$$` → display, `$` → inline), not by the mdast node type.**
+> Implementation guidance:
+> - When walking `inlineMath` nodes, inspect the original source span
+>   (mdast `node.position` → slice the source) to detect whether the
+>   delimiter was `$$` (→ emit `mathDisplay`) or `$` (→ emit `mathInline`).
+> - FIRST empirically confirm how the canonical `markdown-preview.tsx`
+>   pipeline renders a single-line `$$...$$` (inline vs centered display)
+>   and make both the editor node-view (Phase 2) AND serialization
+>   consistent with it. The render-equivalence test (Stage 1.4) is the
+>   final arbiter.
+> - `docToMarkdown` must emit `mathDisplay` using the SAME `$$` form the
+>   corpus uses so re-parsing is stable.
+
 ### Step 1.2.3 — Handle empty / whitespace input
 - [ ] Empty `body_md` → a doc with a single empty `paragraph` (ProseMirror
       requires at least one block; the top node content is `+`).

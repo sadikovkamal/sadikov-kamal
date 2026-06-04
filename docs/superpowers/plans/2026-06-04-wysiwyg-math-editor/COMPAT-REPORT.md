@@ -1,6 +1,6 @@
 # MathLive ↔ KaTeX Compatibility Report
 
-Generated: 2026-06-04T13:50:53.655Z
+Generated: 2026-06-04T13:51:39.939Z
 Corpus: 66 problem bodies → 81 unique LaTeX expressions (75 inline, 6 display)
 
 ---
