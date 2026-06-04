@@ -197,3 +197,37 @@ const html = katex.renderToString(latex, {
 For **display math** nodes, pass `displayMode: true`.
 
 The sanitize schema in `markdown-preview.tsx` allows KaTeX's MathML + SVG output — the editor renders inside the app (not via react-markdown), so sanitization is not needed for the node-view render.
+
+---
+
+## 5. Round-trip caveat — canonical vs. non-canonical `body_md`
+
+(Recorded after the final code review.)
+
+The round-trip is **byte-stable on the first pass** for `body_md` in the
+editor's *canonical* form — which is exactly what the bulk importer
+produces and what the entire stored corpus uses (plain text + inline
+`$...$` + single-line `$$...$$` with any trailing punctuation INSIDE the
+delimiters + `![alt](url)`). The smoke proves 66/66 stable + render-equal.
+
+**Non-canonical** markdown (not produced by our pipeline) is normalized on
+the *first* edit pass and may therefore render slightly differently the
+first time it is opened in the editor — but it is always **stable**
+afterwards (reaches a fixpoint; never drifts). Known cases, all guarded by
+the "non-canonical input reaches a stable fixpoint" assertions in
+`scripts/wysiwyg-smoke.ts`:
+
+- Trailing punctuation **outside** display delimiters: `$$x$$.` → the `.`
+  becomes its own block.
+- Inline code spans (`` `code` ``) — not in the locked grammar → flattened
+  to plain text.
+- Raw inline HTML (`<b>…</b>`) → escaped to literal text.
+- Mid-sentence `$$…$$` → promoted to a block, splitting the sentence
+  (leaves boundary whitespace that the next parse trims, so this case
+  reaches its fixpoint on the second pass rather than the first — still
+  bounded, never drifting).
+
+This is a non-issue in practice because all stored bodies are canonical.
+Note also that the source→visual guard (`source-mode/guard.ts`) does NOT
+warn on these (they contain no unclosed math); it only blocks genuinely
+malformed/untokenizable math.

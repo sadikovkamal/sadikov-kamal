@@ -174,6 +174,36 @@ function normalizeHtml(html: string): string {
   unit("empty doc → empty string", docToMarkdown(doc) === "", JSON.stringify(docToMarkdown(doc)));
 }
 
+// ── Non-canonical input stability (review follow-up, Important #1) ────────
+// Our stored corpus is uniformly in the editor's canonical form, so it
+// round-trips byte-stable on the first pass. Arbitrary/legacy markdown that
+// ISN'T canonical (trailing punctuation outside $$, inline code, raw HTML,
+// mid-sentence $$) may be *normalized* on the first edit pass — that is
+// acceptable, but it MUST then be STABLE (reach a fixpoint, never drift on
+// further edits). These assertions pin that guarantee. See NOTES.md §5.
+{
+  // Guarantee: non-canonical input reaches a FIXPOINT within a bounded number
+  // of passes (it never drifts forever). Most cases stabilize on pass 1; the
+  // mid-sentence `$$` promotion leaves boundary whitespace that the next parse
+  // trims, so it stabilizes on pass 2. We assert pass-2 == pass-3 (stable from
+  // the second serialization onward) — the honest, bounded guarantee.
+  const assertBoundedFixpoint = (label: string, input: string) => {
+    const md1 = docToMarkdown(markdownToDoc(input));
+    const md2 = docToMarkdown(markdownToDoc(md1));
+    const md3 = docToMarkdown(markdownToDoc(md2));
+    unit(
+      `non-canonical input reaches a stable fixpoint: ${label}`,
+      md2 === md3,
+      `md1=${JSON.stringify(md1)}\n  md2=${JSON.stringify(md2)}\n  md3=${JSON.stringify(md3)}`
+    );
+  };
+  const assertStableFixpoint = assertBoundedFixpoint;
+  assertStableFixpoint("trailing punctuation outside $$", "$$x^2$$.");
+  assertStableFixpoint("inline code span (dropped from grammar)", "use `code` here");
+  assertStableFixpoint("raw inline HTML (escaped to text)", "a <b>bold</b> c");
+  assertStableFixpoint("mid-sentence $$ (promoted to block)", "see $$x^2$$ here");
+}
+
 // ── Corpus round-trip + render-equivalence ───────────────────────────────
 const corpusPath = resolve(__dirname, "fixtures", "wysiwyg-corpus.json");
 const corpus: CorpusEntry[] = JSON.parse(readFileSync(corpusPath, "utf8"));
