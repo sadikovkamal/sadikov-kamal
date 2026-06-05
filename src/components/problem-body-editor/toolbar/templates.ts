@@ -70,16 +70,13 @@ export const FORMULA_GROUPS: FormulaGroup[] = [
     ],
   },
 
-  // ── Radicals (roots) ──────────────────────────────────────────────────────
+  // ── 3. Radicals (roots) ───────────────────────────────────────────────────
   {
     label: "Ildiz",
     icon: "√",
     templates: [
       { icon: "√", label: "Kvadrat ildiz", latex: "\\sqrt{#0}", target: "inline" },
       { icon: "ⁿ√", label: "n-darajali ildiz", latex: "\\sqrt[#0]{#1}", target: "inline" },
-      { icon: "(ⁿₖ)", label: "Binomial koeffitsiyent", latex: "\\binom{#0}{#1}", target: "inline" },
-      { icon: "x̄", label: "Yuqori chiziq", latex: "\\overline{#0}", target: "inline" },
-      { icon: "x̲", label: "Pastki chiziq", latex: "\\underline{#0}", target: "inline" },
     ],
   },
 
@@ -420,6 +417,17 @@ export const FORMULA_GROUPS: FormulaGroup[] = [
       sym("∣", "Bo'linadi", "\\mid"),
       sym("∤", "Bo'linmaydi", "\\nmid"),
       sym("%", "Foiz", "\\%"),
+    ],
+  },
+
+  // ── Others — not yet assigned to a MathType group (will be re-homed) ───────
+  {
+    label: "Boshqalar",
+    icon: "…",
+    templates: [
+      { icon: "(ⁿₖ)", label: "Binomial koeffitsiyent", latex: "\\binom{#0}{#1}", target: "inline" },
+      { icon: "x̄", label: "Yuqori chiziq", latex: "\\overline{#0}", target: "inline" },
+      { icon: "x̲", label: "Pastki chiziq", latex: "\\underline{#0}", target: "inline" },
     ],
   },
 ];
