@@ -58,16 +58,25 @@ export const FORMULA_GROUPS: FormulaGroup[] = [
     ],
   },
 
-  // ── Roots & powers ────────────────────────────────────────────────────────
+  // ── 2. Scripts (subscripts & superscripts) ────────────────────────────────
   {
-    label: "Ildiz va daraja",
-    icon: "√xⁿ",
+    label: "Indekslar",
+    icon: "xⁿ",
+    templates: [
+      { icon: "x²", label: "Yuqori indeks (daraja)", latex: "{#0}^{#1}", target: "inline" },
+      { icon: "xₙ", label: "Pastki indeks", latex: "{#0}_{#1}", target: "inline" },
+      { icon: "xⁿₘ", label: "Pastki va yuqori indeks", latex: "{#0}_{#1}^{#2}", target: "inline" },
+      { icon: "ⁿₘx", label: "Chap (oldingi) indeks", latex: "{}_{#0}^{#1}{#2}", target: "inline" },
+    ],
+  },
+
+  // ── Radicals (roots) ──────────────────────────────────────────────────────
+  {
+    label: "Ildiz",
+    icon: "√",
     templates: [
       { icon: "√", label: "Kvadrat ildiz", latex: "\\sqrt{#0}", target: "inline" },
       { icon: "ⁿ√", label: "n-darajali ildiz", latex: "\\sqrt[#0]{#1}", target: "inline" },
-      { icon: "xⁿ", label: "Daraja", latex: "{#0}^{#1}", target: "inline" },
-      { icon: "xₙ", label: "Indeks", latex: "{#0}_{#1}", target: "inline" },
-      { icon: "xⁿₘ", label: "Daraja va indeks", latex: "{#0}_{#1}^{#2}", target: "inline" },
       { icon: "(ⁿₖ)", label: "Binomial koeffitsiyent", latex: "\\binom{#0}{#1}", target: "inline" },
       { icon: "x̄", label: "Yuqori chiziq", latex: "\\overline{#0}", target: "inline" },
       { icon: "x̲", label: "Pastki chiziq", latex: "\\underline{#0}", target: "inline" },
