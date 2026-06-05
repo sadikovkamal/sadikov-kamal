@@ -30,6 +30,9 @@ import {
 } from "@/components/ui/popover";
 import {
   FORMULA_GROUPS,
+  FONT_STYLES,
+  TEXT_COLORS,
+  BACKGROUND_COLORS,
   type FormulaTarget,
   type FormulaTemplate,
 } from "./templates";
@@ -55,15 +58,21 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
    * Insert `latex`: into the formula currently being edited if one is open,
    * otherwise as a fresh math node of `target` type.
    */
-  function insertLatex(latex: string, target: FormulaTarget) {
-    if (!editor || disabled) return;
+  /** The MathLive field currently being edited, if any. */
+  function getActiveField() {
+    if (!editor) return null;
     const storage = (
       editor.storage as unknown as Record<
         string,
         ActiveMathfieldStorage | undefined
       >
     ).activeMathfield;
-    const field = storage?.field ?? null;
+    return storage?.field ?? null;
+  }
+
+  function insertLatex(latex: string, target: FormulaTarget) {
+    if (!editor || disabled) return;
+    const field = getActiveField();
     if (field) {
       // Into the open formula — placeholders become tab-stops, focus returns.
       field.insert(latex, { selectionMode: "placeholder", focus: true });
@@ -74,6 +83,18 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
 
   function insertTemplate(tpl: FormulaTemplate) {
     insertLatex(tpl.latex, tpl.target);
+  }
+
+  /**
+   * Apply a font style / colour to the CURRENT selection of the open formula
+   * (Word-style). `#@` is replaced by the selection. No-op when no formula is
+   * being edited — these style math, not prose.
+   */
+  function wrapStyle(latex: string) {
+    if (!editor || disabled) return;
+    const field = getActiveField();
+    if (!field) return;
+    field.insert(latex, { selectionMode: "item", focus: true });
   }
 
   /** The two explicit buttons always start a brand-new formula. */
@@ -133,6 +154,98 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
           </PopoverContent>
         </Popover>
       ))}
+
+      {/* Stil: shrift + rang. Applies to the OPEN formula's selection (Word
+          style). No-op when no formula is being edited. */}
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={disabled}
+              title="Shrift va rang"
+              aria-label="Shrift va rang"
+              data-formula-tool
+            >
+              <span className="font-bold italic">A</span>
+            </Button>
+          }
+        />
+        <PopoverContent align="start" className="w-auto" data-formula-tool>
+          <p className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            Shrift
+          </p>
+          <div className="flex gap-1">
+            {FONT_STYLES.map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                title={s.label}
+                aria-label={s.label}
+                disabled={disabled}
+                data-formula-tool
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => wrapStyle(s.latex)}
+                className="flex h-9 w-9 items-center justify-center rounded-md ring-1 ring-foreground/10 transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+              >
+                <span
+                  className={
+                    s.icon === "B"
+                      ? "font-bold"
+                      : s.icon === "I"
+                        ? "italic"
+                        : ""
+                  }
+                >
+                  {s.icon}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <p className="px-1 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            Rang
+          </p>
+          <div className="flex gap-1">
+            {TEXT_COLORS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                title={c.name}
+                aria-label={`Matn rangi: ${c.name}`}
+                disabled={disabled}
+                data-formula-tool
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => wrapStyle(`\\textcolor{${c.value}}{#@}`)}
+                className="h-7 w-7 rounded-md ring-1 ring-foreground/15 transition-transform hover:scale-110 disabled:pointer-events-none disabled:opacity-50"
+                style={{ backgroundColor: c.value }}
+              />
+            ))}
+          </div>
+
+          <p className="px-1 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            Fon
+          </p>
+          <div className="flex gap-1">
+            {BACKGROUND_COLORS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                title={c.name}
+                aria-label={`Fon rangi: ${c.name}`}
+                disabled={disabled}
+                data-formula-tool
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => wrapStyle(`\\colorbox{${c.value}}{#@}`)}
+                className="h-7 w-7 rounded-md ring-1 ring-foreground/15 transition-transform hover:scale-110 disabled:pointer-events-none disabled:opacity-50"
+                style={{ backgroundColor: c.value }}
+              />
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {/* Free-form (empty) insertions — always start a new formula. */}
       <span className="mx-1 h-5 w-px bg-foreground/10" aria-hidden />

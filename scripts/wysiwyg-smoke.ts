@@ -204,6 +204,35 @@ function normalizeHtml(html: string): string {
   assertStableFixpoint("mid-sentence $$ (promoted to block)", "see $$x^2$$ here");
 }
 
+// ── Font-style / colour rendering (Word-style toolbar) ───────────────────
+// The toolbar's "Shrift va rang" tools emit these commands. Verify each
+// renders through the canonical pipeline (KaTeX + rehype-sanitize) without a
+// KaTeX error AND that colours survive the sanitize schema.
+{
+  const styled: Array<[string, string, string | null]> = [
+    ["bold \\bm", "$\\bm{x}$", null],
+    ["italic \\mathit", "$\\mathit{x}$", null],
+    ["roman \\mathrm", "$\\mathrm{x}$", null],
+    ["text colour \\textcolor", "$\\textcolor{#e03131}{x}$", "e03131"],
+    ["background \\colorbox", "$\\colorbox{#ffec99}{x}$", "ffec99"],
+  ];
+  for (const [label, src, mustContain] of styled) {
+    let html = "";
+    let threw = false;
+    try {
+      html = render(src);
+    } catch {
+      threw = true;
+    }
+    const lc = html.toLowerCase();
+    const ok =
+      !threw &&
+      !lc.includes("katex-error") &&
+      (mustContain === null || lc.includes(mustContain));
+    unit(`styled math renders cleanly: ${label}`, ok, html.slice(0, 220));
+  }
+}
+
 // ── Corpus round-trip + render-equivalence ───────────────────────────────
 const corpusPath = resolve(__dirname, "fixtures", "wysiwyg-corpus.json");
 const corpus: CorpusEntry[] = JSON.parse(readFileSync(corpusPath, "utf8"));
