@@ -9,3 +9,12 @@
 math-field::part(menu-toggle) {
   display: none;
 }
+
+/*
+ * Hide the virtual-keyboard toggle too. All symbols and structures live in the
+ * top formula toolbar (grouped, MathType-style), so the on-screen keyboard is
+ * redundant — the user asked for everything to be at the top instead.
+ */
+math-field::part(virtual-keyboard-toggle) {
+  display: none;
+}
