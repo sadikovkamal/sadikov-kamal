@@ -23,8 +23,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
+import type { MathfieldElement } from "mathlive";
 import { MathField } from "./mathfield";
 import { renderKatex } from "./katex-render";
+import type { ActiveMathfieldStorage } from "../schema/extensions";
 
 type EditMode = "none" | "visual" | "raw";
 
@@ -55,6 +57,29 @@ export function MathNodeView({
 
   const editable = editor?.isEditable ?? true;
 
+  // ── Active-field registry (so the top toolbar can insert into THIS field) ──
+  // The MathLive element this view currently owns while editing.
+  const myFieldRef = useRef<MathfieldElement | null>(null);
+  const getStorage = (): ActiveMathfieldStorage | undefined => {
+    if (!editor) return undefined;
+    return (
+      editor.storage as unknown as Record<string, ActiveMathfieldStorage>
+    ).activeMathfield;
+  };
+  const registerActiveField = (field: MathfieldElement) => {
+    myFieldRef.current = field;
+    const s = getStorage();
+    if (s) s.field = field;
+  };
+  const clearActiveField = () => {
+    const s = getStorage();
+    if (s && s.field === myFieldRef.current) s.field = null;
+    myFieldRef.current = null;
+  };
+
+  // Drop the registration if this view unmounts mid-edit (formula removed).
+  useEffect(() => clearActiveField, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   function enterEdit(next: EditMode) {
     if (!editable) return;
     revertRef.current = latex;
@@ -63,19 +88,25 @@ export function MathNodeView({
   }
 
   function commit() {
+    clearActiveField();
+    // Unfilled MathLive placeholders aren't KaTeX-renderable — strip them so a
+    // partially-filled template (e.g. `\frac{5}{\placeholder{}}`) still renders
+    // and a fully-empty one collapses to nothing (deleted below).
+    const cleaned = draft.replace(/\\placeholder\{\}/g, "");
     // An empty formula must never persist — it would serialize to a bare `$$`
     // and corrupt the surrounding markdown on re-parse. Remove it instead.
-    if (draft.trim() === "") {
+    if (cleaned.trim() === "") {
       deleteNode();
       return;
     }
-    if (draft !== latex) {
-      updateAttributes({ latex: draft });
+    if (cleaned !== latex) {
+      updateAttributes({ latex: cleaned });
     }
     setMode("none");
   }
 
   function cancel() {
+    clearActiveField();
     // A freshly-inserted formula that was never filled → remove it entirely.
     if (revertRef.current.trim() === "") {
       deleteNode();
@@ -154,6 +185,15 @@ export function MathNodeView({
             onChange={setDraft}
             onCommit={commit}
             onCancel={cancel}
+            onFocusField={registerActiveField}
+            onBlurField={(relatedTarget) => {
+              // Focus moved to a formula-toolbar control → keep this field open
+              // (the toolbar is about to insert here and refocus it). Otherwise
+              // the user clicked away, so commit.
+              const el = relatedTarget as HTMLElement | null;
+              if (el?.closest?.("[data-formula-tool]")) return;
+              commit();
+            }}
           />
         ) : (
           <input

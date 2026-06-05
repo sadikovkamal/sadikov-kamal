@@ -17,10 +17,33 @@ import { Document } from "@tiptap/extension-document";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import { Text } from "@tiptap/extension-text";
 import { UndoRedo, Gapcursor, Dropcursor } from "@tiptap/extensions";
+import { Extension } from "@tiptap/core";
+import type { MathfieldElement } from "mathlive";
 
 import { MathInline } from "./math-inline";
 import { MathDisplay } from "./math-display";
 import { ImageNode } from "./image";
+
+/**
+ * Per-editor registry of the currently-focused MathLive field. The math
+ * node-view writes it on focus; the formula toolbar reads it so a tool click
+ * inserts INTO the open formula instead of creating a new node. Lives in
+ * `editor.storage.activeMathfield` so both sides reach it through the shared
+ * editor instance (TipTap React node-views don't share React context).
+ */
+export interface ActiveMathfieldStorage {
+  field: MathfieldElement | null;
+}
+
+export const ActiveMathfield = Extension.create<
+  Record<string, never>,
+  ActiveMathfieldStorage
+>({
+  name: "activeMathfield",
+  addStorage() {
+    return { field: null };
+  },
+});
 
 /**
  * Lock the top-level document content to our closed block set. Without this,
@@ -41,4 +64,5 @@ export const editorExtensions = [
   UndoRedo,
   Gapcursor,
   Dropcursor,
+  ActiveMathfield,
 ];

@@ -23,14 +23,23 @@
 
 import { useEffect, useRef } from "react";
 import type { MathfieldElement } from "mathlive";
+import "./mathfield.css";
 
 export interface MathFieldProps {
   latex: string;
   onChange: (latex: string) => void;
-  /** Enter / blur → commit and close editing. */
+  /** Enter → commit and close editing. */
   onCommit?: () => void;
   /** Escape → revert and close editing. */
   onCancel?: () => void;
+  /** Focus entered the field — register it as the active insert target. */
+  onFocusField?: (field: MathfieldElement) => void;
+  /**
+   * Focus left the field. `relatedTarget` is where focus went; the caller
+   * decides whether to commit (e.g. it should NOT commit when focus moved to a
+   * formula-toolbar control that's about to insert into this same field).
+   */
+  onBlurField?: (relatedTarget: EventTarget | null) => void;
   /** Inline vs. display styling. */
   display?: boolean;
   autoFocus?: boolean;
@@ -41,6 +50,8 @@ export function MathField({
   onChange,
   onCommit,
   onCancel,
+  onFocusField,
+  onBlurField,
   display = false,
   autoFocus = false,
 }: MathFieldProps) {
@@ -52,6 +63,8 @@ export function MathField({
   const onChangeRef = useRef(onChange);
   const onCommitRef = useRef(onCommit);
   const onCancelRef = useRef(onCancel);
+  const onFocusFieldRef = useRef(onFocusField);
+  const onBlurFieldRef = useRef(onBlurField);
   /** The value we last set on the field — used to break the prop↔input loop. */
   const lastValueRef = useRef(latex);
 
@@ -61,6 +74,8 @@ export function MathField({
     onChangeRef.current = onChange;
     onCommitRef.current = onCommit;
     onCancelRef.current = onCancel;
+    onFocusFieldRef.current = onFocusField;
+    onBlurFieldRef.current = onBlurField;
   });
 
   // ── Mount: lazily load MathLive, create the element, wire events. ──────────
@@ -106,12 +121,26 @@ export function MathField({
         }
       });
 
-      // Blur commits the current value.
-      field.addEventListener("focusout", () => {
-        onCommitRef.current?.();
+      // Focus entered → register this field as the active insert target.
+      field.addEventListener("focusin", () => {
+        onFocusFieldRef.current?.(field);
+      });
+
+      // Focus left → hand `relatedTarget` to the caller, which decides whether
+      // to commit. It must NOT commit when focus moved to a formula-toolbar
+      // control that is about to insert into this same field.
+      field.addEventListener("focusout", (event: FocusEvent) => {
+        onBlurFieldRef.current?.(event.relatedTarget);
       });
 
       hostRef.current.appendChild(field);
+
+      // Disable MathLive's built-in context ("burger") menu. This MUST run
+      // AFTER the field is connected to the DOM — the setter throws
+      // "Mathfield not mounted" otherwise. The menu is flaky (it blurs the
+      // field) and redundant now that the top toolbar inserts into the active
+      // field, so all structures live in the top toolbar instead.
+      field.menuItems = [];
 
       if (autoFocus) {
         // Focus on the next frame so the element is fully connected.
