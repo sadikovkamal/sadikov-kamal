@@ -1,0 +1,11 @@
+/*
+ * Hide MathLive's built-in context-menu ("burger") toggle. Its menu was flaky
+ * (clicking it blurred the field, so it opened only intermittently) and is now
+ * redundant: every structure lives in the top formula toolbar, which inserts
+ * into the active field. The virtual-keyboard toggle is intentionally kept.
+ *
+ * `::part()` reaches the exposed shadow-DOM part of the <math-field> element.
+ */
+math-field::part(menu-toggle) {
+  display: none;
+}
