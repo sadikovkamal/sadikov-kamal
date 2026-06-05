@@ -80,18 +80,62 @@ export const FORMULA_GROUPS: FormulaGroup[] = [
     ],
   },
 
+  // ── 4. Integrals ──────────────────────────────────────────────────────────
+  {
+    label: "Integrallar",
+    icon: "∫",
+    templates: [
+      { icon: "∫", label: "Integral", latex: "\\int #0", target: "inline" },
+      { icon: "∫ᵇₐ", label: "Aniq integral (chegarali)", latex: "\\int_{#0}^{#1} #2", target: "inline" },
+      { icon: "∫ᶦ", label: "Integral (chegara ustida)", latex: "\\int\\limits_{#0}^{#1} #2", target: "inline" },
+      { icon: "∬", label: "Ikki karra integral", latex: "\\iint #0", target: "inline" },
+      { icon: "∬ᵇₐ", label: "Ikki karra (chegarali)", latex: "\\iint_{#0}^{#1} #2", target: "inline" },
+      { icon: "∬ᶦ", label: "Ikki karra (chegara ustida)", latex: "\\iint\\limits_{#0}^{#1} #2", target: "inline" },
+      { icon: "∭", label: "Uch karra integral", latex: "\\iiint #0", target: "inline" },
+      { icon: "∭ᵇₐ", label: "Uch karra (chegarali)", latex: "\\iiint_{#0}^{#1} #2", target: "inline" },
+      { icon: "∭ᶦ", label: "Uch karra (chegara ustida)", latex: "\\iiint\\limits_{#0}^{#1} #2", target: "inline" },
+    ],
+  },
+
+  // ── 5. Contour integrals ──────────────────────────────────────────────────
+  {
+    label: "Kontur integrallar",
+    icon: "∮",
+    templates: [
+      { icon: "∮", label: "Kontur integral", latex: "\\oint #0", target: "inline" },
+      { icon: "∮ᵇₐ", label: "Kontur (chegarali)", latex: "\\oint_{#0}^{#1} #2", target: "inline" },
+      { icon: "∮ᶦ", label: "Kontur (chegara ustida)", latex: "\\oint\\limits_{#0}^{#1} #2", target: "inline" },
+      { icon: "∯", label: "Ikki kontur integral", latex: "\\oiint #0", target: "inline" },
+      { icon: "∯ᵇₐ", label: "Ikki kontur (chegarali)", latex: "\\oiint_{#0}^{#1} #2", target: "inline" },
+      { icon: "∯ᶦ", label: "Ikki kontur (chegara ustida)", latex: "\\oiint\\limits_{#0}^{#1} #2", target: "inline" },
+      { icon: "∰", label: "Uch kontur integral", latex: "\\oiiint #0", target: "inline" },
+      { icon: "∰ᵇₐ", label: "Uch kontur (chegarali)", latex: "\\oiiint_{#0}^{#1} #2", target: "inline" },
+      { icon: "∰ᶦ", label: "Uch kontur (chegara ustida)", latex: "\\oiiint\\limits_{#0}^{#1} #2", target: "inline" },
+    ],
+  },
+
+  // ── 6. Differentials ──────────────────────────────────────────────────────
+  {
+    label: "Differensiallar",
+    icon: "dx",
+    templates: [
+      { icon: "dx", label: "dx", latex: "dx", target: "inline" },
+      { icon: "dy", label: "dy", latex: "dy", target: "inline" },
+      { icon: "dz", label: "dz", latex: "dz", target: "inline" },
+      { icon: "dt", label: "dt", latex: "dt", target: "inline" },
+      { icon: "dθ", label: "dθ", latex: "d\\theta", target: "inline" },
+      { icon: "d□", label: "d (umumiy)", latex: "d#0", target: "inline" },
+    ],
+  },
+
   // ── Big operators ─────────────────────────────────────────────────────────
   {
-    label: "Yig'indi va integral",
-    icon: "∑∫",
+    label: "Yig'indi va operatorlar",
+    icon: "∑",
     templates: [
       { icon: "∑", label: "Yig'indi", latex: "\\sum_{#0}^{#1}", target: "inline" },
       { icon: "∏", label: "Ko'paytma", latex: "\\prod_{#0}^{#1}", target: "inline" },
       { icon: "∐", label: "Ko-ko'paytma", latex: "\\coprod_{#0}^{#1}", target: "inline" },
-      { icon: "∫", label: "Integral", latex: "\\int_{#0}^{#1}", target: "inline" },
-      { icon: "∬", label: "Ikki karra integral", latex: "\\iint_{#0}", target: "inline" },
-      { icon: "∭", label: "Uch karra integral", latex: "\\iiint_{#0}", target: "inline" },
-      { icon: "∮", label: "Kontur integral", latex: "\\oint_{#0}", target: "inline" },
       { icon: "⋃", label: "Katta birlashma", latex: "\\bigcup_{#0}^{#1}", target: "inline" },
       { icon: "⋂", label: "Katta kesishma", latex: "\\bigcap_{#0}^{#1}", target: "inline" },
       { icon: "⨁", label: "Katta to'g'ri yig'indi", latex: "\\bigoplus_{#0}^{#1}", target: "inline" },
@@ -105,7 +149,6 @@ export const FORMULA_GROUPS: FormulaGroup[] = [
       { icon: "dⁿ⁄dxⁿ", label: "n-tartibli hosila", latex: "\\frac{d^{#0}}{d#1^{#0}}#2", target: "inline" },
       { icon: "∂⁄∂x", label: "Xususiy hosila", latex: "\\frac{\\partial #0}{\\partial #1}", target: "inline" },
       { icon: "f′|ₐ", label: "Hosila (nuqtada)", latex: "\\left.\\frac{d#0}{d#1}\\right|_{#1=#2}", target: "inline" },
-      { icon: "∫f dx", label: "Aniq integral (dx bilan)", latex: "\\int_{#0}^{#1} #2 \\,d#3", target: "inline" },
     ],
   },
 
