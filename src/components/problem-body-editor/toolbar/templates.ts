@@ -39,6 +39,55 @@ export interface FormulaGroup {
 }
 
 /**
+ * Font-style actions (like MS Word's Bold / Italic / Upright). Each wraps the
+ * CURRENT MathLive selection via the `#@` token, so they only apply while a
+ * formula is being edited. The emitted commands are KaTeX-renderable (MathLive
+ * normalises `\mathbf` → `\bm`, all of which KaTeX supports).
+ */
+export interface StyleAction {
+  /** Glyph shown on the button. */
+  icon: string;
+  /** Uzbek tooltip / accessible label. */
+  label: string;
+  /** LaTeX wrapper applied to the selection (`#@`). */
+  latex: string;
+}
+
+export const FONT_STYLES: StyleAction[] = [
+  { icon: "B", label: "Qalin", latex: "\\mathbf{#@}" },
+  { icon: "I", label: "Kursiv", latex: "\\mathit{#@}" },
+  { icon: "R", label: "Tik (Roman)", latex: "\\mathrm{#@}" },
+];
+
+/**
+ * Colour swatches for text colour (`\textcolor`) and background (`\colorbox`).
+ * Hex values are universally KaTeX-renderable and survive the public-page
+ * sanitize schema (which already allows `style`/`mathcolor`/`mathbackground`).
+ */
+export interface StyleColor {
+  name: string;
+  value: string;
+}
+
+export const TEXT_COLORS: StyleColor[] = [
+  { name: "Qora", value: "#000000" },
+  { name: "Qizil", value: "#e03131" },
+  { name: "Ko'k", value: "#1971c2" },
+  { name: "Yashil", value: "#2f9e44" },
+  { name: "To'q sariq", value: "#e8590c" },
+  { name: "Binafsha", value: "#9c36b5" },
+];
+
+export const BACKGROUND_COLORS: StyleColor[] = [
+  { name: "Sariq", value: "#ffec99" },
+  { name: "Yashil", value: "#b2f2bb" },
+  { name: "Ko'k", value: "#a5d8ff" },
+  { name: "Pushti", value: "#ffc9c9" },
+  { name: "Sariq-jigarrang", value: "#ffd8a8" },
+  { name: "Kulrang", value: "#dee2e6" },
+];
+
+/**
  * The grouped palette. Grouping keeps the toolbar compact (popovers) instead of
  * a wall of buttons (plan Step 3.2.3).
  */
