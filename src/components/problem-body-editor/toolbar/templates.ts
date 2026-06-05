@@ -46,12 +46,23 @@ const sym = (icon: string, label: string, latex: string): FormulaTemplate => ({
 });
 
 export const FORMULA_GROUPS: FormulaGroup[] = [
-  // ── Fractions, roots, powers ──────────────────────────────────────────────
+  // ── 1. Fraction (its own group, MathType-style) ───────────────────────────
   {
-    label: "Kasr, ildiz, daraja",
-    icon: "÷√",
+    label: "Kasr",
+    icon: "a⁄b",
     templates: [
-      { icon: "a⁄b", label: "Kasr", latex: "\\frac{#0}{#1}", target: "inline" },
+      { icon: "a⁄b", label: "Kasr (oddiy)", latex: "\\frac{#0}{#1}", target: "inline" },
+      { icon: "ᵃ⁄ᵦ", label: "Qiya kasr", latex: "{}^{#0}\\!\\big/\\!_{#1}", target: "inline" },
+      { icon: "a/b", label: "Chiziqli kasr", latex: "{#0}/{#1}", target: "inline" },
+      { icon: "ⁿ⁄ₘ", label: "Kichik kasr", latex: "\\tfrac{#0}{#1}", target: "inline" },
+    ],
+  },
+
+  // ── Roots & powers ────────────────────────────────────────────────────────
+  {
+    label: "Ildiz va daraja",
+    icon: "√xⁿ",
+    templates: [
       { icon: "√", label: "Kvadrat ildiz", latex: "\\sqrt{#0}", target: "inline" },
       { icon: "ⁿ√", label: "n-darajali ildiz", latex: "\\sqrt[#0]{#1}", target: "inline" },
       { icon: "xⁿ", label: "Daraja", latex: "{#0}^{#1}", target: "inline" },
