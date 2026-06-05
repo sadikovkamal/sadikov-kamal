@@ -28,6 +28,7 @@ import { MarkdownPreview } from "../src/components/markdown-preview";
 import { markdownToDoc } from "../src/components/problem-body-editor/markdown/markdown-to-doc";
 import { docToMarkdown } from "../src/components/problem-body-editor/markdown/doc-to-markdown";
 import { escapeMarkdownText } from "../src/components/problem-body-editor/markdown/escape";
+import { FORMULA_GROUPS } from "../src/components/problem-body-editor/toolbar/templates";
 
 interface CorpusEntry {
   code: string;
@@ -231,6 +232,44 @@ function normalizeHtml(html: string): string {
       (mustContain === null || lc.includes(mustContain));
     unit(`styled math renders cleanly: ${label}`, ok, html.slice(0, 220));
   }
+}
+
+// ── Every toolbar template is KaTeX-renderable (the safety net) ──────────
+// Each toolbar button's LaTeX MUST render through the canonical pipeline. Fill
+// placeholders with a dummy, render, and fail on any KaTeX error — this catches
+// an unsupported command the moment a symbol is added to the palette.
+{
+  let checked = 0;
+  let clean = 0;
+  for (const group of FORMULA_GROUPS) {
+    for (const tpl of group.templates) {
+      checked++;
+      const filled = tpl.latex.replace(/#[0-9@?]/g, "x");
+      const src = tpl.target === "display" ? `$$${filled}$$` : `$${filled}$`;
+      let html = "";
+      let threw = false;
+      try {
+        html = render(src);
+      } catch {
+        threw = true;
+      }
+      const ok = !threw && !html.toLowerCase().includes("katex-error");
+      if (ok) {
+        clean++;
+      } else {
+        unit(
+          `toolbar template renders: [${group.label}] ${tpl.label} → ${tpl.latex}`,
+          false,
+          html.slice(0, 200)
+        );
+      }
+    }
+  }
+  unit(
+    `all ${checked} toolbar templates render in KaTeX`,
+    clean === checked,
+    `${clean}/${checked} clean`
+  );
 }
 
 // ── Corpus round-trip + render-equivalence ───────────────────────────────
