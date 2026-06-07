@@ -242,7 +242,11 @@ function normalizeHtml(html: string): string {
   let checked = 0;
   let clean = 0;
   for (const group of FORMULA_GROUPS) {
-    for (const tpl of group.templates) {
+    // A group carries either a flat `templates` list or named `sections`.
+    const groupTemplates = group.sections
+      ? group.sections.flatMap((s) => s.templates)
+      : (group.templates ?? []);
+    for (const tpl of groupTemplates) {
       checked++;
       const filled = tpl.latex.replace(/#[0-9@?]/g, "x");
       const src = tpl.target === "display" ? `$$${filled}$$` : `$${filled}$`;

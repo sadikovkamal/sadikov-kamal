@@ -127,30 +127,44 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
           />
           <PopoverContent
             align="start"
-            className="w-auto max-w-80"
+            className="max-h-[70vh] w-auto max-w-80 overflow-y-auto"
             data-formula-tool
           >
             <p className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               {group.label}
             </p>
-            <div className="grid grid-cols-6 gap-1">
-              {group.templates.map((tpl) => (
-                <button
-                  key={tpl.latex + tpl.label}
-                  type="button"
-                  title={tpl.label}
-                  aria-label={tpl.label}
-                  disabled={disabled}
-                  data-formula-tool
-                  // Don't steal focus from an open MathLive field on press.
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertTemplate(tpl)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md text-sm ring-1 ring-foreground/10 transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-                >
-                  {tpl.icon}
-                </button>
-              ))}
-            </div>
+            {/* A group is rendered either as one flat grid (`templates`) or as
+                named sub-blocks (`sections`). Normalise to sections so the
+                markup below has a single code path. */}
+            {(group.sections ?? [{ label: "", templates: group.templates ?? [] }]).map(
+              (section, i) => (
+                <div key={section.label || i}>
+                  {section.label ? (
+                    <p className="px-1 pb-1 pt-2 text-[10px] font-medium text-muted-foreground/80">
+                      {section.label}
+                    </p>
+                  ) : null}
+                  <div className="grid grid-cols-6 gap-1">
+                    {section.templates.map((tpl) => (
+                      <button
+                        key={tpl.latex + tpl.label}
+                        type="button"
+                        title={tpl.label}
+                        aria-label={tpl.label}
+                        disabled={disabled}
+                        data-formula-tool
+                        // Don't steal focus from an open MathLive field on press.
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => insertTemplate(tpl)}
+                        className="flex h-9 w-9 items-center justify-center rounded-md text-sm ring-1 ring-foreground/10 transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                      >
+                        {tpl.icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
           </PopoverContent>
         </Popover>
       ))}
