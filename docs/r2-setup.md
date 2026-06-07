@@ -141,6 +141,13 @@ can't make it, so use the dashboard (recommended) or an Admin token.
    upload". This reclaims ZIPs uploaded for preview but never imported
    (successful imports delete their own staging object).
 
+   > ⚠️ **Invariant:** this rule deletes *everything* under `imports/` after
+   > a day, so that prefix may hold ONLY throwaway ZIP staging objects.
+   > Permanent assets must never live there. Imported problem images are
+   > stored under `problems/imported/…` (not `imports/…`) precisely so the
+   > lifecycle rule can't reap them — a past bug where it did made every
+   > imported image disappear ~24h later.
+
 ### Option B — script (needs an "Admin Read & Write" R2 token)
 
 ```bash
