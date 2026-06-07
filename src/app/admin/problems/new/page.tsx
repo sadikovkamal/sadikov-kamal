@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { topics, ageCategories, methods } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
+import { getR2PublicUrlOrEmpty } from "@/lib/storage/r2";
 import { ProblemForm } from "@/components/problem-form";
 import { ImportUploader } from "./import-uploader";
 
@@ -49,6 +50,7 @@ export default async function NewProblemPage() {
           ageCategoriesAvailable={ageCategoriesAvailable}
           methodsAvailable={methodsAvailable}
           uploadPrefix="problems/draft"
+          r2PublicUrl={getR2PublicUrlOrEmpty()}
         />
 
         <ImportSidebar />

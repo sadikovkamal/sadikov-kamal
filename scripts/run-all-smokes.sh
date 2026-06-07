@@ -19,6 +19,7 @@ cd "$(dirname "$0")/.."
 PLAIN=(
   "auth-smoke.ts"
   "auth-http-smoke.ts"
+  "image-ref-smoke.ts"
   "markdown-smoke.ts"
   "wysiwyg-smoke.ts"
   "r2-smoke.ts"

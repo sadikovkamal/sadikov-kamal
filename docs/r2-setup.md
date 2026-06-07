@@ -158,3 +158,29 @@ Applies the same CORS + lifecycle via the S3 API. If the token lacks
 bucket-admin permission it fails and prints the dashboard JSON to paste
 instead. Idempotent — re-run after adding a deploy domain (edit
 `ALLOWED_ORIGINS` in the script first).
+
+## 9. Changing the public URL / migrating storage
+
+Image references inside problem bodies are **host-independent**: `body_md`
+stores `![alt](r2:problems/…/x.png)` — a relative storage key, not an
+absolute URL (see `src/lib/storage/image-ref.ts`). The absolute URL is
+reconstructed at render time from `R2_PUBLIC_URL`. The single-slot
+`images.storage_key` is likewise a relative key.
+
+So switching the public URL — attaching a custom domain
+(`assets.example.com`), or moving the bucket/provider — is a **one-env-var
+change**:
+
+1. Point `R2_PUBLIC_URL` at the new base (and update `next.config.ts`
+   `images.remotePatterns` if the hostname changed).
+2. Redeploy. Every image resolves against the new base — no database
+   rewrite needed.
+
+Moving only the *app* (e.g. Vercel → another host) while keeping the same
+R2 bucket needs nothing beyond setting the same `R2_*` env vars on the new
+host.
+
+> Historical note: bodies imported before this scheme stored absolute
+> URLs. Convert them once with
+> `npx tsx scripts/migrate-image-refs-to-relative.ts` (dry-run first,
+> then `--apply`). Idempotent and safe to skip if the DB is already clean.

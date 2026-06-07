@@ -72,6 +72,8 @@ export interface ProblemFormProps {
   ageCategoriesAvailable: AgeCategory[];
   methodsAvailable: Method[];
   uploadPrefix: string;
+  /** Current R2 public base URL — resolves portable `r2:` image refs for the editor. */
+  r2PublicUrl: string;
 }
 
 export function ProblemForm({
@@ -83,6 +85,7 @@ export function ProblemForm({
   ageCategoriesAvailable,
   methodsAvailable,
   uploadPrefix,
+  r2PublicUrl,
 }: ProblemFormProps) {
   const router = useRouter();
   const methods = useForm<ProblemFormValues>({
@@ -156,6 +159,7 @@ export function ProblemForm({
           <BodyEditor
             fieldName="bodyMd"
             uploadPrefix={uploadPrefix}
+            r2PublicUrl={r2PublicUrl}
             showError
           />
         </section>
@@ -312,10 +316,12 @@ function ImageUploadField({
 function BodyEditor({
   fieldName,
   uploadPrefix,
+  r2PublicUrl,
   showError,
 }: {
   fieldName: "bodyMd";
   uploadPrefix: string;
+  r2PublicUrl: string;
   showError?: boolean;
 }) {
   const { control, setValue, formState } = useFormContext<ProblemFormValues>();
@@ -327,6 +333,7 @@ function BodyEditor({
         value={value}
         onChange={(v) => setValue(fieldName, v, { shouldDirty: true })}
         uploadPrefix={uploadPrefix}
+        r2PublicUrl={r2PublicUrl}
         minHeight="240px"
         enableImageInsertion={false}
       />

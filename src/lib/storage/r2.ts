@@ -270,6 +270,20 @@ export function getPublicUrl(storageKey: string): string {
 }
 
 /**
+ * The configured public base URL (trailing slash stripped), or `""` when R2
+ * isn't configured. Non-throwing — used to resolve/relativise portable
+ * `r2:` image refs (see lib/storage/image-ref.ts), where a missing base
+ * should degrade to "leave refs alone" rather than crash the page/build.
+ */
+export function getR2PublicUrlOrEmpty(): string {
+  try {
+    return loadConfig().publicUrl;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Download the raw bytes of an R2 object by storage key.
  *
  * Used by server-side flows that need to embed binary content (e.g. the
