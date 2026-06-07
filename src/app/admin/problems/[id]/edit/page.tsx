@@ -7,7 +7,7 @@ import { topics, ageCategories, methods } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemByCode } from "@/lib/problems/queries";
 import { listSourcesWithCounts } from "@/lib/taxonomy/queries";
-import { getPublicUrl } from "@/lib/storage/r2";
+import { getPublicUrl, getR2PublicUrlOrEmpty } from "@/lib/storage/r2";
 import { ProblemForm } from "@/components/problem-form";
 
 export async function generateMetadata({
@@ -106,6 +106,7 @@ export default async function EditProblemPage({
         // R2 storage paths stay UUID-keyed — they're internal storage
         // keys, not URLs, so the human-facing code rename doesn't apply.
         uploadPrefix={`problems/${p.id}`}
+        r2PublicUrl={getR2PublicUrlOrEmpty()}
       />
     </div>
   );

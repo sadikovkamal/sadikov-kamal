@@ -5,6 +5,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
 import { uploadImageAction } from "@/app/admin/_actions/upload-image";
+import { toImageRef } from "@/lib/storage/image-ref";
 
 export interface MarkdownEditorProps {
   value: string;
@@ -37,8 +38,10 @@ export function MarkdownEditor({
         formData.append("prefix", uploadPrefix);
         const result = await uploadImageAction(formData);
 
-        if ("success" in result && result.success && result.publicUrl) {
-          const insert = `\n![${file.name}](${result.publicUrl})\n`;
+        if ("success" in result && result.success && result.storageKey) {
+          // Persist the portable `r2:<key>` ref, not an absolute URL, so the
+          // body stays host-independent (see lib/storage/image-ref.ts).
+          const insert = `\n![${file.name}](${toImageRef(result.storageKey)})\n`;
           const pos = view.state.selection.main.head;
           view.dispatch({
             changes: { from: pos, insert },

@@ -24,7 +24,8 @@ import {
   sources,
 } from "@/db/schema";
 import { withDescendants } from "@/lib/taxonomy/hierarchy";
-import { getPublicUrl } from "@/lib/storage/r2";
+import { getPublicUrl, getR2PublicUrlOrEmpty } from "@/lib/storage/r2";
+import { resolveImageRefs } from "@/lib/storage/image-ref";
 import type { PrintProblem } from "@/lib/print/types";
 
 /**
@@ -234,12 +235,17 @@ export async function getProblemsForPrint(
   }
 
   // Assemble PrintProblem objects, indexed by id for the reorder step.
+  // body_md stores portable `r2:` image refs; resolve them to absolute URLs
+  // here so BOTH consumers work unchanged — the client HTML preview renders
+  // the <img>, and the docx walker matches `node.url` against `images[].url`
+  // (which is the same absolute getPublicUrl()).
+  const base = getR2PublicUrlOrEmpty();
   const byId = new Map<string, PrintProblem>();
   for (const r of rows) {
     byId.set(r.id, {
       id: r.id,
       code: r.code,
-      bodyMd: r.bodyMd,
+      bodyMd: resolveImageRefs(r.bodyMd, base),
       images: imagesByProblem.get(r.id) ?? [],
       source:
         r.sourceCode != null && r.sourceName != null

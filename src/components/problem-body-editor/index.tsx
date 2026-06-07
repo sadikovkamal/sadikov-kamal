@@ -33,6 +33,11 @@ import { ImagePlus, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImageAction } from "@/app/admin/_actions/upload-image";
 import { MarkdownEditor } from "@/components/markdown-editor";
+import {
+  resolveImageRefs,
+  relativizeImageRefs,
+  toImageRef,
+} from "@/lib/storage/image-ref";
 import { editorExtensions } from "./schema/extensions";
 import { markdownToDoc } from "./markdown/markdown-to-doc";
 import { docToMarkdown } from "./markdown/doc-to-markdown";
@@ -41,9 +46,16 @@ import { SourceToggle, type EditorMode } from "./source-mode/source-toggle";
 import { tryEnterVisual } from "./source-mode/guard";
 
 export interface ProblemBodyEditorProps {
-  value: string; // body_md
+  value: string; // body_md (portable form: image refs are `r2:<storageKey>`)
   onChange: (next: string) => void;
   uploadPrefix: string; // "problems/draft" | "problems/{id}"
+  /**
+   * Current R2 public base URL (e.g. `https://pub-xxx.r2.dev`). Used ONLY to
+   * resolve portable `r2:<key>` image refs to absolute URLs for in-editor
+   * display, and to relativise them back on serialize. Persisted body_md
+   * never contains an absolute R2 URL — see lib/storage/image-ref.ts.
+   */
+  r2PublicUrl?: string;
   minHeight?: string;
   /**
    * Extra header content rendered right-aligned, to the LEFT of the built-in
@@ -67,6 +79,7 @@ export function ProblemBodyEditor({
   value,
   onChange,
   uploadPrefix,
+  r2PublicUrl = "",
   minHeight = "240px",
   sourceToggleSlot,
   enableImageInsertion = true,
@@ -86,6 +99,9 @@ export function ProblemBodyEditor({
   const uploadPrefixRef = useRef(uploadPrefix);
   // Stable ref so the config-time handleDrop closure can read the latest flag.
   const enableImageInsertionRef = useRef(enableImageInsertion);
+  // Stable ref to the R2 base so the onUpdate closure relativises with the
+  // current value without being recreated.
+  const r2PublicUrlRef = useRef(r2PublicUrl);
   // Stable ref to the editor itself, so config-time closures (handleDrop) can
   // reach the live instance once it's created.
   const editorRef = useRef<Editor | null>(null);
@@ -93,11 +109,14 @@ export function ProblemBodyEditor({
     onChangeRef.current = onChange;
     uploadPrefixRef.current = uploadPrefix;
     enableImageInsertionRef.current = enableImageInsertion;
+    r2PublicUrlRef.current = r2PublicUrl;
   });
 
   const editor = useEditor({
     extensions: editorExtensions,
-    content: markdownToDoc(value),
+    // Resolve portable `r2:` refs to absolute URLs so the in-editor <img>
+    // nodes actually load; serialize relativises them back (see onUpdate).
+    content: markdownToDoc(resolveImageRefs(value, r2PublicUrl)),
     immediatelyRender: false,
     editorProps: {
       attributes: {
@@ -135,7 +154,12 @@ export function ProblemBodyEditor({
       },
     },
     onUpdate({ editor }) {
-      const md = docToMarkdown(editor.getJSON());
+      // Persist the PORTABLE form: turn any absolute R2 URL the editor holds
+      // (from an upload or a just-resolved load) back into `r2:<key>`.
+      const md = relativizeImageRefs(
+        docToMarkdown(editor.getJSON()),
+        r2PublicUrlRef.current
+      );
       lastEmittedRef.current = md;
       onChangeRef.current(md);
     },
@@ -152,12 +176,18 @@ export function ProblemBodyEditor({
     // Echo of our own keystroke → ignore (would reset the cursor).
     if (value === lastEmittedRef.current) return;
     // A real outside change only if it also differs from what's on screen.
-    const current = docToMarkdown(editor.getJSON());
+    // Compare in the same PORTABLE representation `value` uses.
+    const current = relativizeImageRefs(
+      docToMarkdown(editor.getJSON()),
+      r2PublicUrl
+    );
     if (value === current) return;
     lastEmittedRef.current = value;
     // TipTap v3: setContent takes (content, options). `emitUpdate:false` avoids
     // emitting another update from this programmatic change (would loop).
-    editor.commands.setContent(markdownToDoc(value), { emitUpdate: false });
+    editor.commands.setContent(markdownToDoc(resolveImageRefs(value, r2PublicUrl)), {
+      emitUpdate: false,
+    });
   }, [editor, value]);
 
   // Mode switch with the guarded source → visual sync.
@@ -316,7 +346,9 @@ function SourceImageUploadButton({
           setError(("error" in res && res.error) || "Yuklab bo'lmadi");
           return;
         }
-        const snippet = `![${file.name}](${res.publicUrl})`;
+        // Persist the portable ref, not an absolute URL (source mode writes
+        // straight into body_md, bypassing the visual serializer).
+        const snippet = `![${file.name}](${toImageRef(res.storageKey)})`;
         const sep = value.length === 0 || value.endsWith("\n") ? "" : "\n";
         onChange(`${value}${sep}${snippet}\n`);
       } catch (e) {

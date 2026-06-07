@@ -12,7 +12,11 @@ import {
 } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { getProblemByCode } from "@/lib/problems/queries";
-import { getPublicUrl } from "@/lib/storage/r2";
+import { getPublicUrl, getR2PublicUrlOrEmpty } from "@/lib/storage/r2";
+import {
+  resolveImageRefs,
+  bodyReferencesStorageKey,
+} from "@/lib/storage/image-ref";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { Button } from "@/components/ui/button";
 import { DeleteProblemButton } from "./delete-button";
@@ -43,12 +47,13 @@ export default async function ProblemDetailPage({
 
   // Images uploaded via the form's "Rasm yuklash" button are saved as a
   // separate `images` row without touching bodyMd, so they wouldn't render
-  // through MarkdownPreview. Import-pipeline images, by contrast, already
-  // have their absolute URL inlined inside bodyMd — render those only once
-  // by filtering out any image whose URL is already present in the markdown.
+  // through MarkdownPreview. Import-pipeline images, by contrast, are inlined
+  // inside bodyMd as portable `r2:<storageKey>` refs — render those only once
+  // by filtering out any image whose storage key the body already references.
+  const r2Base = getR2PublicUrlOrEmpty();
   const standaloneImages = p.images
     .map((img) => ({ ...img, publicUrl: getPublicUrl(img.storageKey) }))
-    .filter((img) => !p.bodyMd.includes(img.publicUrl));
+    .filter((img) => !bodyReferencesStorageKey(p.bodyMd, img.storageKey, r2Base));
 
   return (
     <div className="space-y-5">
@@ -114,7 +119,7 @@ export default async function ProblemDetailPage({
               the `images` row and render below as standalone figures. */}
           <div className="rounded-xl ring-1 ring-foreground/10 bg-card shadow-sm px-6 py-6 md:px-8 md:py-7">
             <MarkdownPreview
-              source={p.bodyMd}
+              source={resolveImageRefs(p.bodyMd, r2Base)}
               className="[&_img]:max-w-[640px] [&_img]:mx-auto [&_img]:block [&_img]:my-6"
             />
             {standaloneImages.length > 0 && (

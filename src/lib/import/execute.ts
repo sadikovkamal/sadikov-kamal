@@ -9,6 +9,7 @@ import {
   images,
 } from "@/db/schema";
 import { uploadFile } from "@/lib/storage/r2";
+import { toImageRef } from "@/lib/storage/image-ref";
 import {
   formatProblemCode,
   parseProblemCodeSeq,
@@ -139,13 +140,17 @@ export async function executeImport(params: {
 
     const { sourceId, ageCategoryIds, topicIds } = v.resolved;
 
+    // Rewrite relative `images/foo.png` refs to the PORTABLE `r2:<storageKey>`
+    // form (not an absolute URL) so the body stays host-independent — see
+    // lib/storage/image-ref.ts. The absolute URL is reconstructed at render
+    // time from the current R2_PUBLIC_URL.
     const rewrite = (md: string): string =>
       md.replace(
         /!\[([^\]]*)\]\(images\/([^)]+)\)/g,
         (_, alt: string, ref: string) => {
           const img = imageUrlByFilename.get(ref);
           return img
-            ? `![${alt}](${img.publicUrl})`
+            ? `![${alt}](${toImageRef(img.storageKey)})`
             : `![${alt}](images/${ref})`;
         }
       );
