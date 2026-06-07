@@ -136,8 +136,17 @@ Second problem with an image.
       .where(inArray(problems.code, createdCodes));
     assert(inserted.length === 2, `inserted ${inserted.length}, want 2`);
 
-    const sample = inserted.find((p) => /r2\.dev|imports\//.test(p.bodyMd));
+    // The relative `images/foo.png` ref must be rewritten to an absolute R2
+    // URL under the PERMANENT prefix. Guard against a regression to the old
+    // expiring `imports/` prefix: the rewritten ref must NOT contain it.
+    const sample = inserted.find((p) =>
+      /r2\.dev|problems\/imported\//.test(p.bodyMd)
+    );
     assert(sample, "no problem with rewritten image reference found");
+    assert(
+      !inserted.some((p) => /\/imports\//.test(p.bodyMd)),
+      "image ref points at the auto-expiring imports/ prefix (regression!)"
+    );
     console.log(`[4] image markdown ref rewritten to R2 URL`);
 
     const insertedImages = await db

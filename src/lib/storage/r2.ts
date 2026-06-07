@@ -4,6 +4,7 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  CopyObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { nanoid } from "nanoid";
@@ -194,6 +195,30 @@ export async function deleteFile(storageKey: string): Promise<void> {
   const { s3, cfg } = getClient();
   await s3.send(
     new DeleteObjectCommand({ Bucket: cfg.bucket, Key: storageKey })
+  );
+}
+
+/**
+ * Server-side copy of an object within the same bucket. Used by the
+ * one-off recovery script that relocates imported images out of the
+ * auto-expiring `imports/` prefix. `CopySource` must be `{bucket}/{key}`
+ * with the key URI-encoded so keys containing `/` or spaces are handled.
+ */
+export async function copyFile(
+  sourceKey: string,
+  destKey: string
+): Promise<void> {
+  const { s3, cfg } = getClient();
+  const copySource = `${cfg.bucket}/${sourceKey}`
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
+  await s3.send(
+    new CopyObjectCommand({
+      Bucket: cfg.bucket,
+      Key: destKey,
+      CopySource: copySource,
+    })
   );
 }
 

@@ -49,6 +49,13 @@ const CORS_RULES: CORSRule[] = [
   },
 ];
 
+// INVARIANT: this rule deletes EVERYTHING under `imports/` one day after
+// upload. Therefore `imports/` may hold ONLY disposable ZIP staging objects
+// (see new/_actions.ts). Permanent assets — problem images, source logos —
+// must live elsewhere (`problems/…`, `sources/…`). Imported problem images
+// go under `problems/imported/…` for exactly this reason (see
+// src/lib/import/execute.ts); putting them under `imports/` made them vanish
+// ~24h after every import.
 const LIFECYCLE_RULES: LifecycleRule[] = [
   {
     ID: "expire-import-staging",

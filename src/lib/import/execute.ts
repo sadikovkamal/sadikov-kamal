@@ -39,7 +39,9 @@ export interface ExecuteResult {
  *  - `validation.errorCount === 0` (every problem has `status === "ok"`).
  *
  * With those in place, this function:
- *  1. Uploads each referenced image to R2 once under `imports/{timestamp}/`.
+ *  1. Uploads each referenced image to R2 once under
+ *     `problems/imported/{timestamp}/` (a PERMANENT prefix — NOT `imports/`,
+ *     which the lifecycle rule auto-expires after a day).
  *  2. For each problem, runs a transaction that inserts the `problems`
  *     row (auto-assigning a `P#######` code), the topic/age junction
  *     rows, and the single image row. Image markdown refs in `body_md`
@@ -58,13 +60,24 @@ export async function executeImport(params: {
   const createdCodes: string[] = [];
   let successCount = 0;
 
-  // 1. Upload all images. Prefix is a timestamp folder under `imports/` —
-  //    random enough to avoid collisions and easy to spot in R2. Uploads
-  //    run with bounded concurrency: pure-sequential burns the whole
-  //    bundle's seconds in network RTT, but unbounded `Promise.all` can
-  //    saturate the function's open-socket budget on 200-problem bundles.
-  //    Six in flight at once is the well-known sweet spot for S3-like APIs.
-  const uploadPrefix = `imports/${Date.now()}`;
+  // 1. Upload all images to a PERMANENT prefix under `problems/`.
+  //
+  //    CRITICAL: these are the problem images themselves — they must live
+  //    forever. They must NOT go under `imports/`: that prefix is the
+  //    browser-direct ZIP staging area, and the R2 lifecycle rule
+  //    (scripts/setup-r2-cors.ts) deletes everything under `imports/` one
+  //    day after upload. Storing problem images there meant every imported
+  //    image silently vanished ~24h later (broken `<img>`, DB row intact).
+  //    `problems/imported/{timestamp}` keeps them with the rest of the
+  //    permanent problem assets and clear of the expiring staging prefix.
+  //
+  //    The timestamp folder is random enough to avoid collisions and easy
+  //    to spot in R2. Uploads run with bounded concurrency: pure-sequential
+  //    burns the whole bundle's seconds in network RTT, but unbounded
+  //    `Promise.all` can saturate the function's open-socket budget on
+  //    200-problem bundles. Six in flight at once is the well-known sweet
+  //    spot for S3-like APIs.
+  const uploadPrefix = `problems/imported/${Date.now()}`;
   interface UploadedImage {
     storageKey: string;
     publicUrl: string;
