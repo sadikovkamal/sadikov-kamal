@@ -237,7 +237,7 @@ export function ProblemBodyEditor({
 
   return (
     <div className="rounded-xl ring-1 ring-foreground/10 overflow-hidden bg-card shadow-sm">
-      <header className="flex items-center gap-2 px-2 h-11 border-b bg-muted/30">
+      <header className="flex items-center gap-2 px-2 min-h-12 py-2 border-b bg-muted/30">
         <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground pr-1">
           <Pencil className="size-3" aria-hidden />
           <span className="hidden sm:inline">Tahrir</span>

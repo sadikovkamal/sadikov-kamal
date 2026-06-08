@@ -148,7 +148,7 @@ function ToolbarDivider() {
   return (
     <span
       aria-hidden
-      className="mx-0.5 h-6 w-px shrink-0 self-center bg-foreground/10"
+      className="mx-0.5 h-7 w-px shrink-0 self-center bg-foreground/10"
     />
   );
 }
@@ -221,7 +221,7 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
   return (
     <div
       data-formula-tool
-      className="flex flex-wrap items-center gap-1"
+      className="flex flex-wrap items-center gap-x-1 gap-y-1.5"
     >
       {CLUSTERED_GROUPS.map((groups, ci) => (
         <Fragment key={groups[0]?.label ?? ci}>
@@ -238,12 +238,12 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
                     title={group.label}
                     aria-label={group.label}
                     data-formula-tool
-                    className="h-8 min-w-9 px-2"
+                    className="h-9 min-w-9 px-2"
                   >
                     <MathIcon
                       latex={TRIGGER_LATEX[group.label] ?? ""}
                       fallback={group.icon}
-                      className="inline-flex items-center justify-center leading-none"
+                      className="inline-flex items-center justify-center leading-none [&_.katex]:text-[1.05em]"
                     />
                   </Button>
                 }
