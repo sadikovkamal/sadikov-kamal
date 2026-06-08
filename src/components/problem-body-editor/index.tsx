@@ -38,6 +38,7 @@ import {
   relativizeImageRefs,
   toImageRef,
 } from "@/lib/storage/image-ref";
+import { imageSizeError } from "@/lib/storage/image-upload";
 import { editorExtensions } from "./schema/extensions";
 import { markdownToDoc } from "./markdown/markdown-to-doc";
 import { docToMarkdown } from "./markdown/doc-to-markdown";
@@ -335,6 +336,13 @@ function SourceImageUploadButton({
 
   const onFile = useCallback(
     async (file: File) => {
+      const sizeErr = imageSizeError(file);
+      if (sizeErr) {
+        setError(sizeErr);
+        // Clear the input so re-picking the SAME file re-triggers onChange.
+        if (inputRef.current) inputRef.current.value = "";
+        return;
+      }
       setUploading(true);
       setError(null);
       try {
@@ -410,6 +418,10 @@ async function uploadAndInsert(
   uploadPrefix: string,
   pos?: number
 ): Promise<string | null> {
+  // Block oversize images before they hit the server action (clear message
+  // instead of a confusing failure at Vercel's body-size boundary).
+  const sizeErr = imageSizeError(file);
+  if (sizeErr) return sizeErr;
   const fd = new FormData();
   fd.append("file", file);
   fd.append("prefix", uploadPrefix);

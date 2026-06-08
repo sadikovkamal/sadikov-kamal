@@ -16,6 +16,7 @@ import dynamic from "next/dynamic";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImageAction } from "@/app/admin/_actions/upload-image";
+import { imageSizeError } from "@/lib/storage/image-upload";
 import { MetadataForm } from "@/components/metadata-form";
 import type { Topic, AgeCategory, Method } from "@/db/schema";
 import type { SourcePickerNode } from "@/components/problem-form-pickers/source-picker";
@@ -226,6 +227,15 @@ function ImageUploadField({
   const [error, setError] = useState<string | null>(null);
 
   async function handleFile(file: File) {
+    // Reject oversize images up front with a clear message — they'd otherwise
+    // fail with a confusing network error at Vercel's ~4.5 MB body boundary.
+    const sizeErr = imageSizeError(file);
+    if (sizeErr) {
+      setError(sizeErr);
+      // Clear the input so re-picking the SAME file re-triggers onChange.
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setUploading(true);
     setError(null);
     try {
