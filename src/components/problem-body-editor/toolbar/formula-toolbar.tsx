@@ -284,7 +284,8 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
                             <MathIcon
                               latex={tpl.latex}
                               fallback={tpl.icon}
-                              className="inline-flex max-h-full max-w-full items-center justify-center leading-none [&_.katex]:text-[0.85em]"
+                              fit
+                              className="leading-none"
                             />
                           </button>
                         ))}
