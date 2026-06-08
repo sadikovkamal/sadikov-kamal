@@ -6,6 +6,7 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
 import { uploadImageAction } from "@/app/admin/_actions/upload-image";
 import { toImageRef } from "@/lib/storage/image-ref";
+import { imageSizeError } from "@/lib/storage/image-upload";
 
 export interface MarkdownEditorProps {
   value: string;
@@ -33,6 +34,18 @@ export function MarkdownEditor({
       event.preventDefault();
 
       for (const file of files) {
+        // Reject oversize images before the server action — surface the
+        // reason inline (mirrors the upload-error comment below).
+        const sizeErr = imageSizeError(file);
+        if (sizeErr) {
+          const msg = `\n<!-- ${sizeErr} -->\n`;
+          const pos = view.state.selection.main.head;
+          view.dispatch({
+            changes: { from: pos, insert: msg },
+            selection: { anchor: pos + msg.length },
+          });
+          continue;
+        }
         const formData = new FormData();
         formData.append("file", file);
         formData.append("prefix", uploadPrefix);

@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { nanoid } from "nanoid";
+import { IMAGE_MAX_BYTES } from "./image-upload";
 
 /**
  * Lazy-initialized R2 client.
@@ -114,7 +115,7 @@ export const ALLOWED_MIME_TYPES = new Set([
  * (looser) cap — the ZIP-wide BUNDLE_LIMITS.maxBytes already bounds
  * individual images there.
  */
-export const MAX_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
+export const MAX_SIZE_BYTES = IMAGE_MAX_BYTES; // 4 MB — single source: image-upload.ts
 
 /**
  * Hard cap for import ZIP staging objects. Bundles are uploaded straight
