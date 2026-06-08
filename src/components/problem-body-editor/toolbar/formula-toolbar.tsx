@@ -20,6 +20,7 @@
  * Labels and tooltips are in Uzbek to match the app UI.
  */
 
+import { Fragment } from "react";
 import { Sigma, Superscript } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { Button } from "@/components/ui/button";
@@ -35,8 +36,122 @@ import {
   BACKGROUND_COLORS,
   type FormulaTarget,
   type FormulaTemplate,
+  type FormulaGroup,
 } from "./templates";
+import { MathIcon } from "./math-icon";
 import type { ActiveMathfieldStorage } from "../schema/extensions";
+
+/**
+ * Toolbar layout — groups bucketed into Word/MathType-style clusters, rendered
+ * left-to-right with a thin divider between clusters. Each entry lists the
+ * group labels (from templates.ts) that belong to the cluster, in display
+ * order. Every group MUST appear in exactly one cluster; any that don't are
+ * appended after the clusters as a safety net.
+ */
+const TOOLBAR_CLUSTERS: { name: string; groups: string[] }[] = [
+  { name: "Struktura", groups: ["Kasr", "Indekslar", "Ildiz"] },
+  {
+    name: "Integral",
+    groups: ["Integrallar", "Kontur integrallar", "Differensiallar"],
+  },
+  {
+    name: "Katta operatorlar",
+    groups: [
+      "Yig'indilar",
+      "Ko'paytmalar",
+      "To'plam amallari",
+      "Boshqa katta operatorlar",
+    ],
+  },
+  { name: "Qavs va matritsa", groups: ["Qavslar", "Matritsalar"] },
+  {
+    name: "Funksiyalar",
+    groups: [
+      "Trigonometrik funksiyalar",
+      "Giperbolik funksiyalar",
+      "Qo'shimcha funksiyalar",
+      "Funksiyalar",
+    ],
+  },
+  {
+    name: "Belgilar",
+    groups: [
+      "Munosabatlar",
+      "Amallar",
+      "O'qlar",
+      "To'plam va mantiq",
+      "Operatorlar",
+      "Aksent va bezaklar",
+      "Maxsus belgilar",
+      "Boshqalar",
+    ],
+  },
+  { name: "Yunon", groups: ["Yunon (kichik)", "Yunon (katta)"] },
+];
+
+/**
+ * Representative latex rendered as the trigger glyph for each group (KaTeX,
+ * MathType-style). Falls back to the group's text `icon` if a label is missing
+ * here or fails to render.
+ */
+const TRIGGER_LATEX: Record<string, string> = {
+  Kasr: "\\frac{a}{b}",
+  Indekslar: "x^{n}",
+  Ildiz: "\\sqrt{x}",
+  Integrallar: "\\int",
+  "Kontur integrallar": "\\oint",
+  Differensiallar: "dx",
+  "Yig'indilar": "\\sum",
+  "Ko'paytmalar": "\\prod",
+  "To'plam amallari": "\\bigcup",
+  "Boshqa katta operatorlar": "\\bigvee",
+  Qavslar: "\\left(\\square\\right)",
+  Matritsalar:
+    "\\left[\\begin{smallmatrix}1&0\\\\0&1\\end{smallmatrix}\\right]",
+  "Trigonometrik funksiyalar": "\\sin",
+  "Giperbolik funksiyalar": "\\sinh",
+  "Qo'shimcha funksiyalar": "\\log",
+  Funksiyalar: "f(x)",
+  "Aksent va bezaklar": "\\hat{x}",
+  Munosabatlar: "\\leq",
+  Amallar: "\\pm",
+  "O'qlar": "\\rightarrow",
+  "To'plam va mantiq": "\\in",
+  Operatorlar: "\\triangleq",
+  "Maxsus belgilar": "\\infty",
+  Boshqalar: "\\tfrac{d}{dx}",
+  "Yunon (kichik)": "\\alpha",
+  "Yunon (katta)": "\\Omega",
+};
+
+/** Group lookup by label, built once. */
+const GROUP_BY_LABEL = new Map(FORMULA_GROUPS.map((g) => [g.label, g]));
+
+/** Groups bucketed into clusters; any uncatalogued group lands in a trailing bucket. */
+const CLUSTERED_GROUPS: FormulaGroup[][] = (() => {
+  const used = new Set<string>();
+  const clusters = TOOLBAR_CLUSTERS.map((c) =>
+    c.groups
+      .map((label) => {
+        used.add(label);
+        return GROUP_BY_LABEL.get(label);
+      })
+      .filter((g): g is FormulaGroup => Boolean(g))
+  ).filter((groups) => groups.length > 0);
+  const leftovers = FORMULA_GROUPS.filter((g) => !used.has(g.label));
+  if (leftovers.length > 0) clusters.push(leftovers);
+  return clusters;
+})();
+
+/** Thin vertical separator between clusters / toolbar zones. */
+function ToolbarDivider() {
+  return (
+    <span
+      aria-hidden
+      className="mx-0.5 h-6 w-px shrink-0 self-center bg-foreground/10"
+    />
+  );
+}
 
 export interface FormulaToolbarProps {
   /** The live TipTap editor instance, or null while it mounts. */
@@ -108,66 +223,82 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
       data-formula-tool
       className="flex flex-wrap items-center gap-1"
     >
-      {FORMULA_GROUPS.map((group) => (
-        <Popover key={group.label}>
-          <PopoverTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={disabled}
-                title={group.label}
-                aria-label={group.label}
+      {CLUSTERED_GROUPS.map((groups, ci) => (
+        <Fragment key={groups[0]?.label ?? ci}>
+          {ci > 0 && <ToolbarDivider />}
+          {groups.map((group) => (
+            <Popover key={group.label}>
+              <PopoverTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={disabled}
+                    title={group.label}
+                    aria-label={group.label}
+                    data-formula-tool
+                    className="h-8 min-w-9 px-2"
+                  >
+                    <MathIcon
+                      latex={TRIGGER_LATEX[group.label] ?? ""}
+                      fallback={group.icon}
+                      className="inline-flex items-center justify-center leading-none"
+                    />
+                  </Button>
+                }
+              />
+              <PopoverContent
+                align="start"
+                className="max-h-[70vh] w-auto max-w-80 overflow-y-auto"
                 data-formula-tool
               >
-                <span className="font-medium">{group.icon}</span>
-              </Button>
-            }
-          />
-          <PopoverContent
-            align="start"
-            className="max-h-[70vh] w-auto max-w-80 overflow-y-auto"
-            data-formula-tool
-          >
-            <p className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              {group.label}
-            </p>
-            {/* A group is rendered either as one flat grid (`templates`) or as
-                named sub-blocks (`sections`). Normalise to sections so the
-                markup below has a single code path. */}
-            {(group.sections ?? [{ label: "", templates: group.templates ?? [] }]).map(
-              (section, i) => (
-                <div key={section.label || i}>
-                  {section.label ? (
-                    <p className="px-1 pb-1 pt-2 text-[10px] font-medium text-muted-foreground/80">
-                      {section.label}
-                    </p>
-                  ) : null}
-                  <div className="grid grid-cols-6 gap-1">
-                    {section.templates.map((tpl) => (
-                      <button
-                        key={tpl.latex + tpl.label}
-                        type="button"
-                        title={tpl.label}
-                        aria-label={tpl.label}
-                        disabled={disabled}
-                        data-formula-tool
-                        // Don't steal focus from an open MathLive field on press.
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => insertTemplate(tpl)}
-                        className="flex h-9 w-9 items-center justify-center rounded-md text-sm ring-1 ring-foreground/10 transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-                      >
-                        {tpl.icon}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )
-            )}
-          </PopoverContent>
-        </Popover>
+                <p className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {group.label}
+                </p>
+                {/* A group is rendered either as one flat grid (`templates`) or
+                    as named sub-blocks (`sections`). Normalise to sections so
+                    the markup below has a single code path. */}
+                {(group.sections ?? [{ label: "", templates: group.templates ?? [] }]).map(
+                  (section, i) => (
+                    <div key={section.label || i}>
+                      {section.label ? (
+                        <p className="px-1 pb-1 pt-2 text-[10px] font-medium text-muted-foreground/80">
+                          {section.label}
+                        </p>
+                      ) : null}
+                      <div className="grid grid-cols-6 gap-1">
+                        {section.templates.map((tpl) => (
+                          <button
+                            key={tpl.latex + tpl.label}
+                            type="button"
+                            title={tpl.label}
+                            aria-label={tpl.label}
+                            disabled={disabled}
+                            data-formula-tool
+                            // Don't steal focus from an open MathLive field on press.
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => insertTemplate(tpl)}
+                            className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-md ring-1 ring-foreground/10 transition-colors hover:bg-muted hover:ring-foreground/25 disabled:pointer-events-none disabled:opacity-50"
+                          >
+                            <MathIcon
+                              latex={tpl.latex}
+                              fallback={tpl.icon}
+                              className="inline-flex max-h-full max-w-full items-center justify-center leading-none [&_.katex]:text-[0.85em]"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                )}
+              </PopoverContent>
+            </Popover>
+          ))}
+        </Fragment>
       ))}
+
+      <ToolbarDivider />
 
       {/* Stil: shrift + rang. Applies to the OPEN formula's selection (Word
           style). No-op when no formula is being edited. */}
@@ -262,7 +393,7 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
       </Popover>
 
       {/* Free-form (empty) insertions — always start a new formula. */}
-      <span className="mx-1 h-5 w-px bg-foreground/10" aria-hidden />
+      <ToolbarDivider />
       <Button
         type="button"
         variant="ghost"
