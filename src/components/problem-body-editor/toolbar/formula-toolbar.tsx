@@ -36,112 +36,120 @@ import {
   BACKGROUND_COLORS,
   type FormulaTarget,
   type FormulaTemplate,
-  type FormulaGroup,
+  type FormulaSection,
 } from "./templates";
 import { MathIcon } from "./math-icon";
 import type { ActiveMathfieldStorage } from "../schema/extensions";
 
 /**
- * Toolbar layout — groups bucketed into Word/MathType-style clusters, rendered
- * left-to-right with a thin divider between clusters. Each entry lists the
- * group labels (from templates.ts) that belong to the cluster, in display
- * order. Every group MUST appear in exactly one cluster; any that don't are
- * appended after the clusters as a safety net.
+ * Teacher-friendly grouping. Each toolbar button is a "view group" that
+ * COMPOSES one or more underlying FORMULA_GROUPS (from templates.ts) into a
+ * single popover with labelled sub-sections — so 26 fragmented groups collapse
+ * to a handful of intuitive ones. templates.ts keeps the formula data
+ * untouched; the merge happens here, at display time.
+ *
+ *   • `triggerLatex` — the KaTeX glyph on the toolbar button.
+ *   • `sources`      — FORMULA_GROUPS labels pulled into this button's popover,
+ *                      in order. A multi-source view labels each source as a
+ *                      section; a single flat source shows one unlabelled grid.
+ *
+ * View groups are laid out left-to-right in CLUSTERS, with a thin divider
+ * between clusters.
  */
-const TOOLBAR_CLUSTERS: { name: string; groups: string[] }[] = [
-  { name: "Struktura", groups: ["Kasr", "Indekslar", "Ildiz"] },
+interface ViewGroup {
+  label: string;
+  triggerLatex: string;
+  sources: string[];
+}
+
+const TOOLBAR_CLUSTERS: { name: string; groups: ViewGroup[] }[] = [
   {
-    name: "Integral",
-    groups: ["Integrallar", "Kontur integrallar", "Differensiallar"],
-  },
-  {
-    name: "Katta operatorlar",
+    name: "Tuzilmalar",
     groups: [
-      "Yig'indilar",
-      "Ko'paytmalar",
-      "To'plam amallari",
-      "Boshqa katta operatorlar",
+      { label: "Kasr", triggerLatex: "\\frac{a}{b}", sources: ["Kasr"] },
+      { label: "Daraja va indeks", triggerLatex: "x^{n}", sources: ["Indekslar"] },
+      { label: "Ildiz", triggerLatex: "\\sqrt{x}", sources: ["Ildiz"] },
+      { label: "Qavslar", triggerLatex: "\\left(\\square\\right)", sources: ["Qavslar"] },
+      {
+        label: "Matritsa va vektor",
+        triggerLatex: "\\left[\\begin{smallmatrix}1&0\\\\0&1\\end{smallmatrix}\\right]",
+        sources: ["Matritsalar"],
+      },
     ],
   },
-  { name: "Qavs va matritsa", groups: ["Qavslar", "Matritsalar"] },
   {
-    name: "Funksiyalar",
+    name: "Analiz",
     groups: [
-      "Trigonometrik funksiyalar",
-      "Giperbolik funksiyalar",
-      "Qo'shimcha funksiyalar",
-      "Funksiyalar",
+      {
+        label: "Yig'indi va ko'paytma",
+        triggerLatex: "\\sum",
+        sources: ["Yig'indilar", "Ko'paytmalar", "To'plam amallari", "Boshqa katta operatorlar"],
+      },
+      {
+        label: "Integrallar",
+        triggerLatex: "\\int",
+        sources: ["Integrallar", "Kontur integrallar", "Differensiallar"],
+      },
+      { label: "Hosila va limit", triggerLatex: "\\tfrac{d}{dx}", sources: ["Boshqalar"] },
+      {
+        label: "Funksiyalar",
+        triggerLatex: "\\sin",
+        sources: [
+          "Trigonometrik funksiyalar",
+          "Giperbolik funksiyalar",
+          "Qo'shimcha funksiyalar",
+          "Funksiyalar",
+        ],
+      },
     ],
   },
   {
     name: "Belgilar",
     groups: [
-      "Munosabatlar",
-      "Amallar",
-      "O'qlar",
-      "To'plam va mantiq",
-      "Operatorlar",
-      "Aksent va bezaklar",
-      "Maxsus belgilar",
-      "Boshqalar",
+      { label: "Aksent va belgi", triggerLatex: "\\hat{x}", sources: ["Aksent va bezaklar"] },
+      { label: "Munosabatlar", triggerLatex: "\\leq", sources: ["Munosabatlar"] },
+      { label: "Amallar", triggerLatex: "\\pm", sources: ["Amallar"] },
+      { label: "To'plam va mantiq", triggerLatex: "\\in", sources: ["To'plam va mantiq"] },
+      { label: "O'qlar", triggerLatex: "\\rightarrow", sources: ["O'qlar"] },
+      { label: "Operatorlar", triggerLatex: "\\triangleq", sources: ["Operatorlar"] },
+      { label: "Maxsus belgilar", triggerLatex: "\\infty", sources: ["Maxsus belgilar"] },
     ],
   },
-  { name: "Yunon", groups: ["Yunon (kichik)", "Yunon (katta)"] },
+  {
+    name: "Yunon",
+    groups: [
+      {
+        label: "Yunon harflari",
+        triggerLatex: "\\alpha",
+        sources: ["Yunon (kichik)", "Yunon (katta)"],
+      },
+    ],
+  },
 ];
 
-/**
- * Representative latex rendered as the trigger glyph for each group (KaTeX,
- * MathType-style). Falls back to the group's text `icon` if a label is missing
- * here or fails to render.
- */
-const TRIGGER_LATEX: Record<string, string> = {
-  Kasr: "\\frac{a}{b}",
-  Indekslar: "x^{n}",
-  Ildiz: "\\sqrt{x}",
-  Integrallar: "\\int",
-  "Kontur integrallar": "\\oint",
-  Differensiallar: "dx",
-  "Yig'indilar": "\\sum",
-  "Ko'paytmalar": "\\prod",
-  "To'plam amallari": "\\bigcup",
-  "Boshqa katta operatorlar": "\\bigvee",
-  Qavslar: "\\left(\\square\\right)",
-  Matritsalar:
-    "\\left[\\begin{smallmatrix}1&0\\\\0&1\\end{smallmatrix}\\right]",
-  "Trigonometrik funksiyalar": "\\sin",
-  "Giperbolik funksiyalar": "\\sinh",
-  "Qo'shimcha funksiyalar": "\\log",
-  Funksiyalar: "f(x)",
-  "Aksent va bezaklar": "\\hat{x}",
-  Munosabatlar: "\\leq",
-  Amallar: "\\pm",
-  "O'qlar": "\\rightarrow",
-  "To'plam va mantiq": "\\in",
-  Operatorlar: "\\triangleq",
-  "Maxsus belgilar": "\\infty",
-  Boshqalar: "\\tfrac{d}{dx}",
-  "Yunon (kichik)": "\\alpha",
-  "Yunon (katta)": "\\Omega",
-};
-
-/** Group lookup by label, built once. */
+/** Source-group lookup by label, built once. */
 const GROUP_BY_LABEL = new Map(FORMULA_GROUPS.map((g) => [g.label, g]));
 
-/** Groups bucketed into clusters; any uncatalogued group lands in a trailing bucket. */
-const CLUSTERED_GROUPS: FormulaGroup[][] = (() => {
-  const used = new Set<string>();
-  const clusters = TOOLBAR_CLUSTERS.map((c) =>
-    c.groups
-      .map((label) => {
-        used.add(label);
-        return GROUP_BY_LABEL.get(label);
-      })
-      .filter((g): g is FormulaGroup => Boolean(g))
-  ).filter((groups) => groups.length > 0);
-  const leftovers = FORMULA_GROUPS.filter((g) => !used.has(g.label));
-  if (leftovers.length > 0) clusters.push(leftovers);
-  return clusters;
-})();
+/**
+ * Flatten a view group's source FORMULA_GROUPS into popover sections. A source
+ * that already has `sections` contributes them verbatim; a flat source becomes
+ * one section — unlabelled when it's the view's only source, otherwise headed
+ * by the source group's own label.
+ */
+function composeSections(view: ViewGroup): FormulaSection[] {
+  const multi = view.sources.length > 1;
+  const out: FormulaSection[] = [];
+  for (const srcLabel of view.sources) {
+    const g = GROUP_BY_LABEL.get(srcLabel);
+    if (!g) continue;
+    if (g.sections) {
+      out.push(...g.sections);
+    } else {
+      out.push({ label: multi ? g.label : "", templates: g.templates ?? [] });
+    }
+  }
+  return out;
+}
 
 /** Thin vertical separator between clusters / toolbar zones. */
 function ToolbarDivider() {
@@ -223,11 +231,11 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
       data-formula-tool
       className="flex flex-wrap items-center gap-x-1 gap-y-1.5"
     >
-      {CLUSTERED_GROUPS.map((groups, ci) => (
-        <Fragment key={groups[0]?.label ?? ci}>
+      {TOOLBAR_CLUSTERS.map((cluster, ci) => (
+        <Fragment key={cluster.name}>
           {ci > 0 && <ToolbarDivider />}
-          {groups.map((group) => (
-            <Popover key={group.label}>
+          {cluster.groups.map((view) => (
+            <Popover key={view.label}>
               <PopoverTrigger
                 render={
                   <Button
@@ -235,14 +243,13 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
                     variant="ghost"
                     size="sm"
                     disabled={disabled}
-                    title={group.label}
-                    aria-label={group.label}
+                    title={view.label}
+                    aria-label={view.label}
                     data-formula-tool
                     className="h-9 min-w-9 px-2"
                   >
                     <MathIcon
-                      latex={TRIGGER_LATEX[group.label] ?? ""}
-                      fallback={group.icon}
+                      latex={view.triggerLatex}
                       className="inline-flex items-center justify-center leading-none [&_.katex]:text-[1.05em]"
                     />
                   </Button>
@@ -254,12 +261,10 @@ export function FormulaToolbar({ editor }: FormulaToolbarProps) {
                 data-formula-tool
               >
                 <p className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {group.label}
+                  {view.label}
                 </p>
-                {/* A group is rendered either as one flat grid (`templates`) or
-                    as named sub-blocks (`sections`). Normalise to sections so
-                    the markup below has a single code path. */}
-                {(group.sections ?? [{ label: "", templates: group.templates ?? [] }]).map(
+                {/* Sections composed from the view's source groups. */}
+                {composeSections(view).map(
                   (section, i) => (
                     <div key={section.label || i}>
                       {section.label ? (

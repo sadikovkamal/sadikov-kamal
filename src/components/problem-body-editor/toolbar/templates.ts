@@ -425,7 +425,6 @@ export const FORMULA_GROUPS: FormulaGroup[] = [
       { icon: "logₐ", label: "Logarifm (asosi berilgan)", latex: "\\log_{#0}{#1}", target: "inline" },
       { icon: "lg", label: "O'nlik logarifm (lg)", latex: "\\lg #0", target: "inline" },
       { icon: "ln", label: "Natural logarifm", latex: "\\ln #0", target: "inline" },
-      { icon: "lim", label: "Limit", latex: "\\lim_{#0} #1", target: "inline" },
       { icon: "min", label: "Minimum", latex: "\\min #0", target: "inline" },
       { icon: "max", label: "Maksimum", latex: "\\max #0", target: "inline" },
     ],
@@ -538,6 +537,7 @@ export const FORMULA_GROUPS: FormulaGroup[] = [
     label: "Boshqalar",
     icon: "…",
     templates: [
+      { icon: "lim", label: "Limit", latex: "\\lim_{#0} #1", target: "inline" },
       { icon: "lim sup", label: "Yuqori limit", latex: "\\limsup_{#0}", target: "inline" },
       { icon: "lim inf", label: "Quyi limit", latex: "\\liminf_{#0}", target: "inline" },
       { icon: "d⁄dx", label: "Hosila (d/dx)", latex: "\\frac{d}{d#0}#1", target: "inline" },
