@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { sources, topics, ageCategories } from "@/db/schema";
 import { BUNDLE_LIMITS, problemFrontmatterSchema, type ProblemFrontmatter } from "./schema";
 import { parentIdSet } from "@/lib/taxonomy/hierarchy";
+import { validateBodyMath } from "./validate-math";
 import type { ParsedBundle, ParsedProblem } from "./parse";
 
 export interface ProblemValidation {
@@ -120,6 +121,17 @@ function validateProblem(
   // 2. Body.
   if (!parsed.bodyMd.trim()) {
     errors.push("Masala matni bo'sh (# Shart sarlavhasi yo'q?)");
+  } else {
+    // 2a. Every LaTeX formula must render in KaTeX, otherwise it would
+    //     show as a red error span on the public/print pages. Reject the
+    //     import instead so the admin fixes the source.
+    for (const mathErr of validateBodyMath(parsed.bodyMd)) {
+      const preview =
+        mathErr.latex.length > 60
+          ? `${mathErr.latex.slice(0, 60)}…`
+          : mathErr.latex;
+      errors.push(`Formula xato: "${preview}" (${mathErr.message})`);
+    }
   }
 
   // 3. Image count and existence.

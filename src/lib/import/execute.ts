@@ -46,7 +46,12 @@ export interface ExecuteResult {
  *  2. For each problem, runs a transaction that inserts the `problems`
  *     row (auto-assigning a `P#######` code), the topic/age junction
  *     rows, and the single image row. Image markdown refs in `body_md`
- *     are rewritten to absolute R2 URLs.
+ *     are rewritten to the PORTABLE `r2:<storageKey>` form (resolved to an
+ *     absolute URL at render time — see lib/storage/image-ref.ts).
+ *
+ * If any of a problem's images failed to upload in step 1, the problem is
+ * SKIPPED (logged to `errorLog`) rather than inserted with a broken image
+ * reference and no `images` row.
  *
  * No taxonomy auto-creation, no manifest, no dedup — those features
  * were removed when the format moved to explicit stable codes.
@@ -139,6 +144,25 @@ export async function executeImport(params: {
     }
 
     const { sourceId, ageCategoryIds, topicIds } = v.resolved;
+
+    // Guard: if any referenced image failed to upload in step 1, its
+    // filename is absent from `imageUrlByFilename`. Inserting the problem
+    // anyway would persist an unresolved `images/foo.png` body ref (a
+    // permanently broken `<img>`) with no `images` row. Skip it and log
+    // the failure so the admin sees it instead of a silently broken row.
+    const missingImages = parsed.imageRefs.filter(
+      (ref) => !imageUrlByFilename.has(ref)
+    );
+    if (missingImages.length > 0) {
+      errorLog.push({
+        index: v.index,
+        sourcePath: v.sourcePath,
+        error: `Rasm(lar) yuklanmadi, masala o'tkazib yuborildi: ${missingImages
+          .map((r) => `images/${r}`)
+          .join(", ")}`,
+      });
+      continue;
+    }
 
     // Rewrite relative `images/foo.png` refs to the PORTABLE `r2:<storageKey>`
     // form (not an absolute URL) so the body stays host-independent — see

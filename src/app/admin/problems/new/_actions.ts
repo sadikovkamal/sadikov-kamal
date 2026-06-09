@@ -96,6 +96,13 @@ export interface ExecuteSuccess {
   successCount: number;
   totalCount: number;
   createdCodes: string[];
+  /**
+   * Per-problem failures that happened DURING execution (after validation
+   * passed) — e.g. a transient R2 upload failure that caused a problem to
+   * be skipped. Surfaced so a partially-successful import never hides a
+   * broken/skipped problem behind a green "success" modal.
+   */
+  errors: string[];
 }
 export type ExecuteResult = ExecuteSuccess | { error: string };
 
@@ -194,5 +201,8 @@ export async function executeImportAction(
     successCount: result.successCount,
     totalCount: result.totalCount,
     createdCodes: result.createdCodes,
+    errors: result.errorLog.map((e) =>
+      e.sourcePath ? `${e.sourcePath}: ${e.error}` : e.error
+    ),
   };
 }
