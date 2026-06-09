@@ -360,6 +360,19 @@ export function ImportUploader() {
               Yangi masala kodlari quyida. Ro&apos;yxatdan ko&apos;rib chiqishingiz mumkin.
             </DialogDescription>
           </DialogHeader>
+          {success && success.errors.length > 0 && (
+            <div className="rounded-md ring-1 ring-amber-500/40 bg-amber-50 px-3 py-2 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              <p className="text-xs font-medium">
+                {success.totalCount - success.successCount} ta masala
+                o&apos;tkazib yuborildi:
+              </p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[11px]">
+                {success.errors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {success && success.createdCodes.length > 0 && (
             <div className="max-h-48 overflow-auto rounded-md ring-1 ring-foreground/10 bg-muted/30 px-3 py-2">
               <div className="flex flex-wrap gap-1.5">

@@ -39,6 +39,7 @@ SERVER_ONLY=(
   "topics-xlsx-smoke.ts"
   "leaf-rule-smoke.ts"
   "print-smoke.ts"
+  "print-omml-coverage.ts"
 )
 
 PASS=0

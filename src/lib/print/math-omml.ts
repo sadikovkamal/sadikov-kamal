@@ -6,8 +6,22 @@ import { RegisterHTMLHandler } from "mathjax-full/js/handlers/html.js";
 import { liteAdaptor } from "mathjax-full/js/adaptors/liteAdaptor.js";
 import { SerializedMmlVisitor } from "mathjax-full/js/core/MmlTree/SerializedMmlVisitor.js";
 // Side-effect imports register the TeX extension packages we enable below.
+// Each `packages` entry MUST have a matching side-effect import here, or
+// MathJax can't find its config at parse time (autoload/dynamic require is
+// NOT available in this no-loader, no-output-jax setup — that is why the
+// `cancel`/`extpfeil` macros silently fell through to the text fallback
+// before, even though autoload nominally maps them).
 import "mathjax-full/js/input/tex/base/BaseConfiguration.js";
 import "mathjax-full/js/input/tex/ams/AmsConfiguration.js";
+import "mathjax-full/js/input/tex/cancel/CancelConfiguration.js";
+import "mathjax-full/js/input/tex/extpfeil/ExtpfeilConfiguration.js";
+import "mathjax-full/js/input/tex/mathtools/MathtoolsConfiguration.js";
+// `configmacros` is what makes the TeX `macros` option below take effect;
+// without it the custom \oiint/\overgroup definitions are silently ignored.
+import "mathjax-full/js/input/tex/configmacros/ConfigMacrosConfiguration.js";
+// `unicode` provides \unicode{xNNNN}, used by the \oiint/\oiiint macros to
+// emit the contour-integral glyphs that no TeX package defines.
+import "mathjax-full/js/input/tex/unicode/UnicodeConfiguration.js";
 import { mml2omml } from "mathml2omml";
 
 /**
@@ -50,14 +64,42 @@ function getMathDocument(): MathDocument {
     htmlHandlerRegistered = true;
   }
 
-  // We deliberately enable only base + ams. AllPackages would pull in
-  // bussproofs, which calls getBBox() on the output jax during compile;
-  // since we operate without an output jax (we serialise the MmlNode
-  // tree directly), bussproofs throws and forces every conversion into
-  // the fallback path. base + ams cover every TeX construct we expect
-  // in problem bodies.
+  // We deliberately DON'T use AllPackages: it pulls in bussproofs, which
+  // calls getBBox() on the output jax during compile; since we operate
+  // without an output jax (we serialise the MmlNode tree directly),
+  // bussproofs throws and forces every conversion into the fallback path.
+  //
+  // Instead we enable an explicit, vetted set:
+  //   base + ams  — fractions, roots, sums/integrals, matrices, accents, …
+  //   cancel      — \cancel \bcancel \xcancel \cancelto
+  //   extpfeil    — \xlongequal \xtwoheadrightarrow \xtwoheadleftarrow \xmapsto …
+  //   mathtools   — \xLeftarrow \xRightarrow \xLeftrightarrow \xhookrightarrow …
+  // Every one of these is exercised by scripts/print-omml-coverage.ts, which
+  // asserts that all toolbar templates convert to structural OMML (no
+  // "Undefined control sequence" text fallback). A few constructs have no
+  // package at all (\oiint \oiiint \overgroup \undergroup) and are mapped to
+  // supported equivalents via `macros` below.
   const tex = new TeX({
-    packages: ["base", "ams"],
+    packages: [
+      "base",
+      "ams",
+      "cancel",
+      "extpfeil",
+      "mathtools",
+      "configmacros",
+      "unicode",
+    ],
+    macros: {
+      // Contour double/triple integrals: no MathJax package defines these
+      // (only \oint exists). Render the proper Unicode contour-integral
+      // glyphs as a math operator so sub/superscript limits attach.
+      oiint: "\\mathop{\\unicode{x222F}}",
+      oiiint: "\\mathop{\\unicode{x2230}}",
+      // Over/under arcs: \overgroup/\undergroup are unsupported here, but
+      // \overparen/\underparen (base) draw the same stretchy arc accent.
+      overgroup: ["\\overparen{#1}", 1],
+      undergroup: ["\\underparen{#1}", 1],
+    },
   });
 
   // We stop the pipeline at STATE.CONVERT and serialise the MathML tree
